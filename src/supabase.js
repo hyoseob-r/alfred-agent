@@ -1,0 +1,84 @@
+import { createClient } from '@supabase/supabase-js'
+
+const SUPABASE_URL = 'https://atwztuelyhwtohylbypv.supabase.co'
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0d3p0dWVseWh3dG9oeWxieXB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNzY2MTMsImV4cCI6MjA4ODg1MjYxM30.xkq6_HIadBh57v6W_puBKf8iP7gGd-1ifYtSfxHc4eY'
+
+export const sb = createClient(SUPABASE_URL, SUPABASE_ANON)
+export const SCHEMA_VERSION = 2
+
+export function migrateMessages(msgs) {
+  return (msgs || []).map(m => ({
+    ...m,
+    files: m.files || (m.images ? m.images.map(img => ({ type: 'image', name: img.name || 'image', mediaType: img.mediaType })) : []),
+    images: undefined,
+  }))
+}
+
+export function serializeMessages(msgs) {
+  return msgs.map(m => ({
+    role: m.role,
+    content: m.content || '',
+    stageLabel: m.stageLabel,
+    stageColor: m.stageColor,
+    stageIcon: m.stageIcon,
+    files: m.files?.map(f => ({ type: f.type, name: f.name, mediaType: f.mediaType })) || [],
+  }))
+}
+
+export function newSessionId() { return 's_' + Date.now() }
+
+export async function dbLoadSessions(userId) {
+  const { data, error } = await sb.from('sessions')
+    .select('id,title,stage,updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(30)
+  if (error) { console.error(error); return [] }
+  return data || []
+}
+
+export async function dbLoadMessages(sessionId) {
+  const { data, error } = await sb.from('messages')
+    .select('role,content,files_meta,stage_label,stage_color,stage_icon')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: true })
+  if (error) { console.error(error); return [] }
+  return (data || []).map(m => ({
+    role: m.role, content: m.content,
+    files: migrateMessages([{ files: m.files_meta }])[0]?.files || [],
+    stageLabel: m.stage_label, stageColor: m.stage_color, stageIcon: m.stage_icon,
+  }))
+}
+
+export async function dbUpsertSession(session, userId) {
+  await sb.from('sessions').upsert({
+    id: session.id, user_id: userId,
+    title: session.title, stage: session.stage,
+    schema_version: SCHEMA_VERSION, updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' })
+}
+
+export async function dbSaveMessages(sessionId, msgs, userId) {
+  await sb.from('messages').delete().eq('session_id', sessionId)
+  const rows = serializeMessages(msgs).map(m => ({
+    session_id: sessionId, user_id: userId,
+    role: m.role, content: m.content,
+    files_meta: m.files || [],
+    stage_label: m.stageLabel || null,
+    stage_color: m.stageColor || null,
+    stage_icon: m.stageIcon || null,
+  }))
+  if (rows.length) await sb.from('messages').insert(rows)
+}
+
+export async function dbDeleteSession(sessionId) {
+  await sb.from('sessions').delete().eq('id', sessionId)
+}
+
+export async function signInWithGitHub() {
+  await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.href } })
+}
+
+export async function signOut() {
+  await sb.auth.signOut()
+}
