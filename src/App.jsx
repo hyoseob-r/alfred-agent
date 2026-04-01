@@ -197,6 +197,47 @@ End with a MERGED recommendation: "Document A의 [section]과 Document B의 [sec
 
 Respond in Korean.`;
 
+const RESEARCH_PROMPT = `You are a Research & Intelligence Agent specializing in Korean and global markets.
+
+Your primary domains: 배달앱, 푸드딜리버리, 퀵커머스, 다크스토어/다크마트, 모바일 UX, IT/테크 산업.
+
+When given a research topic, produce a structured report in this exact format:
+
+---
+# [주제] 리서치 리포트
+
+## 1. 현황 (Current State)
+- 핵심 지표, 시장 규모, 주요 플레이어
+- 국내 + 글로벌 비교 (있을 경우)
+
+## 2. 트렌드 & 추이 (Trends)
+- 최근 1-3년 주요 변화
+- 소비자 행동 변화
+- 기술/서비스 변화
+
+## 3. 향후 예측 (Forecast)
+- 단기(6-12개월): 예상 변화
+- 중기(1-3년): 구조적 변화
+- 근거: 어떤 신호를 기반으로 예측하는가
+
+## 4. 장단점 분석 (Pros & Cons)
+현재 구조 또는 주요 트렌드의 장단점:
+| 구분 | 내용 | 영향도 |
+|------|------|--------|
+| 강점 | ... | 상/중/하 |
+| 약점 | ... | 상/중/하 |
+| 기회 | ... | 상/중/하 |
+| 위협 | ... | 상/중/하 |
+
+## 5. 핵심 인사이트 & 판단
+- 가장 중요한 시사점 3가지
+- 지금 가장 효율적인 판단/액션은 무엇인가
+
+---
+
+Be specific with numbers and examples when possible. If uncertain, flag it explicitly.
+Respond in Korean.`;
+
 const STAGES = {
   IDLE: "idle",
   M1: "m1_discovery",
@@ -685,6 +726,90 @@ function ScoreBadge({ score, total = 100 }) {
     <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "2px 10px", borderRadius: "12px", background: color + "22", border: `1px solid ${color}66`, fontSize: "11px", fontFamily: "'Pretendard', sans-serif", color }}>
       {grade} · {score}/{total}
     </span>
+  );
+}
+
+// Research Panel
+function ResearchPanel() {
+  const [topic, setTopic] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const DOMAINS = ["배달앱", "퀵커머스", "다크스토어", "푸드딜리버리", "모바일 UX", "IT/테크"];
+
+  const runResearch = async () => {
+    if (!topic.trim() || loading) return;
+    setResult("");
+    setLoading(true);
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4000,
+          system: RESEARCH_PROMPT,
+          messages: [{ role: "user", content: topic }],
+        }),
+      });
+      const data = await response.json();
+      setResult(data.content?.[0]?.text || "결과를 가져오지 못했습니다.");
+    } catch {
+      setResult("오류가 발생했습니다. 다시 시도해 주십시오.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Input area */}
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #1a1a30", background: "#08081a" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px" }}>
+          {DOMAINS.map(d => (
+            <button key={d} onClick={() => setTopic(prev => prev ? `${prev}, ${d}` : d)}
+              style={{ padding: "4px 10px", background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "20px", color: "#7070a0", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#5a5aaa"; e.currentTarget.style.color = "#b0b0e0"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a4a"; e.currentTarget.style.color = "#7070a0"; }}>
+              {d}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <textarea
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runResearch(); } }}
+            placeholder="리서치 주제를 입력하세요. 예: 국내 퀵커머스 시장 현황과 전망"
+            rows={2}
+            style={{ flex: 1, background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "12px", padding: "10px 14px", color: "#e0e0f0", fontSize: "13px", resize: "none", outline: "none", lineHeight: "1.6", transition: "border-color 0.2s" }}
+            onFocus={e => e.target.style.borderColor = "#4a4a8a"}
+            onBlur={e => e.target.style.borderColor = "#2a2a4a"}
+          />
+          <button onClick={runResearch} disabled={!topic.trim() || loading}
+            style={{ padding: "0 20px", background: topic.trim() && !loading ? "linear-gradient(135deg, #2a2a6a 0%, #1a1a4a 100%)" : "#1a1a30", border: "1px solid", borderColor: topic.trim() && !loading ? "#5a5aaa" : "#2a2a40", borderRadius: "12px", color: topic.trim() && !loading ? "#c0c0f0" : "#3a3a5a", fontSize: "13px", cursor: topic.trim() && !loading ? "pointer" : "not-allowed", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+            {loading ? "분석 중..." : "분석 시작"}
+          </button>
+        </div>
+      </div>
+
+      {/* Result area */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px", scrollbarWidth: "thin", scrollbarColor: "#1a1a30 transparent" }}>
+        {loading && (
+          <div style={{ display: "flex", gap: "6px", alignItems: "center", color: "#4a4a8a", fontSize: "12px" }}>
+            {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4a4a8a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+            <span style={{ marginLeft: "8px" }}>리서치 중...</span>
+          </div>
+        )}
+        {result && !loading && <MarkdownRenderer content={result} />}
+        {!result && !loading && (
+          <div style={{ textAlign: "center", color: "#2a2a4a", fontSize: "12px", marginTop: "60px", lineHeight: "2" }}>
+            <div style={{ fontSize: "32px", marginBottom: "16px", opacity: 0.4 }}>🔭</div>
+            주제를 입력하고 분석을 시작하세요.<br />
+            현황 · 트렌드 · 예측 · 장단 분석을 제공합니다.
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1201,6 +1326,7 @@ export default function App() {
   const [started, setStarted] = useState(false);
   const [pendingImages, setPendingImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeTab, setActiveTab] = useState("agent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
@@ -1504,8 +1630,15 @@ export default function App() {
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#3a3a5a"; e.currentTarget.style.color = "#8080a0"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a30"; e.currentTarget.style.color = "#4a4a6a"; }}>☰</button>
           <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a3e 0%, #0d0d2b 100%)", border: "1px solid #3a3a6a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>A</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "#c0c0e0", letterSpacing: "0.05em" }}>Problem-to-Product Agent</div>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "4px", background: "#0e0e20", border: "1px solid #1a1a30", borderRadius: "10px", padding: "3px" }}>
+              {[{ id: "agent", label: "Agent" }, { id: "research", label: "Research" }].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  style={{ padding: "4px 12px", borderRadius: "7px", background: activeTab === tab.id ? "#1e1e3a" : "transparent", border: activeTab === tab.id ? "1px solid #3a3a6a" : "1px solid transparent", color: activeTab === tab.id ? "#c0c0f0" : "#4a4a6a", fontSize: "11px", cursor: "pointer", transition: "all 0.2s", fontWeight: activeTab === tab.id ? 600 : 400 }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             <div style={{ fontSize: "10px", color: "#4a4a7a", letterSpacing: "0.1em" }}>
               {dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
             </div>
@@ -1518,40 +1651,46 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a30"; e.currentTarget.style.color = "#4a4a6a"; }}>로그아웃</button>
         </div>
 
-        <StageProgress currentStage={currentStage} />
+        {activeTab === "agent" && <StageProgress currentStage={currentStage} />}
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#1a1a30 transparent" }}>
-          {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
-          {loading && (
-            <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "16px" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #3a3a5c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>A</div>
-              <div style={{ padding: "12px 16px", background: "linear-gradient(135deg, #12122a 0%, #0e0e20 100%)", border: "1px solid #2a2a4a", borderRadius: "4px 16px 16px 16px", display: "flex", gap: "6px", alignItems: "center" }}>
-                {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4a4a8a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+        {activeTab === "research" ? (
+          <ResearchPanel />
+        ) : (
+          <>
+            <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#1a1a30 transparent" }}>
+              {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
+              {loading && (
+                <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "16px" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #3a3a5c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>A</div>
+                  <div style={{ padding: "12px 16px", background: "linear-gradient(135deg, #12122a 0%, #0e0e20 100%)", border: "1px solid #2a2a4a", borderRadius: "4px 16px 16px 16px", display: "flex", gap: "6px", alignItems: "center" }}>
+                    {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4a4a8a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                  </div>
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            <div style={{ background: "#08081a", borderTop: "1px solid #1a1a30" }}>
+              <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
+              {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
+              <div style={{ padding: "10px 16px 14px", display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                <button onClick={() => fileInputRef.current?.click()} style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#0e0e22", border: "1px solid #2a2a4a", color: "#5a5a90", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0, transition: "all 0.2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a8a"; e.currentTarget.style.color = "#9090d0"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a4a"; e.currentTarget.style.color = "#5a5a90"; }}>📎</button>
+                <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls,.tsv,text/csv" multiple style={{ display: "none" }} onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
+                <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} onPaste={onPaste}
+                  onCompositionStart={() => { isComposingRef.current = true; }}
+                  onCompositionEnd={() => { isComposingRef.current = false; }}
+                  placeholder="문제나 불편함을 말씀해 주십시오..."
+                  rows={1}
+                  style={{ flex: 1, background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "12px", padding: "10px 14px", color: "#e0e0f0", fontSize: "13.5px", resize: "none", outline: "none", lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", transition: "border-color 0.2s" }}
+                  onFocus={e => e.target.style.borderColor = "#4a4a8a"} onBlur={e => e.target.style.borderColor = "#2a2a4a"} />
+                <button onClick={sendMessage} disabled={!canSend}
+                  style={{ width: "40px", height: "40px", borderRadius: "50%", background: canSend ? "linear-gradient(135deg, #2a2a6a 0%, #1a1a4a 100%)" : "#1a1a30", border: "1px solid", borderColor: canSend ? "#5a5aaa" : "#2a2a40", color: canSend ? "#c0c0f0" : "#3a3a5a", cursor: canSend ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, transition: "all 0.2s" }}>↑</button>
               </div>
             </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        <div style={{ background: "#08081a", borderTop: "1px solid #1a1a30" }}>
-          <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
-          {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
-          <div style={{ padding: "10px 16px 14px", display: "flex", gap: "8px", alignItems: "flex-end" }}>
-            <button onClick={() => fileInputRef.current?.click()} style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#0e0e22", border: "1px solid #2a2a4a", color: "#5a5a90", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0, transition: "all 0.2s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a8a"; e.currentTarget.style.color = "#9090d0"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a4a"; e.currentTarget.style.color = "#5a5a90"; }}>📎</button>
-            <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls,.tsv,text/csv" multiple style={{ display: "none" }} onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
-            <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} onPaste={onPaste}
-              onCompositionStart={() => { isComposingRef.current = true; }}
-              onCompositionEnd={() => { isComposingRef.current = false; }}
-              placeholder="문제나 불편함을 말씀해 주십시오..."
-              rows={1}
-              style={{ flex: 1, background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "12px", padding: "10px 14px", color: "#e0e0f0", fontSize: "13.5px", resize: "none", outline: "none", lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", transition: "border-color 0.2s" }}
-              onFocus={e => e.target.style.borderColor = "#4a4a8a"} onBlur={e => e.target.style.borderColor = "#2a2a4a"} />
-            <button onClick={sendMessage} disabled={!canSend}
-              style={{ width: "40px", height: "40px", borderRadius: "50%", background: canSend ? "linear-gradient(135deg, #2a2a6a 0%, #1a1a4a 100%)" : "#1a1a30", border: "1px solid", borderColor: canSend ? "#5a5aaa" : "#2a2a40", color: canSend ? "#c0c0f0" : "#3a3a5a", cursor: canSend ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, transition: "all 0.2s" }}>↑</button>
-          </div>
-        </div>
+          </>
+        )}
 
         <style>{`
           @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
