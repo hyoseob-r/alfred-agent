@@ -701,7 +701,7 @@ function ReviewPanel({ doc, title, onClose }) {
   const runReview = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -761,7 +761,7 @@ function ComparePanel({ docA, docB, onClose }) {
   const runCompare = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -900,7 +900,7 @@ function MessageBubble({ msg, onDocReady }) {
   const handleUploadForCompare = async (uploaded) => {
     if (uploaded.type === "image") {
       // For image, run OCR-like extraction via Claude
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1329,7 +1329,7 @@ export default function App() {
       ...history.map(m => ({ role: m.role, content: m.files?.length && m.files.some(f => f.base64 || f.text) ? buildContent(m.content, m.files) : (m.content || "") })),
       { role: "user", content: buildContent(userText, files) },
     ];
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs }),
