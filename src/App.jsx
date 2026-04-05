@@ -248,7 +248,7 @@ const STAGES = {
 };
 
 const STAGE_INFO = {
-  idle: { label: "시작", color: "#8b8fa8", icon: "◎" },
+  idle: { label: "시작", color: "#888888", icon: "◎" },
   m1_discovery: { label: "M1 문제 발견", color: "#6c8ebf", icon: "🔍" },
   m2_ux: { label: "M2 UX 구조화", color: "#7b68b5", icon: "🧭" },
   m3_solution: { label: "M3 솔루션 설계", color: "#5a9e8f", icon: "⚙️" },
@@ -335,12 +335,12 @@ const CHART_COLORS = ["#6c8ebf", "#7b68b5", "#5a9e8f", "#c97b3a", "#9e5a9e", "#5
 function ChartRenderer({ spec }) {
   if (!spec || !spec.data?.length) return null;
   const { type, title, xKey, yKey, data } = spec;
-  const axisStyle = { fill: "#6060a0", fontSize: 11 };
-  const tooltipStyle = { background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "8px", fontSize: "12px", color: "#d0d0f0" };
+  const axisStyle = { fill: "#888888", fontSize: 11 };
+  const tooltipStyle = { background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "8px", fontSize: "12px", color: "#333333" };
   const commonProps = { data, margin: { top: 8, right: 16, left: 0, bottom: 36 } };
   return (
-    <div style={{ margin: "12px 0", padding: "14px 16px", background: "#0a0a1e", border: "1px solid #1e1e3a", borderRadius: "10px", width: "100%" }}>
-      {title && <div style={{ fontSize: "12px", fontWeight: 600, color: "#9090c0", marginBottom: "12px", letterSpacing: "0.04em" }}>{title}</div>}
+    <div style={{ margin: "12px 0", padding: "14px 16px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "10px", width: "100%" }}>
+      {title && <div style={{ fontSize: "12px", fontWeight: 600, color: "#666666", marginBottom: "12px", letterSpacing: "0.04em" }}>{title}</div>}
       <ResponsiveContainer width="100%" height={300}>
         {type === "pie" ? (
           <PieChart>
@@ -351,7 +351,7 @@ function ChartRenderer({ spec }) {
           </PieChart>
         ) : type === "scatter" ? (
           <ScatterChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a30" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
             <XAxis dataKey={xKey} tick={axisStyle} />
             <YAxis dataKey={yKey} tick={axisStyle} />
             <Tooltip contentStyle={tooltipStyle} />
@@ -359,7 +359,7 @@ function ChartRenderer({ spec }) {
           </ScatterChart>
         ) : type === "line" ? (
           <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a30" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
             <XAxis dataKey={xKey} tick={axisStyle} />
             <YAxis tick={axisStyle} />
             <Tooltip contentStyle={tooltipStyle} />
@@ -367,7 +367,7 @@ function ChartRenderer({ spec }) {
           </LineChart>
         ) : (
           <BarChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a30" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
             <XAxis dataKey={xKey} tick={axisStyle} interval={0} angle={-30} textAnchor="end" height={48} />
             <YAxis tick={axisStyle} />
             <Tooltip contentStyle={tooltipStyle} />
@@ -386,18 +386,18 @@ function DataSummaryCard({ stats }) {
   return (
     <div style={{ margin: "10px 0", display: "flex", flexWrap: "wrap", gap: "8px" }}>
       {Object.entries(stats).map(([col, s]) => (
-        <div key={col} style={{ padding: "8px 12px", background: "#0e0e22", border: "1px solid #1e1e3a", borderRadius: "8px", minWidth: "130px", flex: "1 1 130px" }}>
-          <div style={{ fontSize: "10px", color: "#5a5a8a", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col}</div>
+        <div key={col} style={{ padding: "8px 12px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "8px", minWidth: "130px", flex: "1 1 130px" }}>
+          <div style={{ fontSize: "10px", color: "#888888", marginBottom: "4px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col}</div>
           {s.type === "numeric" ? (
-            <div style={{ fontSize: "11px", color: "#8080b0", lineHeight: "1.7" }}>
-              <span style={{ color: "#a0c0f0", fontWeight: 600 }}>{s.mean}</span> 평균<br />
-              <span style={{ color: "#6060a0" }}>{s.min} – {s.max}</span>
+            <div style={{ fontSize: "11px", color: "#777777", lineHeight: "1.7" }}>
+              <span style={{ color: "#336699", fontWeight: 600 }}>{s.mean}</span> 평균<br />
+              <span style={{ color: "#888888" }}>{s.min} – {s.max}</span>
             </div>
           ) : (
-            <div style={{ fontSize: "11px", color: "#8080b0", lineHeight: "1.7" }}>
+            <div style={{ fontSize: "11px", color: "#777777", lineHeight: "1.7" }}>
               {s.top.slice(0, 3).map(([k, v]) => (
                 <div key={k} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  <span style={{ color: "#a0a0d0" }}>{k}</span> <span style={{ color: "#5a5a8a" }}>({v})</span>
+                  <span style={{ color: "#555555" }}>{k}</span> <span style={{ color: "#888888" }}>({v})</span>
                 </div>
               ))}
             </div>
@@ -428,40 +428,40 @@ function openFullView(content) {
 <style>
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif}
-  body{background:#060612;color:#d8d8f0;min-height:100vh;padding:40px 24px}
+  body{background:#f5f5f5;color:#333333;min-height:100vh;padding:40px 24px}
   .wrap{max-width:760px;margin:0 auto}
-  .header{display:flex;align-items:center;gap:12px;padding-bottom:20px;border-bottom:1px solid #1a1a30;margin-bottom:28px}
-  .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a1a3e,#0d0d2b);border:1px solid #3a3a6a;display:flex;align-items:center;justify-content:center;font-size:13px;color:#c0c0e0;flex-shrink:0}
-  .title{font-size:13px;color:#6060a0;letter-spacing:.12em;font-weight:500}
-  .copy-btn{margin-left:auto;padding:6px 14px;background:#0e0e22;border:1px solid #2a2a4a;border-radius:20px;color:#6060a0;font-size:11px;cursor:pointer;transition:all .2s}
-  .copy-btn:hover{border-color:#4a4a8a;color:#a0a0d0}
-  h1{font-size:20px;font-weight:700;color:#f0f0ff;margin:20px 0 8px;padding-bottom:8px;border-bottom:1px solid #2a2a4a}
-  h2{font-size:15px;font-weight:700;color:#e0e0ff;margin:16px 0 4px}
-  h3{font-size:13.5px;font-weight:600;color:#c8c8f0;margin:12px 0 3px}
-  p{color:#d0d0f0;line-height:1.8;margin:4px 0;font-size:14px}
+  .header{display:flex;align-items:center;gap:12px;padding-bottom:20px;border-bottom:1px solid #e5e5e5;margin-bottom:28px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#111111,#c8c8e0);border:1px solid #cccccc;display:flex;align-items:center;justify-content:center;font-size:13px;color:#444444;flex-shrink:0}
+  .title{font-size:13px;color:#888888;letter-spacing:.12em;font-weight:500}
+  .copy-btn{margin-left:auto;padding:6px 14px;background:#f8f8f8;border:1px solid #cccccc;border-radius:20px;color:#888888;font-size:11px;cursor:pointer;transition:all .2s}
+  .copy-btn:hover{border-color:#aaaaaa;color:#555555}
+  h1{font-size:20px;font-weight:700;color:#111111;margin:20px 0 8px;padding-bottom:8px;border-bottom:1px solid #cccccc}
+  h2{font-size:15px;font-weight:700;color:#222222;margin:16px 0 4px}
+  h3{font-size:13.5px;font-weight:600;color:#444444;margin:12px 0 3px}
+  p{color:#333333;line-height:1.8;margin:4px 0;font-size:14px}
   ul{padding-left:0;list-style:none;margin:4px 0}
-  ul li{display:flex;gap:8px;color:#d0d0f0;line-height:1.7;font-size:14px;margin:2px 0}
-  ul li::before{content:"•";color:#5a5a9a;flex-shrink:0}
+  ul li{display:flex;gap:8px;color:#333333;line-height:1.7;font-size:14px;margin:2px 0}
+  ul li::before{content:"•";color:#888888;flex-shrink:0}
   ol{padding-left:0;list-style:none;counter-reset:li;margin:4px 0}
-  ol li{display:flex;gap:8px;color:#d0d0f0;line-height:1.7;font-size:14px;margin:2px 0;counter-increment:li}
-  ol li::before{content:counter(li)".";color:#5a5a9a;flex-shrink:0;min-width:16px}
-  hr{border:none;border-top:1px solid #2a2a4a;margin:14px 0}
-  code{background:#1e1e3a;border:1px solid #3a3a5a;border-radius:4px;padding:1px 6px;font-size:12px;color:#a0c0f0;font-family:monospace}
-  pre{background:#0a0a1e;border:1px solid #2a2a4a;border-radius:8px;padding:14px;overflow-x:auto;margin:10px 0}
-  pre code{background:none;border:none;padding:0;font-size:12.5px;color:#b0c8f0;line-height:1.6}
-  blockquote{border-left:3px solid #3a3a6a;padding-left:12px;color:#9090c0;font-style:italic;margin:6px 0}
-  table{width:100%;border-collapse:collapse;margin:12px 0;border:1px solid #2a2a4a;border-radius:8px;overflow:hidden}
-  thead tr{background:#14142e}
-  th{padding:9px 14px;text-align:left;color:#9090c0;font-weight:600;border-bottom:1px solid #2a2a4a;font-size:12px;letter-spacing:.04em}
-  td{padding:8px 14px;color:#d0d0f0;border-bottom:1px solid #1a1a30;font-size:13.5px;line-height:1.5;vertical-align:top}
+  ol li{display:flex;gap:8px;color:#333333;line-height:1.7;font-size:14px;margin:2px 0;counter-increment:li}
+  ol li::before{content:counter(li)".";color:#888888;flex-shrink:0;min-width:16px}
+  hr{border:none;border-top:1px solid #cccccc;margin:14px 0}
+  code{background:#e5e5e5;border:1px solid #cccccc;border-radius:4px;padding:1px 6px;font-size:12px;color:#336699;font-family:monospace}
+  pre{background:#f8f8f8;border:1px solid #cccccc;border-radius:8px;padding:14px;overflow-x:auto;margin:10px 0}
+  pre code{background:none;border:none;padding:0;font-size:12.5px;color:#336699;line-height:1.6}
+  blockquote{border-left:3px solid #cccccc;padding-left:12px;color:#666666;font-style:italic;margin:6px 0}
+  table{width:100%;border-collapse:collapse;margin:12px 0;border:1px solid #cccccc;border-radius:8px;overflow:hidden}
+  thead tr{background:#f0f0f0}
+  th{padding:9px 14px;text-align:left;color:#666666;font-weight:600;border-bottom:1px solid #cccccc;font-size:12px;letter-spacing:.04em}
+  td{padding:8px 14px;color:#333333;border-bottom:1px solid #e5e5e5;font-size:13.5px;line-height:1.5;vertical-align:top}
   tbody tr:last-child td{border-bottom:none}
-  tbody tr:nth-child(even){background:#0c0c1e}
+  tbody tr:nth-child(even){background:#f5f5f5}
   .callout{display:flex;gap:8px;padding:6px 12px;margin:4px 0;border-radius:6px;font-size:13px;line-height:1.6}
-  .callout.ok{background:#0e1e14;border:1px solid #1e4a2a}
-  .callout.err{background:#1e0e0e;border:1px solid #4a1e1e}
-  .callout.warn{background:#1e180a;border:1px solid #4a3a1a}
-  strong{font-weight:700;color:#f0f0ff}
-  em{color:#c0c0f0;font-style:italic}
+  .callout.ok{background:#edf7f0;border:1px solid #90c8a0}
+  .callout.err{background:#fef2f2;border:1px solid #f0a0a0}
+  .callout.warn{background:#fefde8;border:1px solid #d4b860}
+  strong{font-weight:700;color:#111111}
+  em{color:#555555;font-style:italic}
 </style>
 </head>
 <body>
@@ -494,7 +494,7 @@ while(i < lines.length){
     const lang=line.slice(3).trim();i++;
     let code=[];
     while(i<lines.length&&!lines[i].startsWith('\`\`\`')){code.push(lines[i]);i++;}i++;
-    html+='<pre><code>'+(lang?'<span style="color:#5a5a8a;font-size:10px;display:block;margin-bottom:6px">'+lang+'</span>':'')+esc(code.join('\\n'))+'</code></pre>';continue;
+    html+='<pre><code>'+(lang?'<span style="color:#888888;font-size:10px;display:block;margin-bottom:6px">'+lang+'</span>':'')+esc(code.join('\\n'))+'</code></pre>';continue;
   }
   const m1=line.match(/^#\\s+(.+)/),m2=line.match(/^##\\s+(.+)/),m3=line.match(/^###\\s+(.+)/);
   if(m1){html+='<h1>'+inl(m1[1])+'</h1>';i++;continue;}
@@ -536,13 +536,13 @@ function FullViewButton({ content }) {
       style={{
         display: "inline-flex", alignItems: "center", gap: "5px",
         marginTop: "8px", padding: "5px 12px",
-        background: "#0e0e22", border: "1px solid #2a2a4a",
-        borderRadius: "20px", color: "#6060a0",
+        background: "#f8f8f8", border: "1px solid #cccccc",
+        borderRadius: "20px", color: "#888888",
         fontSize: "11px", cursor: "pointer",
         transition: "all 0.2s", letterSpacing: "0.04em",
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a8a"; e.currentTarget.style.color = "#a0a0d0"; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a4a"; e.currentTarget.style.color = "#6060a0"; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#888888"; }}
     >
       ↗ 새 창으로 전체 보기
     </button>
@@ -561,10 +561,10 @@ function MarkdownRenderer({ content }) {
     let last = 0, m;
     while ((m = regex.exec(text)) !== null) {
       if (m.index > last) parts.push(text.slice(last, m.index));
-      if (m[1]) parts.push(<strong key={m.index} style={{ fontWeight: 700, color: "#f0f0ff" }}>{m[2]}</strong>);
-      else if (m[3]) parts.push(<code key={m.index} style={{ background: "#1e1e3a", border: "1px solid #3a3a5a", borderRadius: "4px", padding: "1px 6px", fontSize: "12px", color: "#a0c0f0", fontFamily: "monospace" }}>{m[4]}</code>);
-      else if (m[5]) parts.push(<em key={m.index} style={{ color: "#c0c0f0", fontStyle: "italic" }}>{m[6]}</em>);
-      else if (m[7]) parts.push(<strong key={m.index} style={{ fontWeight: 700, color: "#f0f0ff" }}>{m[8]}</strong>);
+      if (m[1]) parts.push(<strong key={m.index} style={{ fontWeight: 700, color: "#111111" }}>{m[2]}</strong>);
+      else if (m[3]) parts.push(<code key={m.index} style={{ background: "#e5e5e5", border: "1px solid #cccccc", borderRadius: "4px", padding: "1px 6px", fontSize: "12px", color: "#336699", fontFamily: "monospace" }}>{m[4]}</code>);
+      else if (m[5]) parts.push(<em key={m.index} style={{ color: "#555555", fontStyle: "italic" }}>{m[6]}</em>);
+      else if (m[7]) parts.push(<strong key={m.index} style={{ fontWeight: 700, color: "#111111" }}>{m[8]}</strong>);
       last = m.index + m[0].length;
     }
     if (last < text.length) parts.push(text.slice(last));
@@ -576,7 +576,7 @@ function MarkdownRenderer({ content }) {
 
     // Horizontal rule
     if (/^---+$/.test(line.trim())) {
-      elements.push(<hr key={i} style={{ border: "none", borderTop: "1px solid #2a2a4a", margin: "12px 0" }} />);
+      elements.push(<hr key={i} style={{ border: "none", borderTop: "1px solid #cccccc", margin: "12px 0" }} />);
       i++; continue;
     }
 
@@ -591,12 +591,12 @@ function MarkdownRenderer({ content }) {
         i++;
       }
       elements.push(
-        <div key={`table-${i}`} style={{ overflowX: "auto", margin: "12px 0", borderRadius: "8px", border: "1px solid #2a2a4a" }}>
+        <div key={`table-${i}`} style={{ overflowX: "auto", margin: "12px 0", borderRadius: "8px", border: "1px solid #cccccc" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
             <thead>
-              <tr style={{ background: "#14142e" }}>
+              <tr style={{ background: "#f0f0f0" }}>
                 {headers.map((h, hi) => (
-                  <th key={hi} style={{ padding: "8px 12px", textAlign: "left", color: "#9090c0", fontWeight: 600, borderBottom: "1px solid #2a2a4a", whiteSpace: "nowrap", fontSize: "11px", letterSpacing: "0.04em" }}>
+                  <th key={hi} style={{ padding: "8px 12px", textAlign: "left", color: "#666666", fontWeight: 600, borderBottom: "1px solid #cccccc", whiteSpace: "nowrap", fontSize: "11px", letterSpacing: "0.04em" }}>
                     {parseInline(h)}
                   </th>
                 ))}
@@ -604,9 +604,9 @@ function MarkdownRenderer({ content }) {
             </thead>
             <tbody>
               {rows.map((row, ri) => (
-                <tr key={ri} style={{ borderBottom: "1px solid #1a1a30", background: ri % 2 === 0 ? "transparent" : "#0c0c1e" }}>
+                <tr key={ri} style={{ borderBottom: "1px solid #e5e5e5", background: ri % 2 === 0 ? "transparent" : "#f5f5f5" }}>
                   {row.map((cell, ci) => (
-                    <td key={ci} style={{ padding: "7px 12px", color: "#d0d0f0", verticalAlign: "top", lineHeight: "1.5" }}>
+                    <td key={ci} style={{ padding: "7px 12px", color: "#333333", verticalAlign: "top", lineHeight: "1.5" }}>
                       {parseInline(cell)}
                     </td>
                   ))}
@@ -630,9 +630,9 @@ function MarkdownRenderer({ content }) {
       }
       i++;
       elements.push(
-        <div key={`code-${i}`} style={{ margin: "10px 0", borderRadius: "8px", overflow: "hidden", border: "1px solid #2a2a4a" }}>
-          {lang && <div style={{ background: "#0e0e20", padding: "4px 12px", fontSize: "10px", color: "#5a5a8a", fontFamily: "monospace", borderBottom: "1px solid #1a1a2a", letterSpacing: "0.1em" }}>{lang}</div>}
-          <pre style={{ margin: 0, padding: "12px 14px", background: "#0a0a1e", overflowX: "auto", fontSize: "12px", lineHeight: "1.6", color: "#b0c8f0", fontFamily: "monospace" }}>
+        <div key={`code-${i}`} style={{ margin: "10px 0", borderRadius: "8px", overflow: "hidden", border: "1px solid #cccccc" }}>
+          {lang && <div style={{ background: "#f8f8f8", padding: "4px 12px", fontSize: "10px", color: "#888888", fontFamily: "monospace", borderBottom: "1px solid #e5e5e5", letterSpacing: "0.1em" }}>{lang}</div>}
+          <pre style={{ margin: 0, padding: "12px 14px", background: "#f8f8f8", overflowX: "auto", fontSize: "12px", lineHeight: "1.6", color: "#336699", fontFamily: "monospace" }}>
             {codeLines.join("\n")}
           </pre>
         </div>
@@ -644,9 +644,9 @@ function MarkdownRenderer({ content }) {
     const h1 = line.match(/^#\s+(.+)/);
     const h2 = line.match(/^##\s+(.+)/);
     const h3 = line.match(/^###\s+(.+)/);
-    if (h1) { elements.push(<div key={i} style={{ fontSize: "17px", fontWeight: 700, color: "#f0f0ff", margin: "18px 0 6px", paddingBottom: "6px", borderBottom: "1px solid #2a2a4a" }}>{parseInline(h1[1])}</div>); i++; continue; }
-    if (h2) { elements.push(<div key={i} style={{ fontSize: "14px", fontWeight: 700, color: "#e0e0ff", margin: "14px 0 4px" }}>{parseInline(h2[1])}</div>); i++; continue; }
-    if (h3) { elements.push(<div key={i} style={{ fontSize: "13px", fontWeight: 600, color: "#c8c8f0", margin: "10px 0 3px" }}>{parseInline(h3[1])}</div>); i++; continue; }
+    if (h1) { elements.push(<div key={i} style={{ fontSize: "17px", fontWeight: 700, color: "#111111", margin: "18px 0 6px", paddingBottom: "6px", borderBottom: "1px solid #cccccc" }}>{parseInline(h1[1])}</div>); i++; continue; }
+    if (h2) { elements.push(<div key={i} style={{ fontSize: "14px", fontWeight: 700, color: "#222222", margin: "14px 0 4px" }}>{parseInline(h2[1])}</div>); i++; continue; }
+    if (h3) { elements.push(<div key={i} style={{ fontSize: "13px", fontWeight: 600, color: "#444444", margin: "10px 0 3px" }}>{parseInline(h3[1])}</div>); i++; continue; }
 
     // Bullet list
     const bullet = line.match(/^(\s*)([-*•])\s+(.+)/);
@@ -654,8 +654,8 @@ function MarkdownRenderer({ content }) {
       const indent = bullet[1].length;
       elements.push(
         <div key={i} style={{ display: "flex", gap: "8px", margin: "2px 0", paddingLeft: `${indent * 8}px` }}>
-          <span style={{ color: "#5a5a9a", marginTop: "2px", flexShrink: 0, fontSize: "12px" }}>•</span>
-          <span style={{ color: "#d0d0f0", lineHeight: "1.6", fontSize: "13.5px" }}>{parseInline(bullet[3])}</span>
+          <span style={{ color: "#888888", marginTop: "2px", flexShrink: 0, fontSize: "12px" }}>•</span>
+          <span style={{ color: "#333333", lineHeight: "1.6", fontSize: "13.5px" }}>{parseInline(bullet[3])}</span>
         </div>
       );
       i++; continue;
@@ -666,8 +666,8 @@ function MarkdownRenderer({ content }) {
     if (numbered) {
       elements.push(
         <div key={i} style={{ display: "flex", gap: "8px", margin: "2px 0", paddingLeft: `${numbered[1].length * 8}px` }}>
-          <span style={{ color: "#5a5a9a", flexShrink: 0, minWidth: "16px", fontSize: "12px" }}>{numbered[2]}.</span>
-          <span style={{ color: "#d0d0f0", lineHeight: "1.6", fontSize: "13.5px" }}>{parseInline(numbered[3])}</span>
+          <span style={{ color: "#888888", flexShrink: 0, minWidth: "16px", fontSize: "12px" }}>{numbered[2]}.</span>
+          <span style={{ color: "#333333", lineHeight: "1.6", fontSize: "13.5px" }}>{parseInline(numbered[3])}</span>
         </div>
       );
       i++; continue;
@@ -677,12 +677,12 @@ function MarkdownRenderer({ content }) {
     const callout = line.match(/^(✅|❌|⚠️)\s+(.+)/);
     if (callout) {
       const icon = callout[1];
-      const bg = icon === "✅" ? "#0e1e14" : icon === "❌" ? "#1e0e0e" : "#1e180a";
-      const border = icon === "✅" ? "#1e4a2a" : icon === "❌" ? "#4a1e1e" : "#4a3a1a";
+      const bg = icon === "✅" ? "#edf7f0" : icon === "❌" ? "#fef2f2" : "#fefde8";
+      const border = icon === "✅" ? "#90c8a0" : icon === "❌" ? "#f0a0a0" : "#d4b860";
       elements.push(
         <div key={i} style={{ display: "flex", gap: "8px", padding: "5px 10px", margin: "3px 0", borderRadius: "6px", background: bg, border: `1px solid ${border}` }}>
           <span style={{ flexShrink: 0 }}>{icon}</span>
-          <span style={{ color: "#d0d0f0", fontSize: "13px", lineHeight: "1.6" }}>{parseInline(callout[2])}</span>
+          <span style={{ color: "#333333", fontSize: "13px", lineHeight: "1.6" }}>{parseInline(callout[2])}</span>
         </div>
       );
       i++; continue;
@@ -692,7 +692,7 @@ function MarkdownRenderer({ content }) {
     const bq = line.match(/^>\s+(.+)/);
     if (bq) {
       elements.push(
-        <div key={i} style={{ borderLeft: "3px solid #3a3a6a", paddingLeft: "12px", margin: "6px 0", color: "#9090c0", fontSize: "13px", fontStyle: "italic" }}>
+        <div key={i} style={{ borderLeft: "3px solid #cccccc", paddingLeft: "12px", margin: "6px 0", color: "#666666", fontSize: "13px", fontStyle: "italic" }}>
           {parseInline(bq[1])}
         </div>
       );
@@ -707,7 +707,7 @@ function MarkdownRenderer({ content }) {
 
     // Normal paragraph
     elements.push(
-      <div key={i} style={{ color: "#d8d8f0", lineHeight: "1.75", fontSize: "13.5px", margin: "1px 0" }}>
+      <div key={i} style={{ color: "#333333", lineHeight: "1.75", fontSize: "13.5px", margin: "1px 0" }}>
         {parseInline(line)}
       </div>
     );
@@ -763,13 +763,13 @@ function ResearchPanel() {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Input area */}
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid #1a1a30", background: "#08081a" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", background: "#ffffff" }}>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px" }}>
           {DOMAINS.map(d => (
             <button key={d} onClick={() => setTopic(prev => prev ? `${prev}, ${d}` : d)}
-              style={{ padding: "4px 10px", background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "20px", color: "#7070a0", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#5a5aaa"; e.currentTarget.style.color = "#b0b0e0"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a4a"; e.currentTarget.style.color = "#7070a0"; }}>
+              style={{ padding: "4px 10px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#777777", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#999999"; e.currentTarget.style.color = "#555555"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}>
               {d}
             </button>
           ))}
@@ -781,28 +781,28 @@ function ResearchPanel() {
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runResearch(); } }}
             placeholder="리서치 주제를 입력하세요. 예: 국내 퀵커머스 시장 현황과 전망"
             rows={2}
-            style={{ flex: 1, background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "12px", padding: "10px 14px", color: "#e0e0f0", fontSize: "13px", resize: "none", outline: "none", lineHeight: "1.6", transition: "border-color 0.2s" }}
-            onFocus={e => e.target.style.borderColor = "#4a4a8a"}
-            onBlur={e => e.target.style.borderColor = "#2a2a4a"}
+            style={{ flex: 1, background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "12px", padding: "10px 14px", color: "#111111", fontSize: "13px", resize: "none", outline: "none", lineHeight: "1.6", transition: "border-color 0.2s" }}
+            onFocus={e => e.target.style.borderColor = "#aaaaaa"}
+            onBlur={e => e.target.style.borderColor = "#cccccc"}
           />
           <button onClick={runResearch} disabled={!topic.trim() || loading}
-            style={{ padding: "0 20px", background: topic.trim() && !loading ? "linear-gradient(135deg, #2a2a6a 0%, #1a1a4a 100%)" : "#1a1a30", border: "1px solid", borderColor: topic.trim() && !loading ? "#5a5aaa" : "#2a2a40", borderRadius: "12px", color: topic.trim() && !loading ? "#c0c0f0" : "#3a3a5a", fontSize: "13px", cursor: topic.trim() && !loading ? "pointer" : "not-allowed", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+            style={{ padding: "0 20px", background: topic.trim() && !loading ? "#111111" : "#e5e5e5", border: "1px solid", borderColor: topic.trim() && !loading ? "#333333" : "#cccccc", borderRadius: "12px", color: topic.trim() && !loading ? "#ffffff" : "#aaaaaa", fontSize: "13px", cursor: topic.trim() && !loading ? "pointer" : "not-allowed", transition: "all 0.2s", whiteSpace: "nowrap" }}>
             {loading ? "분석 중..." : "분석 시작"}
           </button>
         </div>
       </div>
 
       {/* Result area */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px", scrollbarWidth: "thin", scrollbarColor: "#1a1a30 transparent" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
         {loading && (
-          <div style={{ display: "flex", gap: "6px", alignItems: "center", color: "#4a4a8a", fontSize: "12px" }}>
-            {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4a4a8a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+          <div style={{ display: "flex", gap: "6px", alignItems: "center", color: "#aaaaaa", fontSize: "12px" }}>
+            {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#aaaaaa", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
             <span style={{ marginLeft: "8px" }}>리서치 중...</span>
           </div>
         )}
         {result && !loading && <MarkdownRenderer content={result} />}
         {!result && !loading && (
-          <div style={{ textAlign: "center", color: "#2a2a4a", fontSize: "12px", marginTop: "60px", lineHeight: "2" }}>
+          <div style={{ textAlign: "center", color: "#cccccc", fontSize: "12px", marginTop: "60px", lineHeight: "2" }}>
             <div style={{ fontSize: "32px", marginBottom: "16px", opacity: 0.4 }}>🔭</div>
             주제를 입력하고 분석을 시작하세요.<br />
             현황 · 트렌드 · 예측 · 장단 분석을 제공합니다.
@@ -849,25 +849,25 @@ function ReviewPanel({ doc, title, onClose }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(4,4,16,0.95)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-      <div style={{ width: "100%", maxWidth: "680px", maxHeight: "85vh", background: "#0c0c22", border: "1px solid #2a2a4a", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #1a1a30", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ width: "100%", maxWidth: "680px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "14px", color: "#c0c0e0", fontWeight: "600" }}>📋 {title}</span>
+            <span style={{ fontSize: "14px", color: "#444444", fontWeight: "600" }}>📋 {title}</span>
             {score !== null && <ScoreBadge score={score} />}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {result && <button onClick={() => openFullView(result)} style={{ padding: "4px 12px", background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "20px", color: "#6060a0", fontSize: "11px", cursor: "pointer" }}>↗ 새 창</button>}
-            <button onClick={onClose} style={{ background: "none", border: "none", color: "#6060a0", cursor: "pointer", fontSize: "18px" }}>✕</button>
+            {result && <button onClick={() => openFullView(result)} style={{ padding: "4px 12px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>↗ 새 창</button>}
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
           </div>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px", fontSize: "13px", lineHeight: "1.8", color: "#c0c0e0" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px", fontSize: "13px", lineHeight: "1.8", color: "#444444" }}>
           {loading ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "40px 0" }}>
               <div style={{ display: "flex", gap: "6px" }}>
-                {[0,1,2].map(i => <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#4a4a8a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                {[0,1,2].map(i => <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#aaaaaa", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
               </div>
-              <span style={{ color: "#4a4a7a", fontSize: "12px" }}>검토 중입니다...</span>
+              <span style={{ color: "#bbbbbb", fontSize: "12px" }}>검토 중입니다...</span>
             </div>
           ) : <MarkdownRenderer content={result} />}
         </div>
@@ -909,30 +909,30 @@ function ComparePanel({ docA, docB, onClose }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(4,4,16,0.95)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-      <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#0c0c22", border: "1px solid #2a2a4a", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #1a1a30", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: "14px", color: "#c0c0e0", fontWeight: "600" }}>⚖️ 문서 비교 분석</span>
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "14px", color: "#444444", fontWeight: "600" }}>⚖️ 문서 비교 분석</span>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {result && <button onClick={() => openFullView(result)} style={{ padding: "4px 12px", background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "20px", color: "#6060a0", fontSize: "11px", cursor: "pointer" }}>↗ 새 창</button>}
-            <button onClick={onClose} style={{ background: "none", border: "none", color: "#6060a0", cursor: "pointer", fontSize: "18px" }}>✕</button>
+            {result && <button onClick={() => openFullView(result)} style={{ padding: "4px 12px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>↗ 새 창</button>}
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "0", padding: "10px 20px", borderBottom: "1px solid #1a1a30" }}>
+        <div style={{ display: "flex", gap: "0", padding: "10px 20px", borderBottom: "1px solid #e5e5e5" }}>
           {[["A", "AI 자동 생성본", "#6c8ebf"], ["B", "업로드 문서", "#7b68b5"]].map(([tag, label, color]) => (
             <div key={tag} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px 12px", background: color + "15", border: `1px solid ${color}44`, borderRadius: "20px", marginRight: "8px" }}>
               <span style={{ fontSize: "10px", fontWeight: "700", color, fontFamily: "'Pretendard', sans-serif" }}>{tag}</span>
-              <span style={{ fontSize: "11px", color: "#8080b0" }}>{label}</span>
+              <span style={{ fontSize: "11px", color: "#777777" }}>{label}</span>
             </div>
           ))}
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px", fontSize: "13px", lineHeight: "1.8", color: "#c0c0e0" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px", fontSize: "13px", lineHeight: "1.8", color: "#444444" }}>
           {loading ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "40px 0" }}>
               <div style={{ display: "flex", gap: "6px" }}>
-                {[0,1,2].map(i => <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#4a4a8a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                {[0,1,2].map(i => <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#aaaaaa", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
               </div>
-              <span style={{ color: "#4a4a7a", fontSize: "12px" }}>두 문서를 비교하고 있습니다...</span>
+              <span style={{ color: "#bbbbbb", fontSize: "12px" }}>두 문서를 비교하고 있습니다...</span>
             </div>
           ) : <MarkdownRenderer content={result} />}
         </div>
@@ -951,17 +951,17 @@ function DocActionBar({ docContent, onUploadForCompare }) {
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "8px 0 0 42px" }}>
         <button
           onClick={() => setShowReview(true)}
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#0e1a2e", border: "1px solid #2a4a6a", borderRadius: "20px", color: "#6090c0", fontSize: "11px", cursor: "pointer", fontFamily: "'Pretendard', sans-serif", transition: "all 0.2s" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#4a8aaa"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "#2a4a6a"}
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#eef4ff", border: "1px solid #aaccea", borderRadius: "20px", color: "#557799", fontSize: "11px", cursor: "pointer", fontFamily: "'Pretendard', sans-serif", transition: "all 0.2s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#5a9aaa"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#aaccea"}
         >
           📋 자동 검토
         </button>
         <button
           onClick={() => fileRef.current?.click()}
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#1a0e2e", border: "1px solid #4a2a6a", borderRadius: "20px", color: "#9060c0", fontSize: "11px", cursor: "pointer", fontFamily: "'Pretendard', sans-serif", transition: "all 0.2s" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#8a4aaa"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "#4a2a6a"}
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#f5eeff", border: "1px solid #ccaaee", borderRadius: "20px", color: "#7740aa", fontSize: "11px", cursor: "pointer", fontFamily: "'Pretendard', sans-serif", transition: "all 0.2s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#9a5aaa"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#ccaaee"}
         >
           ⚖️ 기존 문서와 비교
         </button>
@@ -993,20 +993,20 @@ function FilePreview({ files, onRemove }) {
       {files.map((f, i) => (
         <div key={i} style={{ position: "relative" }}>
           {f.type === "pdf" ? (
-            <div style={{ width: "64px", height: "64px", borderRadius: "8px", border: "1px solid #5a3a6a", background: "#1a0e2a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+            <div style={{ width: "64px", height: "64px", borderRadius: "8px", border: "1px solid #d0aaee", background: "#f5f0ff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px" }}>
               <span style={{ fontSize: "20px" }}>📄</span>
-              <span style={{ fontSize: "8px", color: "#9060c0", maxWidth: "56px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{f.name}</span>
+              <span style={{ fontSize: "8px", color: "#7740aa", maxWidth: "56px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>{f.name}</span>
             </div>
           ) : f.type === "data" ? (
-            <div style={{ height: "64px", padding: "6px 10px", borderRadius: "8px", border: "1px solid #3a6a3a", background: "#0e1e0e", display: "flex", flexDirection: "column", justifyContent: "center", gap: "2px", minWidth: "80px" }}>
+            <div style={{ height: "64px", padding: "6px 10px", borderRadius: "8px", border: "1px solid #90c890", background: "#eef8ee", display: "flex", flexDirection: "column", justifyContent: "center", gap: "2px", minWidth: "80px" }}>
               <span style={{ fontSize: "16px" }}>📊</span>
-              <span style={{ fontSize: "8px", color: "#60a060", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-              {f.parsed && <span style={{ fontSize: "8px", color: "#4a6a4a" }}>{f.parsed.rows.length}행 · {f.parsed.headers.length}열</span>}
+              <span style={{ fontSize: "8px", color: "#3a8a3a", maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              {f.parsed && <span style={{ fontSize: "8px", color: "#3a5a3a" }}>{f.parsed.rows.length}행 · {f.parsed.headers.length}열</span>}
             </div>
           ) : (
-            <img src={f.preview} alt="" style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "8px", border: "1px solid #3a3a6a" }} />
+            <img src={f.preview} alt="" style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "8px", border: "1px solid #cccccc" }} />
           )}
-          <button onClick={() => onRemove(i)} style={{ position: "absolute", top: "-6px", right: "-6px", width: "18px", height: "18px", borderRadius: "50%", background: "#1a1a3a", border: "1px solid #4a4a7a", color: "#a0a0c0", fontSize: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <button onClick={() => onRemove(i)} style={{ position: "absolute", top: "-6px", right: "-6px", width: "18px", height: "18px", borderRadius: "50%", background: "#111111", border: "1px solid #bbbbbb", color: "#666666", fontSize: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
         </div>
       ))}
     </div>
@@ -1047,36 +1047,36 @@ function MessageBubble({ msg, onDocReady }) {
     <>
       <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: has2pager ? "4px" : "16px", gap: "10px", alignItems: "flex-start" }}>
         {!isUser && (
-          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #3a3a5c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0, marginTop: "2px" }}>A</div>
+          <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #f0f0f5 0%, #e8e8f0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0, marginTop: "2px" }}>A</div>
         )}
         <div style={{ maxWidth: isUser ? "72%" : "calc(100% - 42px)", display: "flex", flexDirection: "column", gap: "6px", alignItems: isUser ? "flex-end" : "flex-start", width: isUser ? undefined : "100%" }}>
           {msg.files?.length > 0 && (
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
               {msg.files.map((f, i) => f.type === "pdf" ? (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px", background: "#1a0e2a", border: "1px solid #5a3a6a", borderRadius: "8px" }}>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px", background: "#f5f0ff", border: "1px solid #d0aaee", borderRadius: "8px" }}>
                   <span style={{ fontSize: "16px" }}>📄</span>
-                  <span style={{ fontSize: "11px", color: "#9060c0" }}>{f.name}</span>
+                  <span style={{ fontSize: "11px", color: "#7740aa" }}>{f.name}</span>
                 </div>
               ) : f.type === "data" ? (
-                <div key={i} style={{ padding: "6px 12px", background: "#0e1e0e", border: "1px solid #3a6a3a", borderRadius: "8px", width: "100%" }}>
+                <div key={i} style={{ padding: "6px 12px", background: "#eef8ee", border: "1px solid #90c890", borderRadius: "8px", width: "100%" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: f.stats ? "6px" : 0 }}>
                     <span style={{ fontSize: "14px" }}>📊</span>
-                    <span style={{ fontSize: "11px", color: "#60a060" }}>{f.name}</span>
-                    {f.parsed && <span style={{ fontSize: "10px", color: "#3a6a3a" }}>{f.parsed.rows.length}행 · {f.parsed.headers.length}열</span>}
+                    <span style={{ fontSize: "11px", color: "#3a8a3a" }}>{f.name}</span>
+                    {f.parsed && <span style={{ fontSize: "10px", color: "#90c890" }}>{f.parsed.rows.length}행 · {f.parsed.headers.length}열</span>}
                   </div>
                   {f.stats && <DataSummaryCard stats={f.stats} />}
                 </div>
               ) : (
-                <img key={i} src={f.preview} alt="" style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "cover", borderRadius: "10px", border: "1px solid #3a3a6a" }} />
+                <img key={i} src={f.preview} alt="" style={{ maxWidth: "200px", maxHeight: "200px", objectFit: "cover", borderRadius: "10px", border: "1px solid #cccccc" }} />
               ))}
             </div>
           )}
           {msg.content && (
             <div style={{
-              background: isUser ? "linear-gradient(135deg, #2a2a4a 0%, #1e1e3a 100%)" : "linear-gradient(135deg, #12122a 0%, #0e0e20 100%)",
-              border: isUser ? "1px solid #4a4a7a" : has2pager ? "1px solid #3a5a7a" : "1px solid #2a2a4a",
+              background: isUser ? "linear-gradient(135deg, #111111 0%, #222222 100%)" : "linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)",
+              border: isUser ? "1px solid #bbbbbb" : has2pager ? "1px solid #3a5a7a" : "1px solid #cccccc",
               borderRadius: isUser ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
-              padding: "12px 16px", color: "#e0e0f0", fontSize: "13.5px",
+              padding: "12px 16px", color: isUser ? "#ffffff" : "#111111", fontSize: "13.5px",
               lineHeight: "1.7", wordBreak: "break-word",
               width: isUser ? undefined : "100%",
             }}>
@@ -1086,12 +1086,12 @@ function MessageBubble({ msg, onDocReady }) {
                 </div>
               )}
               {has2pager && (
-                <div style={{ fontSize: "10px", color: "#4a8aaa", marginBottom: "10px", letterSpacing: "0.08em" }}>
+                <div style={{ fontSize: "10px", color: "#5a9aaa", marginBottom: "10px", letterSpacing: "0.08em" }}>
                   📄 2-PAGER GENERATED
                 </div>
               )}
               {isUser
-                ? <div style={{ whiteSpace: "pre-wrap", color: "#d8d8f0", lineHeight: "1.75", fontSize: "13.5px" }}>{msg.content}</div>
+                ? <div style={{ whiteSpace: "pre-wrap", color: "#f0f0f0", lineHeight: "1.75", fontSize: "13.5px" }}>{msg.content}</div>
                 : <MarkdownRenderer content={msg.content} />
               }
             </div>
@@ -1125,7 +1125,7 @@ function MessageBubble({ msg, onDocReady }) {
 function StageProgress({ currentStage }) {
   const stages = ["m1_discovery", "m2_ux", "m3_solution", "m4_poc", "m5_validation"];
   return (
-    <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "10px 16px", background: "#08081a", borderBottom: "1px solid #1a1a30", overflowX: "auto" }}>
+    <div style={{ display: "flex", gap: "4px", alignItems: "center", padding: "10px 16px", background: "#ffffff", borderBottom: "1px solid #e5e5e5", overflowX: "auto" }}>
       {stages.map((s, i) => {
         const info = STAGE_INFO[s];
         const isActive = currentStage === s;
@@ -1134,9 +1134,9 @@ function StageProgress({ currentStage }) {
           <div key={s} style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 8px", borderRadius: "20px", background: isActive ? info.color + "22" : "transparent", border: isActive ? `1px solid ${info.color}66` : "1px solid transparent", transition: "all 0.3s" }}>
               <span style={{ fontSize: "11px" }}>{info.icon}</span>
-              <span style={{ fontSize: "10px", fontWeight: isActive ? "700" : "400", color: isActive ? info.color : isDone ? "#4a4a6a" : "#3a3a5a", fontFamily: "'Pretendard', sans-serif" }}>{info.label}</span>
+              <span style={{ fontSize: "10px", fontWeight: isActive ? "700" : "400", color: isActive ? info.color : isDone ? "#aaaaaa" : "#bbbbbb", fontFamily: "'Pretendard', sans-serif" }}>{info.label}</span>
             </div>
-            {i < stages.length - 1 && <div style={{ width: "12px", height: "1px", background: "#1a1a30", flexShrink: 0 }} />}
+            {i < stages.length - 1 && <div style={{ width: "12px", height: "1px", background: "#e5e5e5", flexShrink: 0 }} />}
           </div>
         );
       })}
@@ -1267,51 +1267,51 @@ function HistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, open, o
       {/* Backdrop */}
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 299, background: "rgba(0,0,0,0.4)" }} />
       {/* Panel */}
-      <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: "260px", zIndex: 300, background: "#08081e", borderRight: "1px solid #1a1a30", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: "260px", zIndex: 300, background: "#ffffff", borderRight: "1px solid #e5e5e5", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ padding: "16px", borderBottom: "1px solid #1a1a30", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: "12px", fontWeight: "700", color: "#6060a0", letterSpacing: "0.12em", textTransform: "uppercase" }}>대화 히스토리</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#4a4a6a", cursor: "pointer", fontSize: "16px" }}>✕</button>
+        <div style={{ padding: "16px", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: "12px", fontWeight: "700", color: "#888888", letterSpacing: "0.12em", textTransform: "uppercase" }}>대화 히스토리</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#aaaaaa", cursor: "pointer", fontSize: "16px" }}>✕</button>
         </div>
         {/* New chat */}
-        <div style={{ padding: "10px 12px", borderBottom: "1px solid #1a1a30" }}>
-          <button onClick={onNew} style={{ width: "100%", padding: "8px 12px", background: "linear-gradient(135deg, #1a1a3a 0%, #12122a 100%)", border: "1px solid #3a3a6a", borderRadius: "8px", color: "#a0a0d0", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", transition: "all 0.2s" }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "#5a5aaa"}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "#3a3a6a"}>
+        <div style={{ padding: "10px 12px", borderBottom: "1px solid #e5e5e5" }}>
+          <button onClick={onNew} style={{ width: "100%", padding: "8px 12px", background: "linear-gradient(135deg, #111111 0%, #333333 100%)", border: "1px solid #555555", borderRadius: "8px", color: "#ffffff", fontSize: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", transition: "all 0.2s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#999999"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#cccccc"}>
             <span style={{ fontSize: "14px" }}>＋</span> 새 대화 시작
           </button>
         </div>
         {/* Sessions list */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
           {sessions.length === 0 && (
-            <div style={{ padding: "20px 12px", color: "#3a3a5a", fontSize: "12px", textAlign: "center" }}>저장된 대화가 없습니다</div>
+            <div style={{ padding: "20px 12px", color: "#cccccc", fontSize: "12px", textAlign: "center" }}>저장된 대화가 없습니다</div>
           )}
           {[...sessions].reverse().map(s => (
             <div key={s.id} onClick={() => onSelect(s.id)}
-              style={{ padding: "10px 12px", borderRadius: "8px", marginBottom: "4px", cursor: "pointer", background: s.id === activeId ? "#14142e" : "transparent", border: s.id === activeId ? "1px solid #2a2a4a" : "1px solid transparent", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", transition: "all 0.15s" }}
-              onMouseEnter={e => { if (s.id !== activeId) e.currentTarget.style.background = "#0e0e22"; }}
+              style={{ padding: "10px 12px", borderRadius: "8px", marginBottom: "4px", cursor: "pointer", background: s.id === activeId ? "#f0f0f0" : "transparent", border: s.id === activeId ? "1px solid #cccccc" : "1px solid transparent", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px", transition: "all 0.15s" }}
+              onMouseEnter={e => { if (s.id !== activeId) e.currentTarget.style.background = "#f8f8f8"; }}
               onMouseLeave={e => { if (s.id !== activeId) e.currentTarget.style.background = "transparent"; }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "12px", color: s.id === activeId ? "#c0c0e0" : "#8080a0", fontWeight: s.id === activeId ? "600" : "400", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <div style={{ fontSize: "12px", color: s.id === activeId ? "#444444" : "#777777", fontWeight: s.id === activeId ? "600" : "400", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {s.title || "새 대화"}
                 </div>
-                <div style={{ fontSize: "10px", color: "#3a3a5a", marginTop: "3px" }}>
+                <div style={{ fontSize: "10px", color: "#cccccc", marginTop: "3px" }}>
                   {new Date(s.updatedAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
-                <div style={{ fontSize: "10px", color: "#4a4a6a", marginTop: "2px" }}>
+                <div style={{ fontSize: "10px", color: "#aaaaaa", marginTop: "2px" }}>
                   {STAGE_INFO[s.stage]?.icon} {STAGE_INFO[s.stage]?.label}
                 </div>
               </div>
               <button onClick={e => { e.stopPropagation(); onDelete(s.id); }}
-                style={{ background: "none", border: "none", color: "#3a3a5a", cursor: "pointer", fontSize: "12px", flexShrink: 0, padding: "2px", borderRadius: "4px", transition: "color 0.15s" }}
+                style={{ background: "none", border: "none", color: "#cccccc", cursor: "pointer", fontSize: "12px", flexShrink: 0, padding: "2px", borderRadius: "4px", transition: "color 0.15s" }}
                 onMouseEnter={e => e.currentTarget.style.color = "#9e5a5a"}
-                onMouseLeave={e => e.currentTarget.style.color = "#3a3a5a"}>✕</button>
+                onMouseLeave={e => e.currentTarget.style.color = "#cccccc"}>✕</button>
             </div>
           ))}
         </div>
-        <div style={{ padding: "10px 16px", borderTop: "1px solid #1a1a30" }}>
-          <span style={{ fontSize: "10px", color: "#2a2a4a" }}>Supabase 클라우드 저장 · 이미지/PDF 메타데이터만 보존</span>
+        <div style={{ padding: "10px 16px", borderTop: "1px solid #e5e5e5" }}>
+          <span style={{ fontSize: "10px", color: "#cccccc" }}>Supabase 클라우드 저장 · 이미지/PDF 메타데이터만 보존</span>
         </div>
       </div>
     </>
@@ -1547,8 +1547,8 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#060612", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
-        <div style={{ textAlign: "center", color: "#4a4a7a" }}>
+      <div style={{ minHeight: "100vh", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
+        <div style={{ textAlign: "center", color: "#bbbbbb" }}>
           <div style={{ fontSize: "28px", marginBottom: "16px" }}>A</div>
           <div style={{ fontSize: "12px" }}>연결 중...</div>
         </div>
@@ -1558,14 +1558,14 @@ export default function App() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #0d0d2b 0%, #060612 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
         <div style={{ textAlign: "center", maxWidth: "380px" }}>
-          <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a3e 0%, #0d0d2b 100%)", border: "1px solid #3a3a6a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #3a3a6a44" }}>A</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#e0e0f0", marginBottom: "8px", letterSpacing: "-0.02em" }}>Alfred Agent</div>
-          <div style={{ fontSize: "13px", color: "#4a4a7a", marginBottom: "40px", lineHeight: "1.6" }}>Problem-to-Product · UX-first<br />대화 히스토리는 클라우드에 안전하게 저장됩니다</div>
-          <button onClick={signInWithGitHub} style={{ width: "100%", padding: "14px 24px", background: "#1a1a3a", border: "1px solid #3a3a6a", borderRadius: "12px", color: "#e0e0f0", fontSize: "14px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "all 0.2s", marginBottom: "12px" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#252545"; e.currentTarget.style.borderColor = "#5a5a9a"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#1a1a3a"; e.currentTarget.style.borderColor = "#3a3a6a"; }}>
+          <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #cccccc44" }}>A</div>
+          <div style={{ fontSize: "22px", fontWeight: "700", color: "#111111", marginBottom: "8px", letterSpacing: "-0.02em" }}>Alfred Agent</div>
+          <div style={{ fontSize: "13px", color: "#bbbbbb", marginBottom: "40px", lineHeight: "1.6" }}>Problem-to-Product · UX-first<br />대화 히스토리는 클라우드에 안전하게 저장됩니다</div>
+          <button onClick={signInWithGitHub} style={{ width: "100%", padding: "14px 24px", background: "#111111", border: "1px solid #333333", borderRadius: "12px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "all 0.2s", marginBottom: "12px" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#252545"; e.currentTarget.style.borderColor = "#888888"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#111111"; e.currentTarget.style.borderColor = "#cccccc"; }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
             GitHub로 로그인
           </button>
@@ -1578,28 +1578,28 @@ export default function App() {
     return (
       <>
         <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={() => { setSidebarOpen(false); startAgent(); }} onDelete={deleteSession} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #0d0d2b 0%, #060612 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", padding: "20px", position: "relative" }}>
+        <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", padding: "20px", position: "relative" }}>
           {/* History button top-left */}
-          <button onClick={() => setSidebarOpen(true)} style={{ position: "absolute", top: "16px", left: "16px", display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "8px", color: "#6060a0", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a8a"; e.currentTarget.style.color = "#a0a0d0"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a4a"; e.currentTarget.style.color = "#6060a0"; }}>
-            ☰ 히스토리 {sessions.length > 0 && <span style={{ background: "#2a2a4a", borderRadius: "10px", padding: "1px 6px", fontSize: "10px" }}>{sessions.length}</span>}
+          <button onClick={() => setSidebarOpen(true)} style={{ position: "absolute", top: "16px", left: "16px", display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#888888"; }}>
+            ☰ 히스토리 {sessions.length > 0 && <span style={{ background: "#cccccc", borderRadius: "10px", padding: "1px 6px", fontSize: "10px" }}>{sessions.length}</span>}
           </button>
           <div style={{ textAlign: "center", maxWidth: "540px" }}>
-            <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a3e 0%, #0d0d2b 100%)", border: "1px solid #3a3a6a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #3a3a6a44" }}>A</div>
-            <h1 style={{ fontSize: "28px", fontWeight: "300", color: "#e0e0f0", letterSpacing: "0.06em", marginBottom: "12px" }}>Problem-to-Product</h1>
-            <h2 style={{ fontSize: "13px", fontWeight: "400", color: "#6060a0", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "32px" }}>UX-First Agent by Alfred</h2>
-            <p style={{ color: "#8080b0", fontSize: "14px", lineHeight: "1.8", marginBottom: "40px" }}>
+            <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #cccccc44" }}>A</div>
+            <h1 style={{ fontSize: "28px", fontWeight: "300", color: "#111111", letterSpacing: "0.06em", marginBottom: "12px" }}>Problem-to-Product</h1>
+            <h2 style={{ fontSize: "13px", fontWeight: "400", color: "#888888", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "32px" }}>UX-First Agent by Alfred</h2>
+            <p style={{ color: "#777777", fontSize: "14px", lineHeight: "1.8", marginBottom: "40px" }}>
               문제를 말씀해 주십시오.<br />
               2-pager 자동 생성 · 검토 · 기존 문서 비교까지 합니다.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "40px", textAlign: "left" }}>
               {["🔍 M1 — 진짜 문제 발견 + 2-pager 자동 생성", "📋 자동 검토 — UX 필터 + 문서 완성도 + 비즈니스 타당성", "⚖️ 기존 문서 비교 — 업로드 후 항목별 차이 분석", "🧭 M2 — UX 구조화 (HMW + JTBD + 여정맵)", "⚙️ M3 — 솔루션 3안 + PRD", "🛠️ M4 → ✅ M5 — POC 빌드 & 검증"].map(s => (
-                <div key={s} style={{ padding: "9px 14px", background: "#0e0e22", border: "1px solid #1e1e3a", borderRadius: "8px", color: "#a0a0c0", fontSize: "12px" }}>{s}</div>
+                <div key={s} style={{ padding: "9px 14px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#666666", fontSize: "12px" }}>{s}</div>
               ))}
             </div>
-            <button onClick={() => startAgent()} style={{ padding: "14px 48px", background: "linear-gradient(135deg, #1e1e4a 0%, #14143a 100%)", border: "1px solid #4a4a8a", borderRadius: "30px", color: "#c0c0f0", fontSize: "14px", cursor: "pointer", letterSpacing: "0.1em", transition: "all 0.3s" }}
-              onMouseEnter={e => e.target.style.borderColor = "#8080d0"} onMouseLeave={e => e.target.style.borderColor = "#4a4a8a"}>
+            <button onClick={() => startAgent()} style={{ padding: "14px 48px", background: "#111111", border: "1px solid #111111", borderRadius: "30px", color: "#ffffff", fontSize: "14px", cursor: "pointer", letterSpacing: "0.1em", transition: "all 0.3s" }}
+              onMouseEnter={e => e.target.style.background = "#333333"} onMouseLeave={e => e.target.style.background = "#111111"}>
               에이전트 시작
             </button>
           </div>
@@ -1614,41 +1614,41 @@ export default function App() {
       <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div
         onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
-        style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#060612", fontFamily: "'Pretendard', sans-serif", color: "#e0e0f0", position: "relative" }}
+        style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f5f5f5", fontFamily: "'Pretendard', sans-serif", color: "#111111", position: "relative" }}
       >
         {isDragging && (
           <div style={{ position: "absolute", inset: 0, zIndex: 100, background: "rgba(6,6,20,0.93)", border: "2px dashed #4a4a9a", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "14px", pointerEvents: "none" }}>
             <div style={{ fontSize: "52px", filter: "drop-shadow(0 0 20px #6060c0)" }}>📎</div>
             <div style={{ fontSize: "18px", color: "#9090e0" }}>파일을 여기에 놓으십시오</div>
-            <div style={{ fontSize: "11px", color: "#4a4a7a", letterSpacing: "0.12em" }}>PNG · JPG · WEBP · GIF · PDF</div>
+            <div style={{ fontSize: "11px", color: "#bbbbbb", letterSpacing: "0.12em" }}>PNG · JPG · WEBP · GIF · PDF</div>
           </div>
         )}
 
         {/* Header */}
-        <div style={{ padding: "12px 20px", background: "#08081a", borderBottom: "1px solid #1a1a30", display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={() => setSidebarOpen(true)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "transparent", border: "1px solid #1a1a30", color: "#4a4a6a", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0, transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#3a3a5a"; e.currentTarget.style.color = "#8080a0"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a30"; e.currentTarget.style.color = "#4a4a6a"; }}>☰</button>
-          <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a3e 0%, #0d0d2b 100%)", border: "1px solid #3a3a6a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>A</div>
+        <div style={{ padding: "12px 20px", background: "#ffffff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", gap: "12px" }}>
+          <button onClick={() => setSidebarOpen(true)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "transparent", border: "1px solid #e5e5e5", color: "#aaaaaa", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0, transition: "all 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>☰</button>
+          <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>A</div>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={{ display: "flex", gap: "4px", background: "#0e0e20", border: "1px solid #1a1a30", borderRadius: "10px", padding: "3px" }}>
+            <div style={{ display: "flex", gap: "4px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "10px", padding: "3px" }}>
               {[{ id: "agent", label: "Agent" }, { id: "research", label: "Research" }].map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  style={{ padding: "4px 12px", borderRadius: "7px", background: activeTab === tab.id ? "#1e1e3a" : "transparent", border: activeTab === tab.id ? "1px solid #3a3a6a" : "1px solid transparent", color: activeTab === tab.id ? "#c0c0f0" : "#4a4a6a", fontSize: "11px", cursor: "pointer", transition: "all 0.2s", fontWeight: activeTab === tab.id ? 600 : 400 }}>
+                  style={{ padding: "4px 12px", borderRadius: "7px", background: activeTab === tab.id ? "#e5e5e5" : "transparent", border: activeTab === tab.id ? "1px solid #cccccc" : "1px solid transparent", color: activeTab === tab.id ? "#555555" : "#aaaaaa", fontSize: "11px", cursor: "pointer", transition: "all 0.2s", fontWeight: activeTab === tab.id ? 600 : 400 }}>
                   {tab.label}
                 </button>
               ))}
             </div>
-            <div style={{ fontSize: "10px", color: "#4a4a7a", letterSpacing: "0.1em" }}>
+            <div style={{ fontSize: "10px", color: "#bbbbbb", letterSpacing: "0.1em" }}>
               {dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
             </div>
           </div>
-          <button onClick={newChat} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #1a1a30", borderRadius: "8px", color: "#4a4a6a", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#3a3a5a"; e.currentTarget.style.color = "#8080a0"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a30"; e.currentTarget.style.color = "#4a4a6a"; }}>＋ 새 대화</button>
-          <button onClick={signOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #1a1a30", borderRadius: "8px", color: "#4a4a6a", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#3a3a5a"; e.currentTarget.style.color = "#8080a0"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#1a1a30"; e.currentTarget.style.color = "#4a4a6a"; }}>로그아웃</button>
+          <button onClick={newChat} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>＋ 새 대화</button>
+          <button onClick={signOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>로그아웃</button>
         </div>
 
         {activeTab === "agent" && <StageProgress currentStage={currentStage} />}
@@ -1657,36 +1657,36 @@ export default function App() {
           <ResearchPanel />
         ) : (
           <>
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#1a1a30 transparent" }}>
+            <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
               {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
               {loading && (
                 <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "16px" }}>
-                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #3a3a5c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>A</div>
-                  <div style={{ padding: "12px 16px", background: "linear-gradient(135deg, #12122a 0%, #0e0e20 100%)", border: "1px solid #2a2a4a", borderRadius: "4px 16px 16px 16px", display: "flex", gap: "6px", alignItems: "center" }}>
-                    {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4a4a8a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #f0f0f5 0%, #e8e8f0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>A</div>
+                  <div style={{ padding: "12px 16px", background: "linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)", border: "1px solid #cccccc", borderRadius: "4px 16px 16px 16px", display: "flex", gap: "6px", alignItems: "center" }}>
+                    {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#aaaaaa", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
                   </div>
                 </div>
               )}
               <div ref={bottomRef} />
             </div>
 
-            <div style={{ background: "#08081a", borderTop: "1px solid #1a1a30" }}>
+            <div style={{ background: "#ffffff", borderTop: "1px solid #e5e5e5" }}>
               <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
               {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
               <div style={{ padding: "10px 16px 14px", display: "flex", gap: "8px", alignItems: "flex-end" }}>
-                <button onClick={() => fileInputRef.current?.click()} style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#0e0e22", border: "1px solid #2a2a4a", color: "#5a5a90", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0, transition: "all 0.2s" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a8a"; e.currentTarget.style.color = "#9090d0"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a4a"; e.currentTarget.style.color = "#5a5a90"; }}>📎</button>
+                <button onClick={() => fileInputRef.current?.click()} style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#f8f8f8", border: "1px solid #cccccc", color: "#5a5a90", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0, transition: "all 0.2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#9090d0"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#5a5a90"; }}>📎</button>
                 <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls,.tsv,text/csv" multiple style={{ display: "none" }} onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
                 <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} onPaste={onPaste}
                   onCompositionStart={() => { isComposingRef.current = true; }}
                   onCompositionEnd={() => { isComposingRef.current = false; }}
                   placeholder="문제나 불편함을 말씀해 주십시오..."
                   rows={1}
-                  style={{ flex: 1, background: "#0e0e22", border: "1px solid #2a2a4a", borderRadius: "12px", padding: "10px 14px", color: "#e0e0f0", fontSize: "13.5px", resize: "none", outline: "none", lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", transition: "border-color 0.2s" }}
-                  onFocus={e => e.target.style.borderColor = "#4a4a8a"} onBlur={e => e.target.style.borderColor = "#2a2a4a"} />
+                  style={{ flex: 1, background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "12px", padding: "10px 14px", color: "#111111", fontSize: "13.5px", resize: "none", outline: "none", lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", transition: "border-color 0.2s" }}
+                  onFocus={e => e.target.style.borderColor = "#aaaaaa"} onBlur={e => e.target.style.borderColor = "#cccccc"} />
                 <button onClick={sendMessage} disabled={!canSend}
-                  style={{ width: "40px", height: "40px", borderRadius: "50%", background: canSend ? "linear-gradient(135deg, #2a2a6a 0%, #1a1a4a 100%)" : "#1a1a30", border: "1px solid", borderColor: canSend ? "#5a5aaa" : "#2a2a40", color: canSend ? "#c0c0f0" : "#3a3a5a", cursor: canSend ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, transition: "all 0.2s" }}>↑</button>
+                  style={{ width: "40px", height: "40px", borderRadius: "50%", background: canSend ? "#111111" : "#e5e5e5", border: "1px solid", borderColor: canSend ? "#333333" : "#cccccc", color: canSend ? "#ffffff" : "#aaaaaa", cursor: canSend ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, transition: "all 0.2s" }}>↑</button>
               </div>
             </div>
           </>
@@ -1698,7 +1698,7 @@ export default function App() {
           @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
           ::-webkit-scrollbar{width:4px}
           ::-webkit-scrollbar-track{background:transparent}
-          ::-webkit-scrollbar-thumb{background:#1a1a30;border-radius:2px}
+          ::-webkit-scrollbar-thumb{background:#e5e5e5;border-radius:2px}
         `}</style>
       </div>
     </>
