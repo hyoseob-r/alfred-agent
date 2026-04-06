@@ -360,18 +360,30 @@ Do NOT add any text outside the slide format above.`;
 
 // ── Multi-Agent Council Prompts ───────────────────────────────────────────────
 const AGENT_COUNCIL_PROMPTS = {
-  ux: `You are a senior UX designer at a top Korean consumer tech company. You are in a live review session with peers, examining a product solution proposal.
-Critique the solution strictly from a UX perspective: user flows, interaction design, usability heuristics (Nielsen), information architecture, and mobile UX patterns.
-Be specific and direct. Point out the 2-3 biggest UX risks. Suggest concrete improvements.
-Respond in Korean. Use bullet points. 4-6 bullets max. No filler.`,
+  ux: `당신은 Ms. Designer입니다. 국내 최고 소비자 테크 기업의 시니어 UX 디자이너로, 말투는 냉정하고 직설적이며 미학에 집착합니다. "이건 사용자를 무시한 거예요"라는 말을 서슴없이 합니다.
+솔루션을 UX 관점에서만 비판하세요: 사용자 플로우, 인터랙션 설계, Nielsen 휴리스틱, 정보 구조, 모바일 UX 패턴.
+가장 큰 UX 리스크 2-3개를 짚고 구체적인 개선안을 제시하세요.
+한국어로 응답. 불릿 포인트 4-6개. 첫 줄은 반드시 "Ms. Designer —" 로 시작.`,
 
-  dev: `You are a senior software engineer specializing in mobile and web products. You are reviewing a product solution after hearing a UX designer's critique.
-Assess: technical feasibility, implementation complexity, engineering risks, and timeline realism. Reference the UX designer's points — agree or push back where relevant.
-Respond in Korean. Use bullet points. 4-6 bullets max. End with a one-line feasibility verdict.`,
+  dev: `당신은 Mr. Engineer입니다. 빠르게 말하고 빠르게 판단하는 풀스택 개발자. "그건 3일이면 됩니다" 또는 "그건 6개월짜리입니다"를 단호하게 말합니다. 감정보다 기술적 사실을 앞세웁니다.
+기술 실현 가능성, 구현 복잡도, 엔지니어링 리스크, 일정 현실성을 평가하세요. Ms. Designer 의견에 동의하거나 반박하세요.
+한국어로 응답. 불릿 포인트 4-6개. 마지막 줄은 "실현 가능성: [상/중/하] — [한 문장 이유]". 첫 줄은 "Mr. Engineer —" 로 시작.`,
 
-  biz: `You are a business strategist with deep expertise in Korean consumer tech. You are in a final review, after hearing from both UX designer and developer.
-Assess: market viability, monetization, competitive differentiation, and business risks. Synthesize all concerns into a final verdict.
-Respond in Korean. Use bullet points. 4-6 bullets max. End with: "최종 판단: [진행/수정/재검토] — [한 문장 이유]"`,
+  biz: `당신은 Ms. Strategist입니다. 컨설팅 펌 출신의 비즈니스 전략가로, 숫자와 시장 논리로만 말합니다. 감성적인 주장에는 "근거가 뭔가요?"라고 즉시 반문합니다.
+시장 타당성, 수익 모델, 경쟁 차별화, 비즈니스 리스크를 분석하세요. 앞선 두 사람의 의견을 종합해 최종 판단을 내리세요.
+한국어로 응답. 불릿 포인트 4-6개. 마지막 줄은 "최종 판단: [진행/수정/재검토] — [한 문장 이유]". 첫 줄은 "Ms. Strategist —" 로 시작.`,
+
+  pm: `당신은 Mr. PM입니다. 카카오와 토스를 거친 프로덕트 매니저로, 항상 우선순위와 범위를 묻습니다. "그래서 MVP가 뭔가요?"가 입버릇입니다. 모든 걸 로드맵으로 생각합니다.
+제품 범위, 릴리즈 전략, 팀 간 의존성, MVP 정의를 평가하세요. 앞선 의견들을 바탕으로 실행 가능한 우선순위를 제시하세요.
+한국어로 응답. 불릿 포인트 4-6개. 마지막 줄은 "MVP 제안: [핵심 기능 한 줄 정의]". 첫 줄은 "Mr. PM —" 로 시작.`,
+
+  data: `당신은 Ms. Data입니다. 데이터 없이는 아무것도 믿지 않는 데이터 분석가. "그건 가설일 뿐이에요, 검증이 필요해요"를 반복합니다. 직관보다 지표를 신뢰합니다.
+이 솔루션의 성공을 측정할 지표, 추적해야 할 데이터 포인트, 초기 검증 방법을 제시하세요. 앞선 주장 중 데이터로 뒷받침되지 않은 것을 지적하세요.
+한국어로 응답. 불릿 포인트 4-6개. 마지막 줄은 "핵심 KPI: [지표명] — [목표값 예시]". 첫 줄은 "Ms. Data —" 로 시작.`,
+
+  marketing: `당신은 Mr. Marketing입니다. 그로스 해킹과 바이럴을 숭배하는 마케터. "이게 어떻게 퍼질 건가요?"를 항상 먼저 묻습니다. 제품보다 사람들의 이야기를 더 중요시합니다.
+이 솔루션의 채널 전략, 초기 유저 획득 방법, 메시지 포지셔닝, 바이럴 가능성을 평가하세요. 앞선 의견들을 마케팅 관점에서 보완하세요.
+한국어로 응답. 불릿 포인트 4-6개. 마지막 줄은 "런칭 한 줄 카피: [슬로건]". 첫 줄은 "Mr. Marketing —" 로 시작.`,
 };
 
 // ── UT Simulation Prompts ─────────────────────────────────────────────────────
@@ -626,7 +638,7 @@ function openFullView(content) {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>전체 보기 — Alfred Agent</title>
+<title>전체 보기 — 에이전트 어벤저스</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"/>
 <style>
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -671,7 +683,7 @@ function openFullView(content) {
 <div class="wrap">
   <div class="header">
     <div class="avatar">A</div>
-    <span class="title">PROBLEM-TO-PRODUCT AGENT — 전체 보기</span>
+    <span class="title">에이전트 어벤저스 — 전체 보기</span>
     <button class="copy-btn" onclick="navigator.clipboard.writeText(document.querySelector('.content').innerText).then(()=>{this.textContent='복사됨 ✓';setTimeout(()=>{this.textContent='전체 복사'},1500)})">전체 복사</button>
   </div>
   <div class="content" id="content"></div>
@@ -1445,9 +1457,12 @@ function ComparePanel({ docA, docB, onClose }) {
 // ── Agent Council Panel ───────────────────────────────────────────────────────
 function AgentCouncilPanel({ solutionContent, onClose }) {
   const AGENTS = [
-    { id: "ux",  role: "UX 디자이너",       icon: "🎨", color: "#6c8ebf" },
-    { id: "dev", role: "개발자",             icon: "💻", color: "#5a9e8f" },
-    { id: "biz", role: "비즈니스 전략가",   icon: "📊", color: "#c97b3a" },
+    { id: "ux",        role: "Ms. Designer",   icon: "🎨", color: "#6c8ebf" },
+    { id: "dev",       role: "Mr. Engineer",   icon: "💻", color: "#5a9e8f" },
+    { id: "biz",       role: "Ms. Strategist", icon: "📊", color: "#c97b3a" },
+    { id: "pm",        role: "Mr. PM",         icon: "🗂️", color: "#7b68b5" },
+    { id: "data",      role: "Ms. Data",       icon: "📈", color: "#4a9e8f" },
+    { id: "marketing", role: "Mr. Marketing",  icon: "📣", color: "#bf6c6c" },
   ];
   const [steps, setSteps] = useState(AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
   const [done, setDone] = useState(false);
@@ -1486,8 +1501,8 @@ function AgentCouncilPanel({ solutionContent, onClose }) {
       <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>🧑‍🤝‍🧑 에이전트 협의</span>
-            <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>UX → 개발 → 비즈니스 순서로 심층 검토</span>
+            <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스</span>
+            <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>6인 전문가 순차 심층 검토</span>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
         </div>
@@ -2368,7 +2383,7 @@ export default function App() {
       setCurrentStage(STAGES.M1);
       setMessages([{
         role: "assistant",
-        content: `안녕하십니까, 주인님.\n\n저는 Problem-to-Product Agent입니다.\n\n문제가 충분히 정의되면 2-pager 문서를 자동으로 생성하고,\n세 가지 기준으로 즉시 검토해드립니다.\n기존에 작성하신 문서가 있다면 비교 분석도 가능합니다.\n\n🔍 M1 → 진짜 문제 발견\n🧭 M2 → UX 구조화\n⚙️ M3 → 솔루션 설계\n🛠️ M4 → POC 빌드\n✅ M5 → 검증\n\n어떤 문제를 해결하고 싶으십니까?`,
+        content: `안녕하십니까, 주인님.\n\n저는 에이전트 어벤저스입니다.\n\n문제가 충분히 정의되면 2-pager 문서를 자동으로 생성하고,\n6인의 전문가 에이전트(Ms. Designer, Mr. Engineer, Ms. Strategist, Mr. PM, Ms. Data, Mr. Marketing)가 심층 검토합니다.\n\n🔍 M1 → 진짜 문제 발견\n🧭 M2 → UX 구조화\n⚙️ M3 → 솔루션 설계 + 어벤저스 검토\n🛠️ M4 → POC 빌드\n✅ M5 → 검증\n\n어떤 문제를 해결하고 싶으십니까?`,
         stageLabel: STAGE_INFO.m1_discovery.label,
         stageColor: STAGE_INFO.m1_discovery.color,
         stageIcon: STAGE_INFO.m1_discovery.icon,
@@ -2454,7 +2469,7 @@ export default function App() {
       <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
         <div style={{ textAlign: "center", maxWidth: "380px" }}>
           <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #cccccc44" }}>A</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#111111", marginBottom: "8px", letterSpacing: "-0.02em" }}>Alfred Agent</div>
+          <div style={{ fontSize: "22px", fontWeight: "700", color: "#111111", marginBottom: "8px", letterSpacing: "-0.02em" }}>에이전트 어벤저스</div>
           <div style={{ fontSize: "13px", color: "#bbbbbb", marginBottom: "40px", lineHeight: "1.6" }}>Problem-to-Product · UX-first<br />대화 히스토리는 클라우드에 안전하게 저장됩니다</div>
           <button onClick={signInWithGitHub} style={{ width: "100%", padding: "14px 24px", background: "#111111", border: "1px solid #333333", borderRadius: "12px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "all 0.2s", marginBottom: "12px" }}
             onMouseEnter={e => { e.currentTarget.style.background = "#252545"; e.currentTarget.style.borderColor = "#888888"; }}
@@ -2480,8 +2495,8 @@ export default function App() {
           </button>
           <div style={{ textAlign: "center", maxWidth: "540px" }}>
             <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #cccccc44" }}>A</div>
-            <h1 style={{ fontSize: "28px", fontWeight: "300", color: "#111111", letterSpacing: "0.06em", marginBottom: "12px" }}>Problem-to-Product</h1>
-            <h2 style={{ fontSize: "13px", fontWeight: "400", color: "#888888", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "32px" }}>UX-First Agent by Alfred</h2>
+            <h1 style={{ fontSize: "28px", fontWeight: "300", color: "#111111", letterSpacing: "0.06em", marginBottom: "12px" }}>에이전트 어벤저스</h1>
+            <h2 style={{ fontSize: "13px", fontWeight: "400", color: "#888888", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "32px" }}>Problem-to-Product · UX-First</h2>
             <p style={{ color: "#777777", fontSize: "14px", lineHeight: "1.8", marginBottom: "40px" }}>
               문제를 말씀해 주십시오.<br />
               2-pager 자동 생성 · 검토 · 기존 문서 비교까지 합니다.
