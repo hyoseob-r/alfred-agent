@@ -358,6 +358,89 @@ Generate 5–7 slides depending on context. Keep content concise — this is dec
 Slide titles can be Korean or English. Content must be Korean.
 Do NOT add any text outside the slide format above.`;
 
+// ── Multi-Agent Council Prompts ───────────────────────────────────────────────
+const AGENT_COUNCIL_PROMPTS = {
+  ux: `You are a senior UX designer at a top Korean consumer tech company. You are in a live review session with peers, examining a product solution proposal.
+Critique the solution strictly from a UX perspective: user flows, interaction design, usability heuristics (Nielsen), information architecture, and mobile UX patterns.
+Be specific and direct. Point out the 2-3 biggest UX risks. Suggest concrete improvements.
+Respond in Korean. Use bullet points. 4-6 bullets max. No filler.`,
+
+  dev: `You are a senior software engineer specializing in mobile and web products. You are reviewing a product solution after hearing a UX designer's critique.
+Assess: technical feasibility, implementation complexity, engineering risks, and timeline realism. Reference the UX designer's points — agree or push back where relevant.
+Respond in Korean. Use bullet points. 4-6 bullets max. End with a one-line feasibility verdict.`,
+
+  biz: `You are a business strategist with deep expertise in Korean consumer tech. You are in a final review, after hearing from both UX designer and developer.
+Assess: market viability, monetization, competitive differentiation, and business risks. Synthesize all concerns into a final verdict.
+Respond in Korean. Use bullet points. 4-6 bullets max. End with: "최종 판단: [진행/수정/재검토] — [한 문장 이유]"`,
+};
+
+// ── UT Simulation Prompts ─────────────────────────────────────────────────────
+const DESIGNER_PROTO_PROMPT = `You are a UI designer creating a minimal clickable HTML prototype.
+Given a product solution concept, generate a self-contained HTML file for the key screen.
+Requirements:
+- Mobile viewport, 375px wide
+- Korean app aesthetic (clean, modern, dark or light)
+- At least 2-3 tappable elements (buttons, tabs, cards) with basic JS interactions
+- Inline CSS only — no external dependencies
+- Realistic Korean UI copy (no placeholder text)
+- Output ONLY valid HTML between <html> and </html>. No explanation.`;
+
+const RESEARCHER_UT_PROMPT = `You are a UX researcher designing a usability test.
+Given a solution, output EXACTLY this structure:
+
+---
+## UT 시나리오
+[1-2 sentence task for the user to complete]
+
+## 페르소나 A: [이름]
+- 나이/직업: ...
+- 특성: [2-3 behavioral traits]
+- 사용 목적: ...
+
+## 페르소나 B: [이름]
+- 나이/직업: ...
+- 특성: ...
+- 사용 목적: ...
+
+## 페르소나 C: [이름]
+- 나이/직업: ...
+- 특성: ...
+- 사용 목적: ...
+---
+
+Make personas meaningfully different (age, digital literacy, context). Respond in Korean.`;
+
+const PERSONA_SIM_PROMPT = (personaDesc) => `You ARE this user persona — stay fully in character:
+${personaDesc}
+
+You are interacting with a mobile app prototype. Narrate your experience in first person:
+1. 첫 인상 — 화면을 보자마자 눈에 들어오는 것
+2. 행동 — 무엇을 탭/스크롤하려고 하는지, 왜
+3. 혼란 — 어디서 막히거나 헷갈렸는지 (있다면)
+4. 감정 반응 — 이 순간 기분이 어떤지 (frustrated / delighted / confused / neutral)
+5. 실사용 의향 — 실제로 쓸 것인지, 이유
+
+Be realistic and specific. No generic feedback. Respond in Korean. Narrate as if streaming consciousness.`;
+
+const RESEARCHER_ANALYSIS_PROMPT = `You are a UX researcher synthesizing usability test results from 3 personas.
+Produce a concise UT report:
+
+## 주요 발견
+- 심각도 순 Top 3 사용성 문제 (각각: 현상 + 원인 + 영향도 상/중/하)
+
+## 잘 된 것
+- 1-2가지 긍정적 발견
+
+## 개선 권고
+- M4 진행 전 반드시 수정할 3가지
+
+## 최종 판단
+**PROCEED to M4** — 핵심 구조는 유효하며 개선 후 빌드 권고
+또는
+**RETURN to M1** — [어떤 핵심 가정이 틀렸는지 한 문장]
+
+Respond in Korean. Be decisive — no hedging.`;
+
 const STAGES = {
   IDLE: "idle",
   M1: "m1_discovery",
@@ -1359,6 +1442,338 @@ function ComparePanel({ docA, docB, onClose }) {
   );
 }
 
+// ── Agent Council Panel ───────────────────────────────────────────────────────
+function AgentCouncilPanel({ solutionContent, onClose }) {
+  const AGENTS = [
+    { id: "ux",  role: "UX 디자이너",       icon: "🎨", color: "#6c8ebf" },
+    { id: "dev", role: "개발자",             icon: "💻", color: "#5a9e8f" },
+    { id: "biz", role: "비즈니스 전략가",   icon: "📊", color: "#c97b3a" },
+  ];
+  const [steps, setSteps] = useState(AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
+  const [done, setDone] = useState(false);
+
+  const updateStep = (id, updates) =>
+    setSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
+  useEffect(() => {
+    (async () => {
+      let context = `다음 M3 솔루션을 검토해 주십시오:\n\n${solutionContent}`;
+      for (const agent of AGENTS) {
+        updateStep(agent.id, { status: "running" });
+        try {
+          const resp = await fetch("/api/chat", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-sonnet-4-20250514", max_tokens: 2000,
+              system: AGENT_COUNCIL_PROMPTS[agent.id],
+              messages: [{ role: "user", content: context }],
+            }),
+          });
+          const data = await resp.json();
+          const result = data.content?.[0]?.text || "응답 없음";
+          updateStep(agent.id, { status: "done", result });
+          context += `\n\n[${agent.role} 검토 의견]\n${result}`;
+        } catch {
+          updateStep(agent.id, { status: "error", result: "오류가 발생했습니다." });
+        }
+      }
+      setDone(true);
+    })();
+  }, []);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>🧑‍🤝‍🧑 에이전트 협의</span>
+            <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>UX → 개발 → 비즈니스 순서로 심층 검토</span>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+          {steps.map((step) => (
+            <div key={step.id} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: step.color + "22", border: `1px solid ${step.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px" }}>
+                {step.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: step.status === "waiting" ? "#aaaaaa" : step.color, marginBottom: "6px", letterSpacing: "0.05em", textTransform: "uppercase" }}>{step.role}</div>
+                {step.status === "waiting" && (
+                  <div style={{ padding: "10px 14px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "4px 12px 12px 12px", color: "#cccccc", fontSize: "12px" }}>대기 중...</div>
+                )}
+                {step.status === "running" && (
+                  <div style={{ padding: "10px 14px", background: step.color + "0a", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px", display: "flex", gap: "6px", alignItems: "center" }}>
+                    {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
+                    <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
+                  </div>
+                )}
+                {(step.status === "done" || step.status === "error") && (
+                  <div style={{ padding: "12px 14px", background: step.status === "error" ? "#fff0f0" : "#ffffff", border: `1px solid ${step.status === "error" ? "#f0aaaa" : step.color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
+                    <MarkdownRenderer content={step.result} />
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {done && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => openFullView(steps.map(s => `## ${s.role}\n\n${s.result}`).join("\n\n---\n\n"))}
+              style={{ padding: "6px 16px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>
+              ↗ 전체 보기
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── UT Simulation Panel ───────────────────────────────────────────────────────
+const UT_STEP_COLORS = {
+  prototype: "#6c8ebf", scenario: "#7b68b5",
+  persona_a: "#5a9e8f", persona_b: "#4a8e7f", persona_c: "#3a7e6f",
+  analysis: "#c97b3a",
+};
+
+function UTSimPanel({ solutionContent, onClose }) {
+  const STEPS_DEF = [
+    { id: "prototype", label: "디자이너 에이전트", sublabel: "HTML 프로토타입 생성", icon: "🎨" },
+    { id: "scenario",  label: "리서처 에이전트",  sublabel: "UT 시나리오 + 페르소나 3명 설정", icon: "🔬" },
+    { id: "persona_a", label: "페르소나 A",        sublabel: "프로토타입 조작 시뮬레이션", icon: "👤" },
+    { id: "persona_b", label: "페르소나 B",        sublabel: "프로토타입 조작 시뮬레이션", icon: "👤" },
+    { id: "persona_c", label: "페르소나 C",        sublabel: "프로토타입 조작 시뮬레이션", icon: "👤" },
+    { id: "analysis",  label: "리서처 에이전트",  sublabel: "결과 분석 + 인사이트", icon: "📋" },
+  ];
+  const [steps, setSteps] = useState(STEPS_DEF.map(s => ({ ...s, status: "waiting", result: "" })));
+  const [phase, setPhase] = useState("idle");
+  const [protoHTML, setProtoHTML] = useState("");
+  const [showProto, setShowProto] = useState(false);
+  const [verdict, setVerdict] = useState(null);
+
+  const updateStep = (id, updates) =>
+    setSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
+  const callAgent = async (system, userContent, maxTokens = 3000) => {
+    const resp = await fetch("/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] }),
+    });
+    const data = await resp.json();
+    return data.content?.[0]?.text || "";
+  };
+
+  const runUT = async () => {
+    setPhase("running");
+
+    // 1. Prototype
+    updateStep("prototype", { status: "running" });
+    const protoRaw = await callAgent(DESIGNER_PROTO_PROMPT, `솔루션:\n${solutionContent}`, 8000);
+    const htmlMatch = protoRaw.match(/<html[\s\S]*?<\/html>/i);
+    const html = htmlMatch ? htmlMatch[0] : `<html><body style="font-family:sans-serif;padding:20px;background:#1a1a1a;color:#fff"><h3>프로토타입</h3><p>${solutionContent.slice(0,200)}</p></body></html>`;
+    setProtoHTML(html);
+    updateStep("prototype", { status: "done", result: "HTML 프로토타입 생성 완료" });
+
+    // 2. UT scenario + personas
+    updateStep("scenario", { status: "running" });
+    const scenarioResult = await callAgent(RESEARCHER_UT_PROMPT, `솔루션:\n${solutionContent}`);
+    updateStep("scenario", { status: "done", result: scenarioResult });
+
+    // Parse personas
+    const personaBlocks = scenarioResult.split(/## 페르소나 [ABC]:/);
+    const taskMatch = scenarioResult.match(/## UT 시나리오\n([\s\S]+?)(?=##|$)/);
+    const taskDesc = taskMatch?.[1]?.trim() || "앱을 사용해 목표를 달성해 보십시오.";
+
+    // 3-5. Persona simulations
+    const personaIds = ["persona_a", "persona_b", "persona_c"];
+    const personaResults = [];
+    for (let i = 0; i < 3; i++) {
+      const pid = personaIds[i];
+      const personaText = personaBlocks[i + 1] ? `페르소나 ${["A","B","C"][i]}: ${personaBlocks[i + 1].trim()}` : `일반 사용자 페르소나 ${["A","B","C"][i]}`;
+      const nameMatch = personaText.match(/^([^\n-]+)/);
+      const personaName = nameMatch?.[1]?.trim() || `페르소나 ${["A","B","C"][i]}`;
+      updateStep(pid, { status: "running", sublabel: personaName });
+      const simResult = await callAgent(
+        PERSONA_SIM_PROMPT(personaText),
+        `UT 태스크: ${taskDesc}\n\n프로토타입: 앱 메인 화면, 카테고리 탐색, 주요 기능 화면으로 구성되어 있습니다.`
+      );
+      personaResults.push(simResult);
+      updateStep(pid, { status: "done", result: simResult });
+    }
+
+    // 6. Analysis
+    updateStep("analysis", { status: "running" });
+    const analysisResult = await callAgent(
+      RESEARCHER_ANALYSIS_PROMPT,
+      `솔루션:\n${solutionContent}\n\n[페르소나 A 시뮬레이션]\n${personaResults[0]}\n\n[페르소나 B 시뮬레이션]\n${personaResults[1]}\n\n[페르소나 C 시뮬레이션]\n${personaResults[2]}`
+    );
+    updateStep("analysis", { status: "done", result: analysisResult });
+
+    const vUpper = analysisResult.toUpperCase();
+    setVerdict(vUpper.includes("PROCEED") || vUpper.includes("M4") ? "M4" : "M1");
+    setPhase("done");
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ width: "100%", maxWidth: "760px", maxHeight: "90vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Header */}
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>🧪 UT 시뮬레이션 파이프라인</span>
+            <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>프로토 → 시나리오 → 페르소나 A·B·C → 분석 → 판단</span>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+          {/* Idle state — start button */}
+          {phase === "idle" && (
+            <div style={{ textAlign: "center", padding: "40px 20px" }}>
+              {/* Flow diagram */}
+              <div style={{ background: "#111111", borderRadius: "12px", padding: "20px", marginBottom: "28px", fontFamily: "monospace", fontSize: "11px", color: "#888888", textAlign: "left", lineHeight: "2.2", letterSpacing: "0.04em" }}>
+                {[
+                  ["M3 솔루션 설계", "#5a9e8f"],
+                  ["디자이너 에이전트 → HTML 프로토타입 생성", "#6c8ebf"],
+                  ["리서처 에이전트 → UT 시나리오 + 페르소나 3명 설정", "#7b68b5"],
+                  ["페르소나 A, B, C → 각자 프로토타입 조작 시뮬레이션", "#5a9e8f"],
+                  ["리서처 에이전트 → 결과 분석 + 인사이트", "#c97b3a"],
+                  ["M4로 넘어갈지 M1으로 돌아갈지 판단", "#ffffff"],
+                ].map(([text, color], i, arr) => (
+                  <div key={i}>
+                    <span style={{ color }}>  {text}</span>
+                    {i < arr.length - 1 && <div style={{ color: "#333333", paddingLeft: "8px" }}>  ↓</div>}
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: "12px", color: "#888888", marginBottom: "24px", lineHeight: "1.8" }}>
+                6단계 에이전트가 순차 실행됩니다. 약 1-2분이 소요됩니다.
+              </div>
+              <button onClick={runUT} style={{ padding: "12px 40px", background: "#111111", border: "1px solid #333333", borderRadius: "24px", color: "#ffffff", fontSize: "13px", cursor: "pointer", letterSpacing: "0.08em", transition: "all 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#333333"}
+                onMouseLeave={e => e.currentTarget.style.background = "#111111"}>
+                UT 파이프라인 시작
+              </button>
+            </div>
+          )}
+
+          {/* Running / Done state — step display */}
+          {(phase === "running" || phase === "done") && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              {steps.map((step, i) => {
+                const color = UT_STEP_COLORS[step.id];
+                return (
+                  <div key={step.id}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0" }}>
+                      <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: step.status === "waiting" ? "#f0f0f0" : color + "22", border: `1px solid ${step.status === "waiting" ? "#e5e5e5" : color + "66"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0, color: step.status === "done" ? color : "inherit", fontWeight: step.status === "done" ? 700 : 400 }}>
+                        {step.status === "done" ? "✓" : step.icon}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "12px", fontWeight: 600, color: step.status === "waiting" ? "#aaaaaa" : color }}>{step.label}</div>
+                        <div style={{ fontSize: "10px", color: "#aaaaaa" }}>{step.sublabel}</div>
+                      </div>
+                      {step.status === "running" && (
+                        <div style={{ display: "flex", gap: "4px" }}>
+                          {[0,1,2].map(j => <div key={j} style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
+                        </div>
+                      )}
+                      {step.id === "prototype" && step.status === "done" && protoHTML && (
+                        <button onClick={() => setShowProto(true)}
+                          style={{ padding: "4px 12px", background: "#eef4ff", border: "1px solid #aaccea", borderRadius: "16px", color: "#557799", fontSize: "10px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                          📱 미리보기
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Result preview */}
+                    {step.status === "done" && step.result && step.id !== "prototype" && (
+                      <div style={{ marginLeft: "40px", marginBottom: "4px", padding: "10px 12px", background: "#ffffff", border: `1px solid ${color}22`, borderRadius: "8px", maxHeight: "100px", overflowY: "auto" }}>
+                        <div style={{ fontSize: "11px", color: "#666666", lineHeight: "1.6" }}>
+                          {step.result.slice(0, 400)}{step.result.length > 400 ? "..." : ""}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Arrow connector */}
+                    {i < steps.length - 1 && (
+                      <div style={{ marginLeft: "15px", color: "#cccccc", fontSize: "14px", lineHeight: "1" }}>↓</div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Verdict */}
+              {verdict && (
+                <div style={{ marginTop: "16px", padding: "16px 20px", borderRadius: "12px", background: verdict === "M4" ? "#edf7f0" : "#fef2f2", border: `1px solid ${verdict === "M4" ? "#90c8a0" : "#f0a0a0"}` }}>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: verdict === "M4" ? "#4a9a6a" : "#aa4444", marginBottom: "6px" }}>
+                    {verdict === "M4" ? "✅ M4 진행 권고" : "↩️ M1 재검토 권고"}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#666666" }}>
+                    {verdict === "M4"
+                      ? "UT 결과 기반으로 개선사항 반영 후 POC 빌드를 시작할 수 있습니다."
+                      : "핵심 사용자 가정에 오류가 발견되었습니다. 문제 정의를 재검토하십시오."}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {phase === "done" && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", gap: "8px" }}>
+            <button onClick={() => openFullView(steps.filter(s => s.result).map(s => `## ${s.label} — ${s.sublabel}\n\n${s.result}`).join("\n\n---\n\n"))}
+              style={{ padding: "6px 16px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>
+              ↗ 전체 결과 보기
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Prototype preview modal */}
+      {showProto && protoHTML && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+            <div style={{ padding: "10px 16px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "11px", color: "#888888", letterSpacing: "0.08em" }}>📱 디자이너 에이전트 프로토타입</span>
+              <button onClick={() => setShowProto(false)} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+            <iframe srcDoc={protoHTML} width={375} height={667} style={{ display: "block", border: "none" }} sandbox="allow-scripts" title="ut-prototype" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── M3 Action Bar ─────────────────────────────────────────────────────────────
+function M3ActionBar({ solutionContent }) {
+  const [showCouncil, setShowCouncil] = useState(false);
+  const [showUT, setShowUT] = useState(false);
+  return (
+    <>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "8px 0 0 42px" }}>
+        <button onClick={() => setShowCouncil(true)}
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#f0f4ff", border: "1px solid #aab4ee", borderRadius: "20px", color: "#446699", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#7788cc"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#aab4ee"}>
+          🧑‍🤝‍🧑 에이전트 협의
+        </button>
+        <button onClick={() => setShowUT(true)}
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#f0fff4", border: "1px solid #aaeecc", borderRadius: "20px", color: "#447755", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#77ccaa"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = "#aaeecc"}>
+          🧪 UT 시뮬레이션
+        </button>
+      </div>
+      {showCouncil && <AgentCouncilPanel solutionContent={solutionContent} onClose={() => setShowCouncil(false)} />}
+      {showUT && <UTSimPanel solutionContent={solutionContent} onClose={() => setShowUT(false)} />}
+    </>
+  );
+}
+
 // Document action bar shown when 2-pager is generated
 function DocActionBar({ docContent, onUploadForCompare }) {
   const [showReview, setShowReview] = useState(false);
@@ -1439,6 +1854,7 @@ function MessageBubble({ msg, onDocReady }) {
   const has2pager = !isUser && msg.content && (
     msg.content.includes("문제 정의서") || msg.content.includes("Problem Definition")
   );
+  const isM3 = !isUser && msg.stageLabel === "M3 솔루션 설계";
 
   const handleUploadForCompare = async (uploaded) => {
     if (uploaded.type === "image") {
@@ -1463,7 +1879,7 @@ function MessageBubble({ msg, onDocReady }) {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: has2pager ? "4px" : "16px", gap: "10px", alignItems: "flex-start" }}>
+      <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: (has2pager || isM3) ? "4px" : "16px", gap: "10px", alignItems: "flex-start" }}>
         {!isUser && (
           <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #f0f0f5 0%, #e8e8f0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0, marginTop: "2px" }}>A</div>
         )}
@@ -1526,6 +1942,13 @@ function MessageBubble({ msg, onDocReady }) {
       {has2pager && !isUser && (
         <div style={{ marginBottom: "16px" }}>
           <DocActionBar docContent={msg.content} onUploadForCompare={handleUploadForCompare} />
+        </div>
+      )}
+
+      {/* M3 action bar — Agent Council + UT Simulation */}
+      {isM3 && (
+        <div style={{ marginBottom: "16px" }}>
+          <M3ActionBar solutionContent={msg.content} />
         </div>
       )}
 
