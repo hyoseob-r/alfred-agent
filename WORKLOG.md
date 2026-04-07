@@ -16,10 +16,15 @@
 ## 작업 로그
 
 ### 2026-04-07
-- [Council] 배달앱 시장 문제 정의 및 해결 방안 — 3라운드 완료 (신뢰도 71→77→84점)
-  - 핵심 합의: 수수료 구간 표시 MVP 포함, 기간 10주→8주 단축
-  - 최우선 검증: D+30 베이스라인 → D+90 개선율 측정
-  - Supabase 저장 완료 (c_claude_1775573541292)
+- [Council] 배달앱 시장 문제 정의 및 해결 방안 — 4라운드 완료 (신뢰도 71→77→84→91점, ❓ 0건)
+  - Phase 0(4주): Kakao OCR 자동 온보딩 → MVP(8주): 배달비범위+수수료구간+예측배지+영수증리뷰+감정넛지
+  - 소프트론칭: 수도권 3개 동네 100개 가맹점 → D14 리텐션 ≥20% gate → 300개 확장
+  - Supabase 저장 완료 (c_claude_1775574213513)
+- [완료] M4 POC Build — 배달앱 투명성 앱 "투명배달" POC 설계 완료
+  - 기술스택: React Native + Supabase + Kakao OCR/Maps + FastAPI(ML)
+  - 핵심화면 4개: 동네피드 / 배달비예측 / 영수증인증리뷰 / 감정넛지
+  - DB 스키마 + 예측 ML 모델(GBR) + D14 리텐션 쿼리 설계 완료
+  - 8주 로드맵 확정
 - [완료] Council 토론 기록 자동 저장 기능 추가 — /api/save-council + 사이드바 Council 탭
 - [완료] 전체 레포(alfred-agent, h-storybook, launcher, lottie-studio) SSH 연동 및 자동 동기화 설정
 - [완료] 4개 앱 전체 폰트 Pretendard로 통일
