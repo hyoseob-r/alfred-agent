@@ -2944,7 +2944,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState(STAGES.IDLE);
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(true);
   const [pendingImages, setPendingImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState("agent");
@@ -3101,7 +3101,6 @@ export default function App() {
   const startAgent = (restoredMessages = null, restoredStage = null) => {
     const id = newSessionId();
     setActiveSessionId(id);
-    setStarted(true);
     if (restoredMessages) {
       setMessages(restoredMessages);
       setCurrentStage(restoredStage || STAGES.M1);
@@ -3208,42 +3207,6 @@ export default function App() {
     );
   }
 
-  if (!started) {
-    return (
-      <>
-        <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={() => { setSidebarOpen(false); startAgent(); }} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
-        <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", padding: "20px", position: "relative" }}>
-          {/* History button top-left */}
-          <button onClick={handleSignOut} style={{ position: "absolute", top: "16px", right: "16px", padding: "6px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#bbbbbb", fontSize: "11px", cursor: "pointer" }}>로그아웃</button>
-          <button onClick={openSidebar} style={{ position: "absolute", top: "16px", left: "16px", display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#888888"; }}>
-            ☰ 히스토리 {sessions.length > 0 && <span style={{ background: "#cccccc", borderRadius: "10px", padding: "1px 6px", fontSize: "10px" }}>{sessions.length}</span>}
-          </button>
-          <div style={{ textAlign: "center", maxWidth: "540px" }}>
-            <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #cccccc44" }}>A</div>
-            <h1 style={{ fontSize: "28px", fontWeight: "300", color: "#111111", letterSpacing: "0.06em", marginBottom: "12px" }}>에이전트 어벤저스</h1>
-            <h2 style={{ fontSize: "13px", fontWeight: "400", color: "#888888", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "32px" }}>Problem-to-Product · UX-First</h2>
-            <p style={{ color: "#777777", fontSize: "14px", lineHeight: "1.8", marginBottom: "40px" }}>
-              문제를 말씀해 주십시오.<br />
-              2-pager 자동 생성 · 검토 · 기존 문서 비교까지 합니다.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "40px", textAlign: "left" }}>
-              {["🔍 M1 — 진짜 문제 발견 + 2-pager 자동 생성", "📋 자동 검토 — UX 필터 + 문서 완성도 + 비즈니스 타당성", "⚖️ 기존 문서 비교 — 업로드 후 항목별 차이 분석", "🧭 M2 — UX 구조화 (HMW + JTBD + 여정맵)", "⚙️ M3 — 솔루션 3안 + PRD", "🛠️ M4 → ✅ M5 — POC 빌드 & 검증"].map(s => (
-                <div key={s} style={{ padding: "9px 14px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#666666", fontSize: "12px" }}>{s}</div>
-              ))}
-            </div>
-            <button onClick={() => startAgent()} style={{ padding: "14px 48px", background: "#111111", border: "1px solid #111111", borderRadius: "30px", color: "#ffffff", fontSize: "14px", cursor: "pointer", letterSpacing: "0.1em", transition: "all 0.3s" }}
-              onMouseEnter={e => e.target.style.background = "#333333"} onMouseLeave={e => e.target.style.background = "#111111"}>
-              에이전트 시작
-            </button>
-          </div>
-        </div>
-        <style>{`@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');*{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif!important}`}</style>
-      </>
-    );
-  }
 
   return (
     <>
