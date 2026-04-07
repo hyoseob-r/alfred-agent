@@ -2561,6 +2561,11 @@ async function dbDeleteSession(sessionId) {
 
 function newCouncilId() { return "c_" + Date.now(); }
 
+async function dbDeleteCouncilSession(id) {
+  const sb = await getSupabase();
+  await sb.from("council_sessions").delete().eq("id", id);
+}
+
 async function dbLoadCouncilSessions(userId) {
   const sb = await getSupabase();
   const { data, error } = await sb.from("council_sessions")
@@ -2602,7 +2607,7 @@ async function getSession() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function CouncilDetailPanel({ council, onClose }) {
+function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
   const AGENTS = [
     { id: "ux", role: "Ms. Designer", icon: "🎨", color: "#6c8ebf" },
     { id: "dev", role: "Mr. Engineer", icon: "💻", color: "#5a9e8f" },
@@ -2613,35 +2618,121 @@ function CouncilDetailPanel({ council, onClose }) {
     { id: "factchecker", role: "Dr. Veritas", icon: "🔍", color: "#888888" },
   ];
   const agentMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
+
+  const [data, setData] = useState(() => JSON.parse(JSON.stringify(council)));
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved | error
+  const [editingField, setEditingField] = useState(null); // null | "topic" | "summary" | {ri, si}
   const [collapsed, setCollapsed] = useState({});
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const update = (fn) => { setData(prev => { const next = JSON.parse(JSON.stringify(prev)); fn(next); return next; }); setIsDirty(true); };
+
+  const save = async (payload) => {
+    if (!user?.id) return;
+    setSaveStatus("saving");
+    try {
+      await dbSaveCouncilSession({ id: payload.id, sessionId: payload.session_id || null, userId: user.id, topic: payload.topic, rounds: payload.rounds, summary: payload.summary });
+      setSaveStatus("saved");
+      onUpdated?.(payload);
+      setIsDirty(false);
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleClose = async () => {
+    if (isDirty) await save(data);
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    try {
+      await dbDeleteCouncilSession(data.id);
+      onDeleted?.(data.id);
+      onClose();
+    } catch { setConfirmDelete(false); }
+  };
+
+  const statusLabel = saveStatus === "saving" ? "저장 중..." : saveStatus === "saved" ? "저장됨" : saveStatus === "error" ? "저장 실패" : isDirty ? "수정됨 (닫으면 자동 저장)" : "";
+  const statusColor = saveStatus === "error" ? "#cc5555" : saveStatus === "saved" ? "#55aa55" : "#aaaaaa";
 
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 399, background: "rgba(0,0,0,0.5)" }} />
-      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(640px, 100vw)", zIndex: 400, background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "-8px 0 32px rgba(0,0,0,0.12)" }}>
+      <div onClick={handleClose} style={{ position: "fixed", inset: 0, zIndex: 399, background: "rgba(0,0,0,0.5)" }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(640px, 100vw)", zIndex: 400, background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "-8px 0 32px rgba(0,0,0,0.12)" }}>
+
         {/* Header */}
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "flex-start", gap: "12px" }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "flex-start", gap: "10px" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "10px", color: "#aaaaaa", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "4px" }}>
+            <div style={{ fontSize: "10px", color: "#aaaaaa", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
               Council 토론 기록 · {new Date(council.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-              {council.id?.startsWith("c_claude_") && <span style={{ marginLeft: "8px", background: "#f0f0ff", color: "#7777cc", padding: "1px 6px", borderRadius: "4px", fontSize: "9px" }}>Claude Code</span>}
+              {council.id?.startsWith("c_claude_") && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 6px", borderRadius: "4px", fontSize: "9px" }}>Claude Code</span>}
+              {statusLabel && <span style={{ color: statusColor, fontSize: "9px", marginLeft: "4px" }}>{statusLabel}</span>}
             </div>
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "#222222", lineHeight: "1.4" }}>{council.topic}</div>
+            {/* Editable topic */}
+            {editingField === "topic" ? (
+              <input autoFocus value={data.topic} onChange={e => update(d => { d.topic = e.target.value; })}
+                onBlur={() => setEditingField(null)}
+                onKeyDown={e => { if (e.key === "Enter") setEditingField(null); }}
+                style={{ width: "100%", fontSize: "13px", fontWeight: "600", color: "#222222", border: "none", borderBottom: "2px solid #6c8ebf", outline: "none", padding: "2px 0", background: "transparent" }} />
+            ) : (
+              <div onClick={() => setEditingField("topic")}
+                title="클릭하여 편집"
+                style={{ fontSize: "13px", fontWeight: "600", color: "#222222", lineHeight: "1.4", cursor: "text", borderBottom: "2px solid transparent", transition: "border-color 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.borderBottomColor = "#e5e5e5"}
+                onMouseLeave={e => e.currentTarget.style.borderBottomColor = "transparent"}>
+                {data.topic}
+              </div>
+            )}
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#aaaaaa", cursor: "pointer", fontSize: "18px", flexShrink: 0, lineHeight: 1 }}>✕</button>
+          {/* Delete + Close */}
+          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+            <button onClick={() => setConfirmDelete(true)}
+              title="삭제"
+              style={{ width: "28px", height: "28px", background: "none", border: "1px solid #e5e5e5", borderRadius: "6px", color: "#cccccc", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#cc5555"; e.currentTarget.style.color = "#cc5555"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#cccccc"; }}>🗑</button>
+            <button onClick={handleClose}
+              style={{ width: "28px", height: "28px", background: "none", border: "1px solid #e5e5e5", borderRadius: "6px", color: "#aaaaaa", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>✕</button>
+          </div>
         </div>
 
+        {/* Delete confirm */}
+        {confirmDelete && (
+          <div style={{ padding: "12px 20px", background: "#fff5f5", borderBottom: "1px solid #ffcccc", display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "12px", color: "#cc5555", flex: 1 }}>이 토론 기록을 삭제할까요? 되돌릴 수 없습니다.</span>
+            <button onClick={handleDelete} style={{ padding: "5px 12px", background: "#cc5555", border: "none", borderRadius: "6px", color: "#ffffff", fontSize: "11px", cursor: "pointer" }}>삭제</button>
+            <button onClick={() => setConfirmDelete(false)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #cccccc", borderRadius: "6px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>취소</button>
+          </div>
+        )}
+
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-          {/* Summary */}
-          {council.summary && (
-            <div style={{ padding: "12px 16px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "10px", marginBottom: "20px" }}>
-              <div style={{ fontSize: "10px", fontWeight: "700", color: "#888888", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>요약</div>
-              <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.8", whiteSpace: "pre-wrap" }}>{council.summary}</div>
-            </div>
-          )}
+          {/* Editable Summary */}
+          <div style={{ marginBottom: "20px" }}>
+            <div style={{ fontSize: "10px", fontWeight: "700", color: "#888888", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>요약</div>
+            {editingField === "summary" ? (
+              <textarea autoFocus value={data.summary || ""} onChange={e => update(d => { d.summary = e.target.value; })}
+                onBlur={() => setEditingField(null)}
+                style={{ width: "100%", minHeight: "100px", fontSize: "12px", color: "#444444", lineHeight: "1.8", border: "1px solid #6c8ebf", borderRadius: "10px", padding: "12px 16px", background: "#fafeff", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+            ) : (
+              <div onClick={() => setEditingField("summary")}
+                title="클릭하여 편집"
+                style={{ padding: "12px 16px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "10px", cursor: "text", transition: "border-color 0.15s", minHeight: "44px" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "#bbbbbb"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "#e5e5e5"}>
+                {data.summary
+                  ? <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.8", whiteSpace: "pre-wrap" }}>{data.summary}</div>
+                  : <div style={{ fontSize: "12px", color: "#cccccc" }}>클릭하여 요약 추가...</div>}
+              </div>
+            )}
+          </div>
 
           {/* Rounds */}
-          {(council.rounds || []).map((round, ri) => (
+          {(data.rounds || []).map((round, ri) => (
             <div key={ri} style={{ marginBottom: "16px" }}>
               <button onClick={() => setCollapsed(p => ({ ...p, [ri]: !p[ri] }))}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: "8px", cursor: "pointer", marginBottom: collapsed[ri] ? 0 : "12px" }}>
@@ -2651,12 +2742,26 @@ function CouncilDetailPanel({ council, onClose }) {
               </button>
               {!collapsed[ri] && (round.steps || []).map((step, si) => {
                 const ag = agentMap[step.id] || { icon: "🤖", color: "#888888", role: step.role || step.id };
+                const isEditingStep = editingField?.ri === ri && editingField?.si === si;
                 return (
                   <div key={si} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "14px", paddingLeft: "8px" }}>
                     <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: ag.color + "22", border: `1px solid ${ag.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>{ag.icon}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "11px", fontWeight: "700", color: ag.color, marginBottom: "4px" }}>{ag.role}</div>
-                      <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.7", whiteSpace: "pre-wrap", background: "#fafafa", border: "1px solid #eeeeee", borderRadius: "8px", padding: "10px 12px" }}>{step.result}</div>
+                      {isEditingStep ? (
+                        <textarea autoFocus value={step.result}
+                          onChange={e => update(d => { d.rounds[ri].steps[si].result = e.target.value; })}
+                          onBlur={() => setEditingField(null)}
+                          style={{ width: "100%", minHeight: "120px", fontSize: "12px", color: "#444444", lineHeight: "1.7", border: `1px solid ${ag.color}88`, borderRadius: "8px", padding: "10px 12px", background: "#fafafa", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+                      ) : (
+                        <div onClick={() => setEditingField({ ri, si })}
+                          title="클릭하여 편집"
+                          style={{ fontSize: "12px", color: "#444444", lineHeight: "1.7", whiteSpace: "pre-wrap", background: "#fafafa", border: "1px solid #eeeeee", borderRadius: "8px", padding: "10px 12px", cursor: "text", transition: "border-color 0.15s" }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = "#cccccc"}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = "#eeeeee"}>
+                          {step.result}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -2669,7 +2774,7 @@ function CouncilDetailPanel({ council, onClose }) {
   );
 }
 
-function HistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, councilSessions, onSelectCouncil, open, onClose }) {
+function HistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, councilSessions, onSelectCouncil, onDeleteCouncil, open, onClose }) {
   const [tab, setTab] = useState("chat");
   if (!open) return null;
   return (
@@ -2740,29 +2845,35 @@ function HistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, council
                 <div style={{ padding: "20px 12px", color: "#cccccc", fontSize: "12px", textAlign: "center" }}>저장된 Council 토론이 없습니다</div>
               )}
               {(councilSessions || []).map(c => (
-                <div key={c.id} onClick={() => { onSelectCouncil(c); onClose(); }}
-                  style={{ padding: "10px 12px", borderRadius: "8px", marginBottom: "4px", cursor: "pointer", border: "1px solid transparent", transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#f8f8f8"; e.currentTarget.style.borderColor = "#e5e5e5"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}
+                <div key={c.id}
+                  style={{ padding: "10px 12px", borderRadius: "8px", marginBottom: "4px", border: "1px solid transparent", transition: "all 0.15s", position: "relative" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#f8f8f8"; e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.querySelector(".del-btn").style.opacity = "1"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; e.currentTarget.querySelector(".del-btn").style.opacity = "0"; }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                    <span style={{ fontSize: "11px" }}>⚖️</span>
-                    {c.id?.startsWith("c_claude_") && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 5px", borderRadius: "4px", fontSize: "9px" }}>Claude Code</span>}
-                    <span style={{ fontSize: "9px", color: "#cccccc", marginLeft: "auto" }}>
-                      {new Date(c.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#555555", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                    {c.topic}
-                  </div>
-                  {c.summary && (
-                    <div style={{ fontSize: "10px", color: "#aaaaaa", marginTop: "4px", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {c.summary}
+                  <div onClick={() => { onSelectCouncil(c); onClose(); }} style={{ cursor: "pointer" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "11px" }}>⚖️</span>
+                      {c.id?.startsWith("c_claude_") && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 5px", borderRadius: "4px", fontSize: "9px" }}>Claude Code</span>}
+                      <span style={{ fontSize: "9px", color: "#cccccc", marginLeft: "auto" }}>
+                        {new Date(c.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                      </span>
                     </div>
-                  )}
-                  <div style={{ fontSize: "9px", color: "#cccccc", marginTop: "4px" }}>
-                    {c.rounds?.length || 0}라운드
+                    <div style={{ fontSize: "11px", color: "#555555", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {c.topic}
+                    </div>
+                    {c.summary && (
+                      <div style={{ fontSize: "10px", color: "#aaaaaa", marginTop: "4px", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                        {c.summary}
+                      </div>
+                    )}
+                    <div style={{ fontSize: "9px", color: "#cccccc", marginTop: "4px" }}>
+                      {c.rounds?.length || 0}라운드
+                    </div>
                   </div>
+                  <button className="del-btn" onClick={e => { e.stopPropagation(); onDeleteCouncil?.(c.id); }}
+                    style={{ position: "absolute", top: "8px", right: "8px", opacity: 0, background: "none", border: "none", color: "#cccccc", cursor: "pointer", fontSize: "11px", padding: "2px 4px", borderRadius: "4px", transition: "color 0.15s" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#cc5555"}
+                    onMouseLeave={e => e.currentTarget.style.color = "#cccccc"}>✕</button>
                 </div>
               ))}
             </>
@@ -2843,6 +2954,8 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [councilSessions, setCouncilSessions] = useState([]);
   const [selectedCouncil, setSelectedCouncil] = useState(null);
+  const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
+  const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
   const [user, setUser] = useState(null);         // Supabase user
   const [authLoading, setAuthLoading] = useState(true); // waiting for session check
   const [dbSaving, setDbSaving] = useState(false);
@@ -3094,8 +3207,8 @@ export default function App() {
   if (!started) {
     return (
       <>
-        <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={() => { setSidebarOpen(false); startAgent(); }} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} />}
+        <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={() => { setSidebarOpen(false); startAgent(); }} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
         <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", padding: "20px", position: "relative" }}>
           {/* History button top-left */}
           <button onClick={openSidebar} style={{ position: "absolute", top: "16px", left: "16px", display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
@@ -3129,8 +3242,8 @@ export default function App() {
 
   return (
     <>
-      <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} />}
+      <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
       <div
         onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
         style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f5f5f5", fontFamily: "'Pretendard', sans-serif", color: "#111111", position: "relative" }}
