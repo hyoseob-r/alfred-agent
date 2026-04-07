@@ -82,6 +82,16 @@ git config --global user.name "hyoseob-r"
 
 ---
 
+## 에이전트 테스트 트리거
+
+메시지가 `#에이전트 테스트`로 시작하면, 그 뒤 내용을 입력으로 간주하고 `src/App.jsx`의 `AGENT_COUNCIL_PROMPTS`에 저장된 6인 전문가 에이전트를 이 대화 내에서 직접 순서대로 실행한다.
+
+- API 크레딧 소모 없이 Claude Code 세션에서 프롬프트 품질 테스트 가능
+- 순서: Ms. Designer → Mr. Engineer → Ms. Strategist → Mr. PM → Ms. Data → Mr. Marketing
+- 각 에이전트는 이전 에이전트 결과를 context로 누적 수신
+
+---
+
 ## 작업 로그 위치
 
 ```
