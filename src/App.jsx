@@ -2956,8 +2956,8 @@ export default function App() {
   const [selectedCouncil, setSelectedCouncil] = useState(null);
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
   const handleSignOut = () => {
-    getSupabase().then(sb => sb.auth.signOut()).catch(() => {});
-    window.location.href = window.location.origin;
+    Object.keys(localStorage).filter(k => k.startsWith("sb-")).forEach(k => localStorage.removeItem(k));
+    getSupabase().then(sb => sb.auth.signOut()).catch(() => {}).finally(() => { window.location.href = window.location.origin; });
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
   const [user, setUser] = useState(null);         // Supabase user
