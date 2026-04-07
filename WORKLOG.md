@@ -16,6 +16,11 @@
 ## 작업 로그
 
 ### 2026-04-07
+- [Council] 배달앱 시장 문제 정의 및 해결 방안 — 1라운드 (평균 신뢰도 71점)
+  - 핵심 합의: 진짜 문제는 수수료가 아닌 정보 비대칭 + 신뢰 부재
+  - MVP: 배달비 실시간 선표시 + 영수증 인증 리뷰 (10주)
+  - Supabase 저장 완료 (c_claude_1775570747772)
+- [완료] Council 토론 기록 자동 저장 기능 추가 — /api/save-council + 사이드바 Council 탭
 - [완료] 전체 레포(alfred-agent, h-storybook, launcher, lottie-studio) SSH 연동 및 자동 동기화 설정
 - [완료] 4개 앱 전체 폰트 Pretendard로 통일
 - [완료] launcher 페이지 설명 텍스트 제거, 타이틀 제거, divider 중복 수정
