@@ -1143,7 +1143,7 @@ function ResearchPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5-20251001",
           max_tokens: 4000,
           system: RESEARCH_PROMPT,
           messages: [{ role: "user", content: topic }],
@@ -1227,7 +1227,7 @@ function UIPatternPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5-20251001",
           max_tokens: 4000,
           system: UI_PATTERN_PROMPT,
           messages: [{ role: "user", content: topic }],
@@ -1424,7 +1424,7 @@ function TasksPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5-20251001",
           max_tokens: 4000,
           system: PROMPT_MAP[activeTask],
           messages: [{ role: "user", content: topic }],
@@ -1526,7 +1526,7 @@ function ReviewPanel({ doc, title, onClose }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5-20251001",
           max_tokens: 16000,
           system: REVIEW_PROMPT,
           messages: [{ role: "user", content: `다음 문서를 검토해 주십시오:\n\n${doc}` }],
@@ -1586,7 +1586,7 @@ function ComparePanel({ docA, docB, onClose }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5-20251001",
           max_tokens: 16000,
           system: COMPARE_PROMPT,
           messages: [{
@@ -1662,7 +1662,7 @@ function AgentCouncilPanel({ solutionContent, onClose }) {
           const resp = await fetch("/api/chat", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: "claude-sonnet-4-20250514", max_tokens: 4000,
+              model: "claude-sonnet-4-5-20251001", max_tokens: 4000,
               system: AGENT_COUNCIL_PROMPTS[agent.id],
               messages: [{ role: "user", content: context }],
             }),
@@ -1756,7 +1756,7 @@ function UTSimPanel({ solutionContent, onClose }) {
   const callAgent = async (system, userContent, maxTokens = 3000) => {
     const resp = await fetch("/api/chat", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] }),
+      body: JSON.stringify({ model: "claude-sonnet-4-5-20251001", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] }),
     });
     const data = await resp.json();
     return data.content?.[0]?.text || "";
@@ -2061,7 +2061,7 @@ function MessageBubble({ msg, onDocReady }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-5-20251001",
           max_tokens: 16000,
           system: "Extract all text content from this document image. Output only the text, preserving structure.",
           messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: uploaded.mediaType, data: uploaded.data } }, { type: "text", text: "이 문서의 모든 텍스트를 추출해 주십시오." }] }],
@@ -2549,9 +2549,10 @@ export default function App() {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs }),
+      body: JSON.stringify({ model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs }),
     });
     const data = await response.json();
+    if (data.error) return `[오류] ${data.error.message || JSON.stringify(data.error)}`;
     return data.content?.[0]?.text || "응답을 받지 못했습니다.";
   };
 
