@@ -2956,8 +2956,8 @@ export default function App() {
   const [selectedCouncil, setSelectedCouncil] = useState(null);
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
   const handleSignOut = () => {
-    Object.keys(localStorage).filter(k => k.startsWith("sb-")).forEach(k => localStorage.removeItem(k));
-    getSupabase().then(sb => sb.auth.signOut()).catch(() => {}).finally(() => { window.location.href = window.location.origin; });
+    localStorage.clear();
+    window.location.href = window.location.origin;
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
   const [user, setUser] = useState(null);         // Supabase user
@@ -3215,6 +3215,7 @@ export default function App() {
         {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
         <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", padding: "20px", position: "relative" }}>
           {/* History button top-left */}
+          <button onClick={handleSignOut} style={{ position: "absolute", top: "16px", right: "16px", padding: "6px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#bbbbbb", fontSize: "11px", cursor: "pointer" }}>로그아웃</button>
           <button onClick={openSidebar} style={{ position: "absolute", top: "16px", left: "16px", display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#888888"; }}>
