@@ -2955,8 +2955,8 @@ export default function App() {
   const [councilSessions, setCouncilSessions] = useState([]);
   const [selectedCouncil, setSelectedCouncil] = useState(null);
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
-  const handleSignOut = async () => {
-    try { const sb = await getSupabase(); await sb.auth.signOut(); } catch {}
+  const handleSignOut = () => {
+    getSupabase().then(sb => sb.auth.signOut()).catch(() => {});
     window.location.href = window.location.origin;
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
@@ -3016,15 +3016,15 @@ export default function App() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       setDbSaving(true);
+      const giveUp = setTimeout(() => setDbSaving(false), 10000);
       try {
         const title = messages.find(m => m.role === "user")?.content?.slice(0, 40) || "새 대화";
         await dbUpsertSession({ id: activeSessionId, title, stage: currentStage }, user.id);
         await dbSaveMessages(activeSessionId, messages, user.id);
-        // Refresh sidebar list
         const s = await dbLoadSessions(user.id);
         setSessions(s);
       } catch (e) { console.error("save error:", e); }
-      finally { setDbSaving(false); }
+      finally { clearTimeout(giveUp); setDbSaving(false); }
     }, 1500);
     return () => clearTimeout(saveTimerRef.current);
   }, [messages]);
