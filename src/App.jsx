@@ -1638,6 +1638,15 @@ function ComparePanel({ docA, docB, onClose }) {
 }
 
 // ── Agent Council Panel ───────────────────────────────────────────────────────
+const DEBATE_ROUND_PROMPT = `당신은 지금 멀티라운드 심층 토론에 참여 중입니다.
+이전 라운드의 모든 의견을 면밀히 검토하고 다음 원칙에 따라 응답하십시오:
+
+1. 다른 에이전트의 의견을 직접 인용하며 동의 또는 반박하십시오. (예: "Ms. Designer의 X 주장은...")
+2. 단순 반복 금지 — 이전 라운드에서 한 말을 다시 하지 마십시오.
+3. 핵심 충돌 지점에 집중하십시오. 이미 합의된 사항은 넘어가십시오.
+4. 당신의 전문 프레임워크로 새로운 근거를 제시하십시오.
+5. 가능하면 구체적인 수치, 사례, 기준을 들어 주장을 강화하십시오.`;
+
 function AgentCouncilPanel({ solutionContent, onClose }) {
   const AGENTS = [
     { id: "ux",        role: "Ms. Designer",   icon: "🎨", color: "#6c8ebf" },
@@ -1647,82 +1656,225 @@ function AgentCouncilPanel({ solutionContent, onClose }) {
     { id: "data",      role: "Ms. Data",       icon: "📈", color: "#4a9e8f" },
     { id: "marketing", role: "Mr. Marketing",  icon: "📣", color: "#bf6c6c" },
   ];
-  const [steps, setSteps] = useState(AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
-  const [done, setDone] = useState(false);
+
+  const [rounds, setRounds] = useState([]);           // 완료된 라운드 결과 [{round, steps}]
+  const [currentSteps, setCurrentSteps] = useState(AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
+  const [currentRound, setCurrentRound] = useState(1);
+  const [roundDone, setRoundDone] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [fullContext, setFullContext] = useState("");
+  const [conflicts, setConflicts] = useState("");     // 충돌 지점 요약
+  const [detectingConflicts, setDetectingConflicts] = useState(false);
+  const [collapsedRounds, setCollapsedRounds] = useState({});
 
   const updateStep = (id, updates) =>
-    setSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    setCurrentSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
+  const runRound = async (roundNum, baseContext) => {
+    setIsRunning(true);
+    setRoundDone(false);
+    setCurrentSteps(AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
+
+    let context = baseContext;
+    const roundSteps = [];
+
+    for (const agent of AGENTS) {
+      updateStep(agent.id, { status: "running" });
+      try {
+        const systemPrompt = roundNum === 1
+          ? AGENT_COUNCIL_PROMPTS[agent.id]
+          : `${AGENT_COUNCIL_PROMPTS[agent.id]}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+
+        const resp = await fetch("/api/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-5-20251001", max_tokens: 4000,
+            system: systemPrompt,
+            messages: [{ role: "user", content: context }],
+          }),
+        });
+        const data = await resp.json();
+        const result = data.error
+          ? `[오류] ${data.error.message || JSON.stringify(data.error)}`
+          : (data.content?.[0]?.text || "응답 없음");
+        updateStep(agent.id, { status: data.error ? "error" : "done", result });
+        context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
+        roundSteps.push({ ...agent, result, status: data.error ? "error" : "done" });
+      } catch (e) {
+        const errMsg = `오류가 발생했습니다: ${e.message}`;
+        updateStep(agent.id, { status: "error", result: errMsg });
+        roundSteps.push({ ...agent, result: errMsg, status: "error" });
+      }
+    }
+
+    setFullContext(context);
+    setRounds(prev => [...prev, { round: roundNum, steps: roundSteps }]);
+    setRoundDone(true);
+    setIsRunning(false);
+  };
+
+  // 충돌 지점 자동 분석
+  const detectConflicts = async (context) => {
+    setDetectingConflicts(true);
+    try {
+      const resp = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20251001", max_tokens: 1000,
+          system: `당신은 회의 퍼실리테이터입니다. 6인 전문가의 의견에서 핵심 충돌 지점을 3개 이내로 추출하십시오.
+형식: "충돌 1: [주제] — [A 주장] vs [B 주장]" 형태로 간결하게. 한국어로.`,
+          messages: [{ role: "user", content: context }],
+        }),
+      });
+      const data = await resp.json();
+      const result = data.content?.[0]?.text || "";
+      setConflicts(result);
+      return result;
+    } catch {
+      return "";
+    } finally {
+      setDetectingConflicts(false);
+    }
+  };
+
+  const startNextRound = async () => {
+    const nextRound = currentRound + 1;
+    setCurrentRound(nextRound);
+    // 이전 라운드 접기
+    setCollapsedRounds(prev => ({ ...prev, [currentRound]: true }));
+
+    const conflictSummary = await detectConflicts(fullContext);
+    const debateContext = fullContext
+      + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
+      + `[${nextRound}라운드 심층 토론]\n`
+      + (conflictSummary ? `\n핵심 충돌 지점:\n${conflictSummary}\n` : "")
+      + `\n위 충돌 지점을 중심으로 심층 토론을 진행하십시오.\n`
+      + `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+    runRound(nextRound, debateContext);
+  };
 
   useEffect(() => {
-    (async () => {
-      let context = `다음 M3 솔루션을 검토해 주십시오:\n\n${solutionContent}`;
-      for (const agent of AGENTS) {
-        updateStep(agent.id, { status: "running" });
-        try {
-          const resp = await fetch("/api/chat", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-5-20251001", max_tokens: 4000,
-              system: AGENT_COUNCIL_PROMPTS[agent.id],
-              messages: [{ role: "user", content: context }],
-            }),
-          });
-          const data = await resp.json();
-          const result = data.content?.[0]?.text || "응답 없음";
-          updateStep(agent.id, { status: "done", result });
-          context += `\n\n[${agent.role} 검토 의견]\n${result}`;
-        } catch {
-          updateStep(agent.id, { status: "error", result: "오류가 발생했습니다." });
-        }
-      }
-      setDone(true);
-    })();
+    const initialContext = `다음 M3 솔루션을 검토해 주십시오:\n\n${solutionContent}`;
+    runRound(1, initialContext);
   }, []);
+
+  const AgentStepView = ({ steps }) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {steps.map((step) => (
+        <div key={step.id} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: step.color + "22", border: `1px solid ${step.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px" }}>
+            {step.icon}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: step.status === "waiting" ? "#aaaaaa" : step.color, marginBottom: "6px", letterSpacing: "0.05em", textTransform: "uppercase" }}>{step.role}</div>
+            {step.status === "waiting" && (
+              <div style={{ padding: "10px 14px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "4px 12px 12px 12px", color: "#cccccc", fontSize: "12px" }}>대기 중...</div>
+            )}
+            {step.status === "running" && (
+              <div style={{ padding: "10px 14px", background: step.color + "0a", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px", display: "flex", gap: "6px", alignItems: "center" }}>
+                {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
+                <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
+              </div>
+            )}
+            {(step.status === "done" || step.status === "error") && (
+              <div style={{ padding: "12px 14px", background: step.status === "error" ? "#fff0f0" : "#ffffff", border: `1px solid ${step.status === "error" ? "#f0aaaa" : step.color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
+                <MarkdownRenderer content={step.result} />
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
       <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* 헤더 */}
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스</span>
-            <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>6인 전문가 순차 심층 검토</span>
+            <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>
+              {isRunning ? `${currentRound}라운드 진행 중...` : `${currentRound}라운드 완료`}
+            </span>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {/* 라운드 탭 */}
+            {rounds.map(r => (
+              <button key={r.round} onClick={() => setCollapsedRounds(prev => ({ ...prev, [r.round]: !prev[r.round] }))}
+                style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", cursor: "pointer", border: "1px solid #cccccc", background: collapsedRounds[r.round] ? "#f0f0f0" : "#111111", color: collapsedRounds[r.round] ? "#888888" : "#ffffff", transition: "all 0.2s" }}>
+                R{r.round}
+              </button>
+            ))}
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px", marginLeft: "4px" }}>✕</button>
+          </div>
         </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-          {steps.map((step) => (
-            <div key={step.id} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: step.color + "22", border: `1px solid ${step.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px" }}>
-                {step.icon}
+
+        {/* 바디 */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
+
+          {/* 완료된 라운드들 */}
+          {rounds.map(r => (
+            <div key={r.round}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888888", letterSpacing: "0.15em" }}>
+                  {r.round}라운드 {r.round === 1 ? "초기 검토" : "심층 토론"}
+                </div>
+                <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+                <button onClick={() => setCollapsedRounds(prev => ({ ...prev, [r.round]: !prev[r.round] }))}
+                  style={{ fontSize: "10px", color: "#aaaaaa", background: "none", border: "none", cursor: "pointer" }}>
+                  {collapsedRounds[r.round] ? "펼치기 ↓" : "접기 ↑"}
+                </button>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: step.status === "waiting" ? "#aaaaaa" : step.color, marginBottom: "6px", letterSpacing: "0.05em", textTransform: "uppercase" }}>{step.role}</div>
-                {step.status === "waiting" && (
-                  <div style={{ padding: "10px 14px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "4px 12px 12px 12px", color: "#cccccc", fontSize: "12px" }}>대기 중...</div>
-                )}
-                {step.status === "running" && (
-                  <div style={{ padding: "10px 14px", background: step.color + "0a", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px", display: "flex", gap: "6px", alignItems: "center" }}>
-                    {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
-                    <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
-                  </div>
-                )}
-                {(step.status === "done" || step.status === "error") && (
-                  <div style={{ padding: "12px 14px", background: step.status === "error" ? "#fff0f0" : "#ffffff", border: `1px solid ${step.status === "error" ? "#f0aaaa" : step.color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
-                    <MarkdownRenderer content={step.result} />
-                  </div>
-                )}
-              </div>
+              {!collapsedRounds[r.round] && <AgentStepView steps={r.steps} />}
             </div>
           ))}
+
+          {/* 현재 진행 중인 라운드 */}
+          {isRunning && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#6c8ebf", letterSpacing: "0.15em" }}>
+                  {currentRound}라운드 {currentRound === 1 ? "초기 검토" : "심층 토론"} ●
+                </div>
+                <div style={{ flex: 1, height: "1px", background: "#ddeeff" }} />
+              </div>
+              <AgentStepView steps={currentSteps} />
+            </div>
+          )}
+
+          {/* 충돌 분석 중 */}
+          {detectingConflicts && (
+            <div style={{ padding: "12px 16px", background: "#fffbe6", border: "1px solid #ffe58f", borderRadius: "10px", fontSize: "12px", color: "#888800" }}>
+              ⚡ 충돌 지점 분석 중...
+            </div>
+          )}
+
+          {/* 충돌 지점 표시 */}
+          {conflicts && !detectingConflicts && !isRunning && (
+            <div style={{ padding: "14px 16px", background: "#fff9e6", border: "1px solid #ffe58f", borderRadius: "10px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "#c97b3a", marginBottom: "8px", letterSpacing: "0.1em" }}>⚡ 핵심 충돌 지점</div>
+              <MarkdownRenderer content={conflicts} />
+            </div>
+          )}
         </div>
-        {done && (
-          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => openFullView(steps.map(s => `## ${s.role}\n\n${s.result}`).join("\n\n---\n\n"))}
-              style={{ padding: "6px 16px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>
-              ↗ 전체 보기
+
+        {/* 푸터 */}
+        <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button
+            onClick={() => openFullView(rounds.map(r => `# ${r.round}라운드\n\n` + r.steps.map(s => `## ${s.role}\n\n${s.result}`).join("\n\n---\n\n")).join("\n\n═══════════════════\n\n"))}
+            style={{ padding: "6px 16px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>
+            ↗ 전체 보기
+          </button>
+          {roundDone && !isRunning && (
+            <button onClick={startNextRound}
+              style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
+              {currentRound + 1}라운드 심층 토론 →
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
