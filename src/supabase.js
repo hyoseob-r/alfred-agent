@@ -75,6 +75,30 @@ export async function dbDeleteSession(sessionId) {
   await sb.from('sessions').delete().eq('id', sessionId)
 }
 
+export function newCouncilId() { return 'c_' + Date.now() }
+
+export async function dbSaveCouncilSession({ id, sessionId, userId, topic, rounds, summary }) {
+  const { error } = await sb.from('council_sessions').upsert({
+    id,
+    session_id: sessionId || null,
+    user_id: userId,
+    topic,
+    rounds,
+    summary: summary || null,
+  }, { onConflict: 'id' })
+  if (error) console.error('dbSaveCouncilSession:', error)
+}
+
+export async function dbLoadCouncilSessions(userId) {
+  const { data, error } = await sb.from('council_sessions')
+    .select('id, topic, summary, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  if (error) { console.error(error); return [] }
+  return data || []
+}
+
 export async function signInWithGitHub() {
   await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.href } })
 }
