@@ -2957,7 +2957,7 @@ export default function App() {
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
   const handleSignOut = async () => {
     try { const sb = await getSupabase(); await sb.auth.signOut(); } catch {}
-    setUser(null); setSessions([]); setCouncilSessions([]); setMessages([]); setStarted(false); setActiveSessionId(null);
+    window.location.href = window.location.origin;
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
   const [user, setUser] = useState(null);         // Supabase user
