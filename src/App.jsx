@@ -2955,6 +2955,10 @@ export default function App() {
   const [councilSessions, setCouncilSessions] = useState([]);
   const [selectedCouncil, setSelectedCouncil] = useState(null);
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
+  const handleSignOut = async () => {
+    try { const sb = await getSupabase(); await sb.auth.signOut(); } catch {}
+    setUser(null); setSessions([]); setCouncilSessions([]); setMessages([]); setStarted(false); setActiveSessionId(null);
+  };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
   const [user, setUser] = useState(null);         // Supabase user
   const [authLoading, setAuthLoading] = useState(true); // waiting for session check
@@ -3279,7 +3283,7 @@ export default function App() {
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>＋ 새 대화</button>
           <AppMenu current="alfred" />
-          <button onClick={signOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+          <button onClick={handleSignOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>로그아웃</button>
         </div>
