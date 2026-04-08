@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>요기요 파트너 AI — 제품 제안</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --gray-100: #e5e5e5;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: var(--primary);
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  hr.divider { border: none; border-top: 1px solid var(--gray-100); }
+
+  /* Problem */
+  .problem-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .problem-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .problem-card.highlight {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+  }
+  .problem-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .problem-card .value {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+  .problem-card.highlight .value { color: var(--primary); }
+  .problem-card .sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+
+  /* Flow */
+  .flow-wrap {
+    background: #1a1a1a;
+    border-radius: var(--r4);
+    padding: 22px 24px;
+  }
+  .flow-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .flow-step {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  .flow-step .f-icon {
+    font-size: 20px;
+    margin-bottom: 6px;
+  }
+  .flow-step .f-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.4;
+  }
+  .flow-step .f-sub {
+    font-size: 10px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .flow-arrow {
+    color: rgba(255,255,255,0.25);
+    font-size: 16px;
+    flex-shrink: 0;
+    padding: 0 6px;
+    margin-bottom: 20px;
+  }
+
+  /* Solution grid */
+  .solution-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .solution-card {
+    border-radius: var(--r4);
+    padding: 18px 20px;
+    background: var(--bg-subtle);
+  }
+  .solution-card.accent {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+  }
+  .sol-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .sol-icon {
+    width: 34px;
+    height: 34px;
+    background: var(--primary-50);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .solution-card.accent .sol-icon { background: var(--primary-100); }
+  .sol-header h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .solution-card p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+  .sol-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+    background: var(--primary-50);
+    color: var(--primary);
+  }
+
+  /* Mockup */
+  .mockup-wrap {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 20px;
+  }
+  .mockup-phone {
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-1);
+    padding: 16px;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  .mockup-top {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mockup-top .badge-live {
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--primary);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+  }
+  .advisor-card {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+  .advisor-card .a-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .advisor-card .a-body {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .advisor-card .a-basis {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+  .advisor-card .a-basis span {
+    font-weight: 600;
+    color: var(--green);
+  }
+  .btn-row {
+    display: flex;
+    gap: 6px;
+  }
+  .a-btn {
+    flex: 1;
+    text-align: center;
+    border-radius: var(--rfull);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 0;
+  }
+  .a-btn.primary { background: var(--primary); color: #fff; }
+  .a-btn.ghost { background: var(--bg-subtle); color: var(--text-secondary); }
+
+  .result-card {
+    background: #f0faf8;
+    border: 1.5px solid #b3e5de;
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .result-card .r-icon { font-size: 20px; }
+  .result-card .r-text .r-val {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--green);
+  }
+  .result-card .r-text .r-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 1px;
+  }
+
+  /* Impact */
+  .impact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .impact-card {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .impact-card .i-num {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .impact-card .i-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .impact-card .i-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .impact-card.c1 { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .impact-card.c1 .i-num { color: var(--primary); }
+  .impact-card.c2 { background: #f0faf8; border: 1.5px solid #b3e5de; }
+  .impact-card.c2 .i-num { color: var(--green); }
+  .impact-card.c3 { background: #f0f6ff; border: 1.5px solid #b3d0f5; }
+  .impact-card.c3 .i-num { color: var(--blue); }
+
+  /* Timeline */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .tl-phase {
+    padding: 16px 18px;
+    border-right: 1px solid var(--gray-100);
+    position: relative;
+  }
+  .tl-phase:last-child { border-right: none; }
+  .tl-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+    margin-bottom: 8px;
+  }
+  .tl-tag.w1 { background: var(--primary-50); color: var(--primary); }
+  .tl-tag.w2 { background: #e8f4e8; color: #2e7d32; }
+  .tl-tag.w3 { background: #f0f6ff; color: var(--blue); }
+  .tl-tag.w4 { background: #f5f0ff; color: #6b3fa0; }
+  .tl-phase h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  .tl-phase ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tl-phase ul li {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding-left: 10px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .tl-phase ul li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--text-tertiary);
+    font-weight: 700;
+  }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .kpi-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .kpi-card .k-val {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .kpi-card.ns .k-val { color: var(--green); font-size: 14px; }
+  .kpi-card .k-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  /* Positioning */
+  .positioning {
+    background: #1a1a1a;
+    border-radius: var(--r4);
+    padding: 16px 22px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 20px;
+    align-items: center;
+  }
+  .pos-divider { width: 1px; background: rgba(255,255,255,0.12); }
+  .pos-block .pos-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .pos-block .pos-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.5;
+  }
+  .pos-block .pos-text span { color: #fa8050; }
+
+  /* Footer */
+  .footer {
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-meta { font-size: 11px; color: var(--text-tertiary); }
+  .footer-ask { font-size: 12px; font-weight: 600; color: var(--primary); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-tag">Product Proposal · 요기요 사장님센터 × 포스</div>
+    <h1>요기요 파트너 AI</h1>
+    <p>사장님이 배민 위주로 운영하는 건 요기요를 몰라서가 아닙니다. 요기요가 먼저 말을 걸지 않아서입니다.<br>
+    포스에서 문제를 보여주고, 사장님센터에서 원탭으로 해결합니다.</p>
+  </div>
+
+  <div class="body">
+
+    <!-- Problem -->
+    <div>
+      <div class="section-title">Problem — 지금 실제로 일어나고 있는 일</div>
+      <div class="problem-row">
+        <div class="problem-card">
+          <div class="label">외부 컨설팅의 결론</div>
+          <div class="value">"요기요는<br>비효율입니다"</div>
+          <div class="sub">잇브랜드 등 컨설팅사가 데이터 보고 내리는 결론. 이벤트 끝나자 광고 종료 권고. 요기요 이탈로 이어짐.</div>
+        </div>
+        <div class="problem-card">
+          <div class="label">실제 원인</div>
+          <div class="value">배달비 300원<br>차이가 전부</div>
+          <div class="sub">배민1 배달비 200원 인하 → 노출 +90%, 주문 +102%. 요기요도 동일한 최적화가 가능하지만 아무도 알려주지 않음.</div>
+        </div>
+        <div class="problem-card highlight">
+          <div class="label">근본 문제</div>
+          <div class="value">요기요가<br>먼저 말을 안 함</div>
+          <div class="sub">배민은 점유율 70%로 사장님이 알아서 최적화. 요기요는 낮은 점유율로 방치 → 악순환. 누군가 먼저 개입해야 끊을 수 있음.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flow -->
+    <div class="flow-wrap">
+      <div class="flow-title">Solution Flow — 요기요 파트너 AI 작동 방식</div>
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="f-icon">🖥️</div>
+          <div class="f-label">포스 위젯</div>
+          <div class="f-sub">문제 감지<br>수치 노출</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="f-icon">🤖</div>
+          <div class="f-label">AI 진단</div>
+          <div class="f-sub">원인 분석<br>추천 생성</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="f-icon">⚡</div>
+          <div class="f-label">원탭 실행</div>
+          <div class="f-sub">배달비·쿠폰<br>즉시 적용</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="f-icon">📈</div>
+          <div class="f-label">결과 피드백</div>
+          <div class="f-sub">주문 변화<br>즉시 확인</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="f-icon">🔒</div>
+          <div class="f-label">신뢰 축적</div>
+          <div class="f-sub">광고 투자<br>락인</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Solution -->
+    <div>
+      <div class="section-title">Solution — 두 가지 진입점</div>
+      <div class="solution-grid">
+        <div class="solution-card accent">
+          <div class="sol-header">
+            <div class="sol-icon">🖥️</div>
+            <h3>포스 위젯 (B2B 접점)</h3>
+          </div>
+          <p>오더히어로 등 배달 포스 화면에 요기요 AI 카드 1장 임베드. 사장님이 하루 8시간 보는 포스에서 요기요 수치를 가시화. 배민·쿠팡이츠는 점유율이 높아 포스에 공들일 이유 없음 — 비대칭 기회.</p>
+          <span class="sol-tag">오더히어로 1호 → 포스피드·나이스포스 확장</span>
+        </div>
+        <div class="solution-card accent">
+          <div class="sol-header">
+            <div class="sol-icon">🤖</div>
+            <h3>AI 어드바이저 (실행 공간)</h3>
+          </div>
+          <p>사장님센터 홈 AI 리포트 카드. 배달비·광고·쿠폰 이상 감지 + 원탭 실행. 추천 근거는 항상 공개 ("요기요 주문 기준"). 결과 피드백 카드로 효과 즉시 확인.</p>
+          <span class="sol-tag">포스 계약 없어도 P1 독립 실행 가능</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mockup -->
+    <div class="mockup-wrap">
+      <div class="section-title" style="margin-bottom:16px;">UI 컨셉 — 사장님센터 AI 카드</div>
+      <div class="mockup-phone">
+        <div class="mockup-top">
+          🤖 요기요 파트너 AI
+          <span class="badge-live">실시간</span>
+        </div>
+
+        <div class="advisor-card">
+          <div class="a-title">⚡ 지금 조치하면 주문 늘어요</div>
+          <div class="a-body">
+            같은 상권 족발 업장 평균보다 배달비가 <strong>300원 높습니다.</strong><br>
+            3,500원 → 3,200원으로 낮추면 주문 +28% 예상됩니다.
+          </div>
+          <div class="a-basis">추천 기준: <span>요기요 주문 최적화</span> · 지난 14일 데이터</div>
+          <div class="btn-row">
+            <div class="a-btn primary">지금 바꾸기</div>
+            <div class="a-btn ghost">나중에</div>
+          </div>
+        </div>
+
+        <div class="result-card">
+          <div class="r-icon">🎉</div>
+          <div class="r-text">
+            <div class="r-val">+23건 증가</div>
+            <div class="r-desc">배달비 변경 후 7일 · 요기요 주문</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Why Now -->
+    <div>
+      <div class="section-title">Why Now — 요기요에게 이게 왜 지금인가</div>
+      <div class="impact-grid">
+        <div class="impact-card c1">
+          <div class="i-num">비대칭 게임</div>
+          <div class="i-label">배민이 따라올 수 없는 이유</div>
+          <div class="i-desc">배민은 점유율 70%로 포스에 공들일 이유 없음. 요기요는 낮은 점유율이 오히려 포스사와 협력할 동기. 지금 선점하지 않으면 이 기회는 없어짐.</div>
+        </div>
+        <div class="impact-card c2">
+          <div class="i-num">이탈 방어</div>
+          <div class="i-label">가장 큰 수익은 방어 수익</div>
+          <div class="i-desc">외부 컨설팅이 "요기요 비효율" 결론 내리기 전에 요기요가 먼저 최적화해주면 이탈 없음. 이탈 방어 = 매출 보존. 신규 모집보다 효율적.</div>
+        </div>
+        <div class="impact-card c3">
+          <div class="i-num">삼자 윈윈</div>
+          <div class="i-label">포스사도 원하는 구조</div>
+          <div class="i-desc">포스사 입장: "매출 올려주는 포스"로 차별화 가능. 요기요에서 수익 배분(70/30). 포스사 영업팀이 직접 팔아주는 구조.</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Timeline -->
+    <div>
+      <div class="section-title">실행 로드맵 — 8주</div>
+      <div class="timeline">
+        <div class="tl-phase">
+          <span class="tl-tag w1">Week 1~2</span>
+          <h4>AI 어드바이저 개발</h4>
+          <ul>
+            <li>Rule Engine 진단 모델</li>
+            <li>사장님센터 AI 카드 UI</li>
+            <li>원탭 배달비 변경</li>
+            <li>D30 주문 감소 세그먼트 추출</li>
+          </ul>
+        </div>
+        <div class="tl-phase">
+          <span class="tl-tag w2">Week 3~4</span>
+          <h4>베타 + 계약 협상</h4>
+          <ul>
+            <li>AI 어드바이저 베타 론칭</li>
+            <li>A/B 테스트 시작</li>
+            <li>오더히어로 1차 미팅</li>
+            <li>포스피드 2순위 병렬 접촉</li>
+          </ul>
+        </div>
+        <div class="tl-phase">
+          <span class="tl-tag w3">Week 5~6</span>
+          <h4>계약 완료 + 위젯 개발</h4>
+          <ul>
+            <li>오더히어로 계약 (독점 12개월)</li>
+            <li>포스 위젯 개발 (웹뷰)</li>
+            <li>베타 데이터 경영진 공유</li>
+            <li>포스 어댑터 표준화</li>
+          </ul>
+        </div>
+        <div class="tl-phase">
+          <span class="tl-tag w4">Week 7~8</span>
+          <h4>포스 위젯 라이브</h4>
+          <ul>
+            <li>포스 위젯 QA + 배포</li>
+            <li>결과 피드백 카드 A/B</li>
+            <li>포스피드 계약 협상 착수</li>
+            <li>NS 측정 시작</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">성공 지표</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="k-val">40%+</div>
+          <div class="k-label">원탭 실행율<br>(AI 카드 → 실행)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="k-val">+20%</div>
+          <div class="k-label">D7 요기요 주문<br>변화율</div>
+        </div>
+        <div class="kpi-card">
+          <div class="k-val">20%+</div>
+          <div class="k-label">포스 위젯 CTR<br>(위젯 → 사장님센터)</div>
+        </div>
+        <div class="kpi-card ns">
+          <div class="k-val">원탭 후<br>D30 유지율 70%</div>
+          <div class="k-label">North Star<br>P1 베타 2주차 측정 시작</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Positioning -->
+    <div class="positioning">
+      <div class="pos-block">
+        <div class="pos-label">핵심 원칙</div>
+        <div class="pos-text">포스 계약이 불발돼도<br><span>AI 어드바이저는 반드시 진행합니다.</span><br>포스는 증폭기일 뿐, 가치의 원천은 AI.</div>
+      </div>
+      <div class="pos-divider"></div>
+      <div class="pos-block">
+        <div class="pos-label">추천 기준 원칙</div>
+        <div class="pos-text">모든 AI 추천은 <span>기준을 명시합니다.</span><br>"요기요 주문 최적화 기준"임을 항상 공개.<br>사장님이 판단하게 합니다.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-meta">요기요 Product Proposal · 2026.04 · 내부 검토용</div>
+    <div class="footer-ask">사장님 편에서 먼저 말을 겁니다.</div>
+  </div>
+
+</div>
+</body>
+</html>
