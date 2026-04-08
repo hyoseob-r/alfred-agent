@@ -19,6 +19,14 @@
 
 ## 작업 로그
 
+### 2026-04-09 (추가6)
+- [완료] Papers CTA 기능 구현
+  - 헤더에 📄 Papers 버튼 추가 (hover 시 요기요 레드)
+  - PapersModal: 자동완성 검색 + 셀렉박스 (public/*.html 자동 로드)
+  - 선택 시 풀모달 iframe 뷰어 (목록 ← 버튼 + 새 탭 ↗ 버튼)
+  - api/list-papers.js: <title> 태그 파싱, proposal/mockup 타입 자동 분류
+  - 새 HTML 파일 추가 시 자동으로 목록에 포함
+
 ### 2026-04-09 (추가5)
 - [완료] 요기요 파트너 AI 제안서 1-pager 제작
   - public/proposal-partner-ai.html — R8~R12 전략 종합
