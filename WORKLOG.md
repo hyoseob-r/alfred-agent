@@ -16,6 +16,13 @@
 ## 작업 로그
 
 ### 2026-04-08
+- [완료] 자동 저장/로드 완전 자동화 시스템 구축
+  - POST /api/save-context — 대화 중 중요 맥락 자동 저장 (Supabase context_notes 테이블)
+  - GET /api/get-context — 학습된 지침 + Council + 사용자 발언 전체 반환
+  - .claude/settings.json — Stop 훅: 매 응답 후 git pull로 CLAUDE.md 최신 유지
+  - CLAUDE.md — 자동저장 트리거 규칙 명시 (보정/방향전환/라운드완료 시 즉시 저장)
+  - setup.sh — 새 컴퓨터 1줄 명령어로 완전 초기화
+  - 현재 저장된 context_notes: 사용자기본지침/자동저장규칙/EXIT방향/요기요전략상태
 - [완료] 인수인계 자동 로드 시스템 구축
   - GET /api/get-context — 어느 컴퓨터/계정에서든 전체 맥락 자동 로드
   - CLAUDE.md — 세션 시작 시 Step1(API 호출)→Step2(WORKLOG)→Step3(브리핑) 절차 추가
