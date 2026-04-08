@@ -149,6 +149,14 @@
 
 ## 다음 작업 (백로그)
 
+### 요기요 전략
+- [ ] 요기요 파트너 AI 제안서 프러덕트 헤드 제출 (proposal-partner-ai.html + proposal-ai-advisor.html + proposal-closing-deal.html 세트)
+- [ ] 마감특가관 Council 이어서 진행 (#c-00001 or 새 Council)
+- [ ] B2B 버티컬 방향 구체화 (일반 사장님 포함 범위 재정의)
+
+### 에이전트 어벤저스
 - [x] 6인 Council 프롬프트 고도화 완료 (2026-04-07)
-- [ ] 에이전트 어벤저스 추가 고도화
+- [x] Ms. Designer §0 다크패턴 금지 원칙 추가 (2026-04-09)
+- [x] Papers CTA 기능 구현 (2026-04-09)
+- [ ] 에이전트 추가 고도화 (미정)
 
