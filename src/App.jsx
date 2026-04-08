@@ -1710,7 +1710,7 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
   const [conflicts, setConflicts] = useState("");
   const [detectingConflicts, setDetectingConflicts] = useState(false);
   const [collapsedRounds, setCollapsedRounds] = useState({});
-  const [councilId] = useState(() => newCouncilId());
+  const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved | worklog_saving | worklog_saved | error
 
   const updateStep = (id, updates) =>
@@ -1767,8 +1767,13 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     if (user?.id) {
       setSaveStatus("saving");
       try {
+        let cId = councilId;
+        if (!cId) {
+          cId = await dbNextCouncilId('a');
+          setCouncilId(cId);
+        }
         await dbSaveCouncilSession({
-          id: councilId,
+          id: cId,
           sessionId,
           userId: user.id,
           topic: solutionContent.slice(0, 200),
@@ -2559,7 +2564,12 @@ async function dbDeleteSession(sessionId) {
   await sb.from("sessions").delete().eq("id", sessionId);
 }
 
-function newCouncilId() { return "c_" + Date.now(); }
+async function dbNextCouncilId(type = 'a') {
+  const sb = await getSupabase();
+  const { data, error } = await sb.rpc('next_council_id', { p_type: type });
+  if (error) throw error;
+  return data; // "#a-00001"
+}
 
 async function dbDeleteCouncilSession(id) {
   const sb = await getSupabase();
@@ -2668,7 +2678,7 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: "10px", color: "#aaaaaa", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
               Council 토론 기록 · {new Date(council.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-              {council.id?.startsWith("c_claude_") && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 6px", borderRadius: "4px", fontSize: "9px" }}>Claude Code</span>}
+              {council.id && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 6px", borderRadius: "4px", fontSize: "9px", fontFamily: "monospace" }}>{council.id}</span>}
               {statusLabel && <span style={{ color: statusColor, fontSize: "9px", marginLeft: "4px" }}>{statusLabel}</span>}
             </div>
             {/* Editable topic */}
@@ -2853,7 +2863,7 @@ function HistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, council
                   <div onClick={() => { onSelectCouncil(c); onClose(); }} style={{ cursor: "pointer" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                       <span style={{ fontSize: "11px" }}>⚖️</span>
-                      {c.id?.startsWith("c_claude_") && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 5px", borderRadius: "4px", fontSize: "9px" }}>Claude Code</span>}
+                      {c.id && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 5px", borderRadius: "4px", fontSize: "9px", fontFamily: "monospace" }}>{c.id}</span>}
                       <span style={{ fontSize: "9px", color: "#cccccc", marginLeft: "auto" }}>
                         {new Date(c.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
                       </span>
