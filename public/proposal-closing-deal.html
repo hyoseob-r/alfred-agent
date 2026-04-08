@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마감특가관 — 요기요 제품 제안</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --primary-600: #c8003f;
+    --orange: #f04600;
+    --orange-25: #fff5f0;
+    --orange-100: #ffd4b8;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --yellow: #ffcb2e;
+    --gray-100: #e5e5e5;
+    --gray-50: #f2f2f2;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: var(--orange);
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  /* Body */
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  /* Section title */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* 3-column problem cards */
+  .problem-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .problem-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .problem-card .p-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: var(--gray-100);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .problem-card .label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+  }
+  .problem-card .desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .problem-card .tag {
+    display: inline-block;
+    margin-top: 8px;
+    background: var(--primary-50);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+  }
+
+  /* Logic block */
+  .logic-block {
+    background: var(--orange-25);
+    border: 1.5px solid var(--orange-100);
+    border-radius: var(--r4);
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .logic-icon {
+    font-size: 36px;
+    flex-shrink: 0;
+  }
+  .logic-text .logic-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--orange);
+    margin-bottom: 5px;
+  }
+  .logic-text p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+  .logic-text strong {
+    color: var(--text-primary);
+  }
+
+  /* Category chips */
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .chip {
+    background: var(--bg-subtle);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border: 1px solid var(--gray-100);
+  }
+  .chip.on {
+    background: #fff8ee;
+    border-color: var(--orange-100);
+    color: var(--orange);
+  }
+
+  /* Comparison table */
+  .compare-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+  }
+  .compare-table thead th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    padding: 8px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .compare-table thead th:first-child { width: 28%; }
+  .compare-table tbody tr td {
+    padding: 11px 14px;
+    vertical-align: top;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .compare-table tbody tr:last-child td { border-bottom: none; }
+  .compare-table tbody tr td:first-child {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .compare-table tbody tr.highlight td {
+    background: var(--orange-25);
+  }
+  .compare-table tbody tr.highlight td:first-child {
+    color: var(--orange);
+  }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--rfull);
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  .badge.bad { background: var(--primary-50); color: var(--primary); }
+  .badge.good { background: #e8f4e8; color: #2e7d32; }
+
+  /* Mockup */
+  .mockup-wrap {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 20px;
+  }
+  .mockup-phone {
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-1);
+    padding: 16px;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+  .mockup-header {
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+  }
+  .mockup-sub {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+  }
+  .deal-card {
+    border-radius: var(--r3);
+    border: 1.5px solid var(--gray-100);
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .deal-card-header {
+    background: var(--orange);
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .deal-card-header .shop-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .deal-card-header .timer {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .deal-card-body {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .deal-info .menu-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .deal-info .price-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .deal-info .original {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-decoration: line-through;
+  }
+  .deal-info .sale {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--orange);
+  }
+  .deal-info .pct {
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--orange);
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: var(--rfull);
+  }
+  .deal-btn {
+    background: var(--orange);
+    color: #fff;
+    border-radius: var(--rfull);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 14px;
+    flex-shrink: 0;
+  }
+
+  /* Impact */
+  .impact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .impact-card {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+    background: var(--bg-subtle);
+  }
+  .impact-card .i-num {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .impact-card .i-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .impact-card .i-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .impact-card.c1 { background: var(--orange-25); border: 1.5px solid var(--orange-100); }
+  .impact-card.c1 .i-num { color: var(--orange); }
+  .impact-card.c2 { background: #f0faf8; border: 1.5px solid #b3e5de; }
+  .impact-card.c2 .i-num { color: var(--green); }
+  .impact-card.c3 { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .impact-card.c3 .i-num { color: var(--primary); }
+
+  /* MVP */
+  .mvp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .mvp-phase {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+    background: var(--bg-subtle);
+  }
+  .phase-tag {
+    display: inline-block;
+    border-radius: var(--rfull);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    margin-bottom: 8px;
+  }
+  .phase-tag.p1 { background: #ffeadc; color: var(--orange); }
+  .phase-tag.p2 { background: #e8f4e8; color: #2e7d32; }
+  .mvp-phase h3 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+  }
+  .mvp-phase ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .mvp-phase ul li {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .mvp-phase ul li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--text-tertiary);
+    font-weight: 700;
+  }
+
+  /* Positioning note */
+  .positioning {
+    background: #1a1a1a;
+    border-radius: var(--r4);
+    padding: 16px 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .positioning .pos-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .positioning .pos-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.4;
+  }
+  .positioning .pos-text span {
+    color: #ffb347;
+  }
+  .pos-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+
+  /* Footer */
+  .footer {
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-meta {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+  .footer-ask {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--orange);
+  }
+
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--gray-100);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-tag">Product Proposal · 요기요 할인랭킹 진화</div>
+    <h1>마감특가관</h1>
+    <p>팔리지 않으면 버려야 하는 메뉴가 있습니다. 사장님은 이미 20~30% 할인할 준비가 돼 있습니다.<br>
+    입찰 경쟁이 아닌 시간 기반 마감 할인으로 구조를 바꿉니다.</p>
+  </div>
+
+  <div class="body">
+
+    <!-- Problem -->
+    <div>
+      <div class="section-title">Problem — 기존 할인랭킹의 3가지 구조적 한계</div>
+      <div class="problem-row">
+        <div class="problem-card">
+          <div class="p-num">1</div>
+          <div class="label">지방 무력화</div>
+          <div class="desc">입찰 경쟁 구조에서 수도권 대형 업장이 광고비로 상위 독점. 포천·전남 사장님은 참여 자체가 어렵습니다.</div>
+          <span class="tag">지방 전략 충돌</span>
+        </div>
+        <div class="problem-card">
+          <div class="p-num">2</div>
+          <div class="label">할인율이 낮음</div>
+          <div class="desc">광고비 지출 방향으로 흘러 실제 체감 할인이 없음. 소비자 입장에서 배민·쿠팡이츠 대비 차별화 불가.</div>
+          <span class="tag">소비자 유인 부족</span>
+        </div>
+        <div class="problem-card">
+          <div class="p-num">3</div>
+          <div class="label">상위 고착화</div>
+          <div class="desc">오래 광고한 업장이 계속 상위 → 신규 입점 업장 노출 기회 없음. 플랫폼 내 불평등 심화.</div>
+          <span class="tag">신규 업장 불이익</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core Logic -->
+    <div class="logic-block">
+      <div class="logic-icon">🕐</div>
+      <div class="logic-text">
+        <div class="logic-title">핵심 논리 — "버리느니 파는 게 낫다"</div>
+        <p>
+          반찬·밀키트·베이커리·샐러드는 <strong>당일 마감 재고</strong>가 존재합니다.<br>
+          폐기 비용을 감수하느니 <strong>20~40% 할인해서 파는 게 낫습니다.</strong><br>
+          사장님이 자발적으로 할인을 선택하는 유일한 상황입니다. 요기요는 그 타이밍에 노출만 해주면 됩니다.
+        </p>
+        <div class="chip-row">
+          <span class="chip on">반찬</span>
+          <span class="chip on">밀키트</span>
+          <span class="chip on">베이커리</span>
+          <span class="chip on">샐러드</span>
+          <span class="chip on">국·탕</span>
+          <span class="chip">치킨</span>
+          <span class="chip">피자</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Comparison -->
+    <div>
+      <div class="section-title">Solution — 기존 할인랭킹 vs 마감특가관</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>기존 할인랭킹</th>
+            <th>마감특가관 <span class="badge good">NEW</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>노출 기준</td>
+            <td>광고비 입찰 <span class="badge bad">경쟁</span></td>
+            <td>마감 시간 임박 순 <span class="badge good">자동</span></td>
+          </tr>
+          <tr>
+            <td>할인 주체</td>
+            <td>플랫폼이 이벤트성 쿠폰 지급</td>
+            <td>사장님이 자발적으로 설정</td>
+          </tr>
+          <tr class="highlight">
+            <td>할인율</td>
+            <td>5~15% (광고비 포함 실질 낮음)</td>
+            <td>20~40% (폐기 회피 동기로 자발적)</td>
+          </tr>
+          <tr>
+            <td>지방 효과</td>
+            <td>수도권 집중, 지방 사실상 무력</td>
+            <td>마감 재고는 지방에 더 많음 → 역전</td>
+          </tr>
+          <tr>
+            <td>소비자 경험</td>
+            <td>항상 비슷한 업장 노출, 신선도 낮음</td>
+            <td>오늘 한정 특가 → 긴급성·희소성 부여</td>
+          </tr>
+          <tr>
+            <td>사장님 부담</td>
+            <td>지속적 광고비 지출 필요</td>
+            <td>팔릴 때만 % 설정, 수수료 없음</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mockup -->
+    <div class="mockup-wrap">
+      <div class="section-title" style="margin-bottom: 16px;">UI 컨셉 — 소비자 앱 마감특가관 탭</div>
+      <div class="mockup-phone">
+        <div class="mockup-header">⏰ 오늘의 마감특가</div>
+        <div class="mockup-sub">마감 2시간 전 · 한정 수량 · 지금만 이 가격</div>
+
+        <div class="deal-card">
+          <div class="deal-card-header">
+            <span class="shop-name">🥗 아리따운 샐러드 포천점</span>
+            <span class="timer">⏱ 1:42 남음</span>
+          </div>
+          <div class="deal-card-body">
+            <div class="deal-info">
+              <div class="menu-name">닭가슴살 그레인볼</div>
+              <div class="price-row">
+                <span class="original">12,500원</span>
+                <span class="sale">8,700원</span>
+                <span class="pct">-30%</span>
+              </div>
+            </div>
+            <div class="deal-btn">주문하기</div>
+          </div>
+        </div>
+
+        <div class="deal-card">
+          <div class="deal-card-header">
+            <span class="shop-name">🍱 엄마손 반찬가게</span>
+            <span class="timer">⏱ 0:55 남음</span>
+          </div>
+          <div class="deal-card-body">
+            <div class="deal-info">
+              <div class="menu-name">오늘의 반찬 5종 세트</div>
+              <div class="price-row">
+                <span class="original">18,000원</span>
+                <span class="sale">11,900원</span>
+                <span class="pct">-34%</span>
+              </div>
+            </div>
+            <div class="deal-btn">주문하기</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Impact -->
+    <div>
+      <div class="section-title">Why Now — 요기요에게 이게 왜 중요한가</div>
+      <div class="impact-grid">
+        <div class="impact-card c1">
+          <div class="i-num">지방 역전</div>
+          <div class="i-label">포천·지방 파일럿에 최적</div>
+          <div class="i-desc">입찰 경쟁 없이 마감 재고 기반 자동 노출. 수도권 대형 업장 없는 지방에서 오히려 더 잘 작동. 포천 파일럿과 직결.</div>
+        </div>
+        <div class="impact-card c2">
+          <div class="i-num">비용 제로</div>
+          <div class="i-label">플랫폼 보조금 불필요</div>
+          <div class="i-desc">사장님이 자발적으로 할인 설정. 요기요가 쿠폰 비용을 부담하지 않아도 20~40% 할인이 만들어짐. 지속 가능한 구조.</div>
+        </div>
+        <div class="impact-card c3">
+          <div class="i-num">차별화</div>
+          <div class="i-label">배민·쿠팡이츠에 없는 포맷</div>
+          <div class="i-desc">배민 타임딜은 일부 운영, 구조적 마감특가 탭은 3사 모두 없음. 먼저 만들면 "요기요=저녁 할인" 이미지 선점 가능.</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- MVP -->
+    <div>
+      <div class="section-title">MVP 범위 — 무엇부터 만드나</div>
+      <div class="mvp-row">
+        <div class="mvp-phase">
+          <span class="phase-tag p1">Phase 1 · 3주</span>
+          <h3>마감특가 등록 + 탭 노출</h3>
+          <ul>
+            <li>사장님센터: 마감 시간·할인율·잔여 수량 설정</li>
+            <li>소비자 앱: "마감특가관" 탭 신설 (카테고리 필터)</li>
+            <li>마감 임박 순 자동 정렬 (광고비 입찰 없음)</li>
+            <li>포천시 파일럿 업장 30개 우선 온보딩</li>
+          </ul>
+        </div>
+        <div class="mvp-phase">
+          <span class="phase-tag p2">Phase 2 · +3주</span>
+          <h3>알림 + 데이터 피드백</h3>
+          <ul>
+            <li>소비자 푸시 알림 "단골 카테고리 마감특가 시작"</li>
+            <li>사장님: 마감특가 매출·폐기율 감소 리포트</li>
+            <li>AI 어드바이저 연동 — "지금 등록하면 주문 예상 +N건"</li>
+            <li>반찬·베이커리 카테고리 확장 (밀키트·국탕 추가)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Positioning -->
+    <div class="positioning">
+      <div>
+        <div class="pos-label">포지셔닝</div>
+        <div class="pos-text">새 기능이 아닙니다. <span>기존 할인랭킹이 하지 못했던 것</span>을 하는 겁니다.</div>
+      </div>
+      <div class="pos-divider"></div>
+      <div>
+        <div class="pos-label">핵심 메시지</div>
+        <div class="pos-text">사장님은 <span>이미 할인할 준비</span>가 돼 있었습니다.<br>타이밍과 노출만 연결하면 됩니다.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-meta">요기요 Product Proposal · 2026.04 · 내부 검토용</div>
+    <div class="footer-ask">할인은 플랫폼이 만드는 게 아닙니다. 사장님이 원할 때 연결하면 됩니다.</div>
+  </div>
+
+</div>
+</body>
+</html>
