@@ -2959,6 +2959,116 @@ function AppMenu({ current }) {
   );
 }
 
+function PapersModal({ onClose }) {
+  const [papers, setPapers] = React.useState([]);
+  const [query, setQuery] = React.useState("");
+  const [selected, setSelected] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => {
+    fetch("/api/list-papers")
+      .then(r => r.json())
+      .then(d => { setPapers(d.papers || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  React.useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, []);
+
+  const filtered = papers.filter(p =>
+    !query || p.title.toLowerCase().includes(query.toLowerCase()) || p.filename.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const labelColor = filename => {
+    if (filename.startsWith("proposal")) return { bg: "#fff5f8", border: "#feccdc", color: "#fa0050" };
+    if (filename.startsWith("mockup")) return { bg: "#f0f6ff", border: "#b3d0f5", color: "#0c74e4" };
+    return { bg: "#f6f6f6", border: "#e5e5e5", color: "#888888" };
+  };
+
+  const typeLabel = filename => {
+    if (filename.startsWith("proposal")) return "Proposal";
+    if (filename.startsWith("mockup")) return "Mockup";
+    return "Document";
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+      onClick={e => { if (e.target === e.currentTarget) { if (selected) setSelected(null); else onClose(); } }}>
+
+      {selected ? (
+        /* 풀 모달 iframe 뷰어 */
+        <div style={{ width: "100%", height: "100%", maxWidth: "1200px", maxHeight: "92vh", background: "#fff", borderRadius: "16px", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px rgba(0,0,0,0.32)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", gap: "10px", background: "#fff", flexShrink: 0 }}>
+            <button onClick={() => setSelected(null)} style={{ padding: "4px 10px", border: "1px solid #e5e5e5", borderRadius: "8px", background: "none", color: "#888", fontSize: "11px", cursor: "pointer" }}>← 목록</button>
+            <div style={{ flex: 1, fontSize: "13px", fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.title}</div>
+            <a href={selected.path} target="_blank" rel="noreferrer" style={{ padding: "4px 10px", border: "1px solid #e5e5e5", borderRadius: "8px", background: "none", color: "#888", fontSize: "11px", cursor: "pointer", textDecoration: "none" }}>새 탭 ↗</a>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#aaa", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>✕</button>
+          </div>
+          <iframe src={selected.path} style={{ flex: 1, border: "none", width: "100%" }} title={selected.title} />
+        </div>
+      ) : (
+        /* 검색 + 셀렉 패널 */
+        <div style={{ width: "100%", maxWidth: "480px", background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 48px rgba(0,0,0,0.24)" }}>
+          {/* 헤더 */}
+          <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #f0f0f0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#333" }}>📄 Papers</div>
+              <button onClick={onClose} style={{ background: "none", border: "none", color: "#aaa", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>✕</button>
+            </div>
+            {/* 검색 인풋 */}
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#bbb", fontSize: "13px", pointerEvents: "none" }}>🔍</span>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="문서 검색..."
+                style={{ width: "100%", padding: "8px 12px 8px 30px", border: "1px solid #e5e5e5", borderRadius: "8px", fontSize: "12px", color: "#333", outline: "none", background: "#f8f8f8", fontFamily: "inherit" }}
+                onFocus={e => e.currentTarget.style.borderColor = "#fa0050"}
+                onBlur={e => e.currentTarget.style.borderColor = "#e5e5e5"}
+              />
+            </div>
+          </div>
+
+          {/* 목록 */}
+          <div style={{ maxHeight: "400px", overflowY: "auto", padding: "8px" }}>
+            {loading ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "#bbb", fontSize: "12px" }}>불러오는 중...</div>
+            ) : filtered.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "#bbb", fontSize: "12px" }}>검색 결과 없음</div>
+            ) : (
+              filtered.map(p => {
+                const lc = labelColor(p.filename);
+                return (
+                  <button key={p.filename} onClick={() => setSelected(p)}
+                    style={{ width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: "10px", border: "1px solid transparent", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s", marginBottom: "2px" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "#f8f8f8"; e.currentTarget.style.borderColor = "#e5e5e5"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
+                    <div style={{ flexShrink: 0, width: "32px", height: "32px", borderRadius: "8px", background: lc.bg, border: `1px solid ${lc.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>
+                      {p.filename.startsWith("proposal") ? "📋" : p.filename.startsWith("mockup") ? "🖼" : "📄"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
+                      <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>{p.filename}</div>
+                    </div>
+                    <span style={{ flexShrink: 0, fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "20px", background: lc.bg, border: `1px solid ${lc.border}`, color: lc.color }}>{typeLabel(p.filename)}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div style={{ padding: "10px 16px", borderTop: "1px solid #f0f0f0", fontSize: "10px", color: "#bbb", textAlign: "right" }}>
+            {filtered.length}개 문서 · public/*.html 자동 로드
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -2970,6 +3080,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("agent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const openSidebar = () => { setSidebarOpen(true); if (user?.id) dbLoadCouncilSessions(user.id).then(setCouncilSessions); };
+  const [showPapers, setShowPapers] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [councilSessions, setCouncilSessions] = useState([]);
@@ -3232,6 +3343,7 @@ export default function App() {
     <>
       <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
+      {showPapers && <PapersModal onClose={() => setShowPapers(false)} />}
       <div
         onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
         style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f5f5f5", fontFamily: "'Pretendard', sans-serif", color: "#111111", position: "relative" }}
@@ -3263,6 +3375,11 @@ export default function App() {
               {dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
             </div>
           </div>
+          <button onClick={() => setShowPapers(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#fa0050"; e.currentTarget.style.color = "#fa0050"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
+            <span style={{ fontSize: "11px" }}>📄</span> Papers
+          </button>
           <button onClick={newChat} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>＋ 새 대화</button>
