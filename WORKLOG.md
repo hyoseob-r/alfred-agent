@@ -15,6 +15,13 @@
 
 ## 작업 로그
 
+### 2026-04-08 (추가2)
+- [완료] 마감특가관 제품 제안서 1-pager 제작
+  - public/proposal-closing-deal.html — AI 어드바이저와 세트 제출용
+  - 기존 할인랭킹 3가지 한계 → 시간 기반 마감 할인 구조 전환
+  - 비교표 / UI 목업 (타이머+딜카드) / Phase1(3주)+Phase2(+3주)
+  - context_notes 저장 완료: 마감특가관_제안서_완성
+
 ### 2026-04-08 (추가)
 - [완료] AI 사장님 어드바이저 제품 제안서 1-pager 제작
   - public/proposal-ai-advisor.html — YDS 2.0 라이트모드, 프러덕트 헤드 대상
