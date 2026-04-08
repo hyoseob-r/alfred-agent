@@ -76,6 +76,44 @@ curl -s https://alfred-agent-nine.vercel.app/api/get-context
 
 ---
 
+## 자동 저장 규칙 (가장 중요 — 반드시 준수)
+
+### 언제 자동으로 저장하는가
+다음 상황이 발생하면 **사용자 요청 없이도** 즉시 저장:
+
+1. **사용자가 전략 방향을 바꿀 때** → `save-context` API 호출
+2. **사용자가 보정/수정을 줄 때** → council rounds에 user 스텝 추가 + `save-council` upsert
+3. **에이전트 토론 라운드 완료 시** → `save-council` upsert
+4. **중요한 결정이 내려졌을 때** → `save-context` API 호출
+5. **대화가 길어져 컨텍스트 압축 위험이 있을 때** → 즉시 전체 저장
+
+### context_notes 저장 방법
+
+```bash
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "feedback|decision|strategy|user_pref",
+    "title": "고유한 제목 (같은 제목이면 업데이트됨)",
+    "content": "내용",
+    "tags": ["태그1", "태그2"]
+  }'
+```
+
+type 분류:
+- `feedback` — 사용자가 Claude에게 준 행동 지침
+- `decision` — 전략적 결정 사항
+- `strategy` — 현재 진행 중인 전략 상태
+- `user_pref` — 사용자 선호/스타일
+
+### 지금 이 대화에서 학습한 내용 저장 예시
+```bash
+# 전략 상태 저장
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
+  -H "Content-Type: application/json" \
+  -d '{"type":"strategy","title":"요기요_현재전략상태","content":"버티컬 전략 방향 확정. 포천 파일럿 1순위(경쟁 속 능동적 강세). 건강식 버티컬 홀드(데이터 확인 후). EXIT/사모펀드 목표 없음 — 자체 가치 증명이 핵심.","tags":["요기요","포천","버티컬"]}'
+```
+
 ## 작업 규칙 (Feedback — 반드시 준수)
 
 ### WORKLOG 규칙

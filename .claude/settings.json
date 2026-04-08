@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd ~/Desktop/alfred-agent && git pull --quiet origin main 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
