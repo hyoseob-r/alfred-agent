@@ -20,6 +20,10 @@
   - Phase 0(4주): Kakao OCR 자동 온보딩 → MVP(8주): 배달비범위+수수료구간+예측배지+영수증리뷰+감정넛지
   - 소프트론칭: 수도권 3개 동네 100개 가맹점 → D14 리텐션 ≥20% gate → 300개 확장
   - Supabase 저장 완료 (c_claude_1775574213513)
+- [완료] Council ID 체계 개선 — #a-00001 / #c-00001 순번 형식 도입
+  - Supabase next_council_id() RPC + council_id_sequences 테이블
+  - 동일 주제 이어가기: 같은 ID로 upsert (라운드 누적)
+  - 웹앱 #a-, Claude Code #c- 타입 분리
 - [완료] M4 POC Build — 배달앱 투명성 앱 "투명배달" POC 설계 완료
   - 기술스택: React Native + Supabase + Kakao OCR/Maps + FastAPI(ML)
   - 핵심화면 4개: 동네피드 / 배달비예측 / 영수증인증리뷰 / 감정넛지
