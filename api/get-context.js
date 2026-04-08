@@ -22,20 +22,21 @@ export default async function handler(req, res) {
   try {
     // 최신 council 세션 목록 가져오기 (최근 5개)
     const listResp = await fetch(
-      `${supabaseUrl}/rest/v1/council_sessions?user_id=eq.${userId}&order=updated_at.desc&limit=5&select=id,topic,summary,updated_at`,
+      `${supabaseUrl}/rest/v1/council_sessions?user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=5&select=id,topic,summary,created_at`,
       { headers }
     )
-    const sessions = await listResp.json()
+    const listRaw = await listResp.json()
+    const sessions = Array.isArray(listRaw) ? listRaw : []
 
     // 가장 최신 council의 전체 내용 가져오기
     let latestFull = null
-    if (sessions && sessions.length > 0) {
+    if (sessions.length > 0) {
       const latestResp = await fetch(
         `${supabaseUrl}/rest/v1/council_sessions?id=eq.${encodeURIComponent(sessions[0].id)}&select=*`,
         { headers }
       )
       const latestArr = await latestResp.json()
-      latestFull = latestArr[0] || null
+      latestFull = Array.isArray(latestArr) ? (latestArr[0] || null) : null
     }
 
     // 핵심 컨텍스트 구조화
@@ -46,7 +47,7 @@ export default async function handler(req, res) {
         id: s.id,
         topic: s.topic,
         summary: s.summary,
-        updated_at: s.updated_at,
+        created_at: s.created_at,
       })),
       latest_full: latestFull ? {
         id: latestFull.id,
@@ -78,7 +79,7 @@ function buildBriefing(sessions, latest) {
   lines.push(`[진행 중인 Council: ${sessions.length}개]`)
   sessions.forEach(s => {
     lines.push(`• ${s.id} — ${s.topic}`)
-    lines.push(`  최종 업데이트: ${new Date(s.updated_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`)
+    lines.push(`  저장일: ${new Date(s.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`)
   })
   lines.push('')
 
