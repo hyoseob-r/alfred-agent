@@ -1,31 +1,39 @@
-# Claude 인수인계 문서
+# Claude 인수인계 문서 — 완전판
 
-> 이 파일을 읽는 Claude는 아래 내용을 숙지하고 바로 작업을 이어가세요.
-> 작업 시작 전 반드시 아래 순서를 따르세요.
+> 이 파일은 **모든 컴퓨터에서 동일한 Claude 동작**을 보장하는 단일 진실 소스입니다.
+> git pull 후 이 파일을 읽으면 이전 Claude와 동일하게 작동해야 합니다.
 
-## 세션 시작 필수 절차 (순서대로)
+---
+
+## 세션 시작 필수 절차 (반드시 이 순서대로)
 
 **Step 1 — 서버에서 전체 컨텍스트 로드**
+
+```bash
+curl -s https://alfred-agent-nine.vercel.app/api/get-context
 ```
-GET https://alfred-agent-nine.vercel.app/api/get-context
-```
-이 API는 진행 중인 모든 Council 토론, 사용자 핵심 결정 사항, 최신 전략 요약을 반환합니다.
-반드시 응답 내용을 읽고 숙지한 뒤 작업을 시작하세요.
+
+응답의 `briefing`과 `latest_full.rounds`를 전부 읽고 숙지하세요.
+사용자 발언(role: "user" 스텝)을 특히 중요하게 읽으세요 — 전략 방향의 핵심 보정이 들어 있습니다.
 
 **Step 2 — WORKLOG.md 조회**
-`~/Desktop/alfred-agent/WORKLOG.md` 읽기. 최근 작업 현황 파악.
 
-**Step 3 — 사용자에게 한 줄 브리핑**
-컨텍스트 로드 완료 후, 진행 중인 주제와 마지막 상태를 한 줄로 요약해 사용자에게 알려주세요.
-예: "요기요 전략 Council #c-00001 이어받았습니다. 포천 파일럿 1순위, 건강식 버티컬 홀드 상태입니다."
+`~/Desktop/alfred-agent/WORKLOG.md` 읽기. 가장 최근 항목부터 확인.
+
+**Step 3 — 한 줄 브리핑**
+
+진행 중인 Council ID, 마지막 합의 사항, 홀드 항목, 다음 액션을 한 문장으로 사용자에게 보고.
+
+> `/resume` 커맨드로도 동일하게 실행 가능합니다.
 
 ---
 
 ## 사용자 정보
 
 - **GitHub**: hyoseob-r / hyoseob.r@gmail.com
-- **소통 방식**: 존댓말 사용 (항상)
+- **소통 방식**: 항상 존댓말(formal Korean) 사용. 예외 없음.
 - **작업 스타일**: 여러 컴퓨터(다른 계정)에서 동일한 작업을 병렬 진행. 환경 동기화가 핵심.
+- **응답 스타일**: 간결하게. 불필요한 설명 생략. 결론부터.
 
 ---
 
@@ -38,73 +46,101 @@ GET https://alfred-agent-nine.vercel.app/api/get-context
 | `lottie-studio` | Lottie 파일 편집기 | https://lottie-studio.vercel.app |
 | `h-storybook` | 디자인 시스템 → 멀티플랫폼 코드 변환 | https://storybook-livid-chi.vercel.app |
 
-**로컬 경로**: 모든 레포는 `~/Desktop/` 아래에 있습니다.
+**로컬 경로**: 모든 레포는 `~/Desktop/` 아래.
 
 ---
 
 ## 최우선 태스크
 
 **에이전트 어벤저스 고도화** — 세상의 모든 문제 해결을 목표로 한다.
+여러 작업이 동시에 존재할 때 항상 에이전트 고도화 관련 작업을 최우선 처리.
 
 ---
 
-## 에이전트 어벤저스 현재 구조
+## 에이전트 어벤저스 구조
 
 ### 메인 에이전트
 - **Problem-to-Product Agent**: M1(문제발견) → M2(UX구조화) → M3(솔루션설계) → M4(POC빌드) → M5(검증)
 
-### 6인 전문가 Council (M3에서 순차 심층 검토)
+### 6인 전문가 Council + Dr. Veritas (M3 심층 검토)
 1. **Ms. Designer** — UX/인터랙션 (Nielsen 휴리스틱 기반)
 2. **Mr. Engineer** — 기술 실현가능성/복잡도
 3. **Ms. Strategist** — 비즈니스 전략/시장 타당성
 4. **Mr. PM** — 제품 범위/MVP/로드맵
 5. **Ms. Data** — KPI/지표/검증 방법
 6. **Mr. Marketing** — 채널/바이럴/포지셔닝
+7. **Dr. Veritas** — 팩트체크/신뢰도 평가
 
 ### 부가 에이전트
-- **Research Agent** — 시장조사
-- **UI Pattern Agent** — 모바일 UX 패턴
-- **UT Simulation** — 프로토타입 생성 + 페르소나 3인 시뮬레이션
-- **Review Agent** — 2-pager 문서 채점 (100점 만점)
-- **Compare Agent** — AI 생성 vs 사용자 업로드 문서 비교
+- **Research Agent**, **UI Pattern Agent**, **UT Simulation**, **Review Agent**, **Compare Agent**
 
 ---
 
-## 작업 환경 설정 (이 컴퓨터 기준)
+## 작업 규칙 (Feedback — 반드시 준수)
+
+### WORKLOG 규칙
+- 새 대화 시작 시 `WORKLOG.md` **먼저** 읽기
+- 작업 완료/변경 시 `WORKLOG.md` 업데이트 후 `git push`
+- **Why**: 여러 컴퓨터에서 현황 공유. GitHub이 유일한 진실 소스.
+
+### Council 저장 규칙
+- 에이전트 토론 완료 후 **자동 저장** (사용자 요청 없어도)
+- 같은 주제면 같은 ID로 upsert (라운드 누적)
+- `type: "c"` 고정 (Claude Code 세션)
+
+```bash
+# 새 Council 시작
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-council \
+  -H "Content-Type: application/json" \
+  -d '{"type":"c","topic":"...","rounds":[...],"summary":"..."}'
+
+# 이어서 저장 (upsert)
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-council \
+  -H "Content-Type: application/json" \
+  -d '{"id":"#c-00001","topic":"...","rounds":[...전체...],"summary":"..."}'
+```
+
+- 사용자 발언/보정은 `{"id":"user","role":"[사용자 보정]","result":"..."}` 형식으로 rounds에 포함
+- 저장 후 WORKLOG.md 기록 + git push
+
+### 에이전트 테스트 트리거
+`#에이전트 테스트`로 시작하는 메시지 → 뒤 내용을 입력으로 간주하고 7인 에이전트 순서대로 직접 실행.
+- 순서: Ms. Designer → Mr. Engineer → Ms. Strategist → Mr. PM → Ms. Data → Mr. Marketing → Dr. Veritas
+- 각 에이전트는 이전 결과를 context로 누적 수신
+- 완료 후 자동으로 Supabase에 저장
+
+---
+
+## 작업 환경 설정
 
 - **Shell**: zsh
-- **자동 동기화**: `~/sync-repos.sh` → `~/.zshrc`에 등록됨 (터미널 시작 시 자동 실행)
+- **자동 동기화**: `~/sync-repos.sh` → `~/.zshrc` 등록 (터미널 시작 시 자동 실행)
 - **Git 계정**: hyoseob-r / hyoseob.r@gmail.com
 - **GitHub 인증**: SSH (`~/.ssh/id_ed25519`)
 - **배포**: GitHub push → Vercel 자동 배포
 
-### 중요: Vercel 배포 주의사항
-커밋 작성자 이메일이 `hyoseob.r@gmail.com`이어야 합니다.
-다른 이메일로 커밋하면 Vercel Hobby 플랜에서 배포가 차단됩니다.
+### Vercel 배포 주의사항
+커밋 작성자 이메일이 `hyoseob.r@gmail.com`이어야 합니다. 다른 이메일이면 Vercel Hobby 플랜 배포 차단.
 ```bash
-git config --global user.email "hyoseob.r@gmail.com"
-git config --global user.name "hyoseob-r"
+git config user.email "hyoseob.r@gmail.com"
+git config user.name "hyoseob-r"
 ```
 
 ---
 
-## 작업 지침
-
-1. **작업 시작 시** `WORKLOG.md` 먼저 읽기
-2. **작업 완료 시** `WORKLOG.md` 업데이트 후 `git push`
-3. **존댓말** 사용
-4. **폰트**: 모든 앱은 Pretendard (sans-serif)만 사용
-5. **에이전트 고도화**가 항상 최우선
+## 폰트 규칙
+모든 앱은 **Pretendard (sans-serif)** 만 사용.
 
 ---
 
-## 에이전트 테스트 트리거
+## API 엔드포인트 (Vercel Functions)
 
-메시지가 `#에이전트 테스트`로 시작하면, 그 뒤 내용을 입력으로 간주하고 `src/App.jsx`의 `AGENT_COUNCIL_PROMPTS`에 저장된 6인 전문가 에이전트를 이 대화 내에서 직접 순서대로 실행한다.
-
-- API 크레딧 소모 없이 Claude Code 세션에서 프롬프트 품질 테스트 가능
-- 순서: Ms. Designer → Mr. Engineer → Ms. Strategist → Mr. PM → Ms. Data → Mr. Marketing
-- 각 에이전트는 이전 에이전트 결과를 context로 누적 수신
+| 엔드포인트 | 용도 |
+|-----------|------|
+| `GET /api/get-context` | 인수인계 컨텍스트 로드 (세션 시작 시 필수) |
+| `POST /api/save-council` | Council 저장/upsert |
+| `POST /api/chat` | 에이전트 채팅 |
+| `POST /api/migrate-council` | 구 ID 마이그레이션 (일회성) |
 
 ---
 
