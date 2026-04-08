@@ -15,6 +15,14 @@
 
 ## 작업 로그
 
+### 2026-04-08 (추가)
+- [완료] AI 사장님 어드바이저 제품 제안서 1-pager 제작
+  - public/proposal-ai-advisor.html — YDS 2.0 라이트모드, 프러덕트 헤드 대상
+  - 핵심 논거: 잇브랜드 컨설팅 리포트 분석 → 요기요가 동일 가치 무료 제공 가능
+  - 구성: 문제정의(월200만원 컨설팅) → AI 솔루션 6가지 → UI 목업 → Why Now → MVP 2페이즈
+- [완료] 오더히어로 목업 YDS 2.0 라이트모드 전면 재작성
+  - public/mockup-orderhero.html — 다크모드 → 라이트모드, CSS Custom Properties
+
 ### 2026-04-08
 - [완료] 자동 저장/로드 완전 자동화 시스템 구축
   - POST /api/save-context — 대화 중 중요 맥락 자동 저장 (Supabase context_notes 테이블)
