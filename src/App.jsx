@@ -2960,20 +2960,20 @@ function AppMenu({ current }) {
 }
 
 function PapersModal({ onClose }) {
-  const [papers, setPapers] = React.useState([]);
-  const [query, setQuery] = React.useState("");
-  const [selected, setSelected] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const inputRef = React.useRef(null);
+  const [papers, setPapers] = useState([]);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const inputRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch("/api/list-papers")
       .then(r => r.json())
       .then(d => { setPapers(d.papers || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 80);
   }, []);
 
@@ -3107,8 +3107,22 @@ export default function App() {
       try {
         const sb = await getSupabase();
         // Listen for auth changes (OAuth redirect callback lands here)
+        const ALLOWED_GITHUB = "hyoseob-r";
+        const checkUser = (u) => {
+          if (!u) return null;
+          const login = u.user_metadata?.user_name || u.user_metadata?.preferred_username || "";
+          return login === ALLOWED_GITHUB ? u : null;
+        };
+
         const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
-          const u = session?.user || null;
+          const u = checkUser(session?.user || null);
+          if (session?.user && !u) {
+            await sb.auth.signOut();
+            setUser(null);
+            setAuthLoading(false);
+            alert("접근 권한이 없는 계정입니다.");
+            return;
+          }
           setUser(u);
           setAuthLoading(false);
           if (u) {
@@ -3123,7 +3137,7 @@ export default function App() {
         authListener = subscription;
         // Initial session check
         const sess = await getSession();
-        const u = sess?.user || null;
+        const u = checkUser(sess?.user || null);
         setUser(u);
         setAuthLoading(false);
         if (u) {
