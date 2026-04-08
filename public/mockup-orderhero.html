@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>요기요 AI × 오더히어로 — 화면 목업</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      background: #0f0f13;
+      color: #e8e8ec;
+      min-height: 100vh;
+    }
+
+    /* ── 상단 헤더 ── */
+    .header {
+      background: #18181f;
+      border-bottom: 1px solid #2a2a35;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .header-logo span {
+      color: #00b4d8;
+    }
+    .header-divider { width: 1px; height: 18px; background: #2a2a35; }
+    .header-sub { font-size: 12px; color: #666; }
+    .header-badge {
+      margin-left: auto;
+      background: #FF5B00;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── 탭 네비게이션 ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 16px 24px 0;
+      border-bottom: 1px solid #2a2a35;
+      background: #18181f;
+    }
+    .tab {
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      border: 1px solid transparent;
+      border-bottom: none;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .tab:hover { color: #ccc; }
+    .tab.active {
+      background: #0f0f13;
+      color: #fff;
+      border-color: #2a2a35;
+      border-bottom-color: #0f0f13;
+      margin-bottom: -1px;
+    }
+    .tab-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── 컨텐츠 ── */
+    .content { display: none; padding: 24px; max-width: 1100px; }
+    .content.active { display: block; }
+
+    /* ── 공통 카드 ── */
+    .card {
+      background: #18181f;
+      border: 1px solid #2a2a35;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    /* ────────────────────────────────
+       화면 1 — 메인 대시보드
+    ──────────────────────────────── */
+    .screen1-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: #18181f;
+      border: 1px solid #2a2a35;
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-platform {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .platform-baemin { background: #1BE49B22; color: #1BE49B; }
+    .platform-coupang { background: #FFDA0022; color: #FFDA00; }
+    .platform-yogiyo { background: #FF5B0022; color: #FF5B00; }
+    .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -1px;
+    }
+    .stat-unit { font-size: 14px; font-weight: 400; color: #888; margin-left: 2px; }
+    .stat-delta {
+      font-size: 12px;
+      color: #4ade80;
+      margin-top: 4px;
+    }
+    .stat-delta.down { color: #f87171; }
+
+    /* AI 위젯 카드 */
+    .ai-widget {
+      background: linear-gradient(135deg, #1a1008 0%, #2a1800 100%);
+      border: 1px solid #FF5B0044;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ai-widget::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 120px; height: 120px;
+      background: #FF5B0015;
+      border-radius: 50%;
+    }
+    .ai-widget-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .ai-badge {
+      background: #FF5B00;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.3px;
+    }
+    .ai-widget-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #FF8C42;
+    }
+    .ai-recs {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ai-rec {
+      background: #ffffff08;
+      border: 1px solid #ffffff10;
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .ai-rec-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .ai-rec-body { flex: 1; }
+    .ai-rec-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .ai-rec-desc {
+      font-size: 12px;
+      color: #aaa;
+      line-height: 1.5;
+    }
+    .ai-rec-desc strong { color: #FF8C42; }
+    .ai-rec-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn-yes {
+      background: #FF5B00;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-later {
+      background: transparent;
+      color: #666;
+      border: 1px solid #333;
+      padding: 8px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* 최근 주문 테이블 */
+    .order-table { width: 100%; border-collapse: collapse; }
+    .order-table th {
+      font-size: 11px;
+      color: #555;
+      font-weight: 500;
+      text-align: left;
+      padding: 0 0 10px;
+      border-bottom: 1px solid #2a2a35;
+    }
+    .order-table td {
+      font-size: 13px;
+      color: #ccc;
+      padding: 12px 0;
+      border-bottom: 1px solid #1e1e26;
+    }
+    .order-table tr:last-child td { border-bottom: none; }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .status-cooking { background: #FFA50022; color: #FFA500; }
+    .status-delivering { background: #00B4D822; color: #00B4D8; }
+    .status-done { background: #4ade8022; color: #4ade80; }
+
+    /* ────────────────────────────────
+       화면 2 — 주간 트렌드 브리핑
+    ──────────────────────────────── */
+    .screen2-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .trend-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid #1e1e26;
+    }
+    .trend-item:last-child { border-bottom: none; }
+    .trend-rank {
+      font-size: 18px;
+      font-weight: 800;
+      color: #333;
+      width: 24px;
+      flex-shrink: 0;
+    }
+    .trend-rank.top { color: #FF5B00; }
+    .trend-menu-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      flex: 1;
+    }
+    .trend-menu-cat {
+      font-size: 11px;
+      color: #666;
+      margin-top: 2px;
+    }
+    .trend-bar-wrap { width: 80px; }
+    .trend-bar-bg {
+      background: #2a2a35;
+      border-radius: 4px;
+      height: 4px;
+      overflow: hidden;
+    }
+    .trend-bar-fill {
+      background: #FF5B00;
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s;
+    }
+    .trend-pct {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+      text-align: right;
+    }
+    .trend-delta-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+    }
+    .trend-up { background: #4ade8022; color: #4ade80; }
+    .trend-down { background: #f8717122; color: #f87171; }
+
+    .insight-box {
+      background: linear-gradient(135deg, #0d1a0d, #0f2010);
+      border: 1px solid #4ade8033;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .insight-box-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #4ade80;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .insight-text {
+      font-size: 13px;
+      color: #ccc;
+      line-height: 1.7;
+    }
+    .insight-text strong { color: #fff; }
+
+    .area-map {
+      background: #13131a;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .area-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #1e1e26;
+    }
+    .area-row:last-child { border-bottom: none; }
+    .area-name { font-size: 13px; color: #ccc; flex: 1; }
+    .area-demand {
+      font-size: 12px;
+      font-weight: 600;
+      color: #FF8C42;
+    }
+    .area-heat {
+      display: flex;
+      gap: 3px;
+    }
+    .heat-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #2a2a35;
+    }
+    .heat-dot.on { background: #FF5B00; }
+
+    /* ────────────────────────────────
+       화면 3 — 광고 성과 리포트
+    ──────────────────────────────── */
+    .perf-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .perf-card {
+      background: #18181f;
+      border: 1px solid #2a2a35;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .perf-label { font-size: 11px; color: #666; margin-bottom: 8px; }
+    .perf-value { font-size: 24px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+    .perf-value.green { color: #4ade80; }
+    .perf-value.orange { color: #FF8C42; }
+    .perf-unit { font-size: 12px; color: #666; margin-left: 2px; }
+    .perf-sub { font-size: 11px; color: #555; margin-top: 4px; }
+
+    .campaign-list { display: flex; flex-direction: column; gap: 10px; }
+    .campaign-item {
+      background: #13131a;
+      border: 1px solid #2a2a35;
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .campaign-trigger {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .campaign-body { flex: 1; }
+    .campaign-name { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 3px; }
+    .campaign-meta { font-size: 11px; color: #666; }
+    .campaign-stats {
+      display: flex;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .c-stat { text-align: right; }
+    .c-stat-label { font-size: 10px; color: #555; }
+    .c-stat-value { font-size: 14px; font-weight: 700; color: #fff; }
+    .c-stat-value.green { color: #4ade80; }
+    .c-stat-value.orange { color: #FF8C42; }
+
+    .roi-highlight {
+      background: linear-gradient(135deg, #1a0808, #2a1010);
+      border: 1px solid #4ade8044;
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .roi-number {
+      font-size: 48px;
+      font-weight: 800;
+      color: #4ade80;
+      letter-spacing: -2px;
+      flex-shrink: 0;
+    }
+    .roi-desc { font-size: 13px; color: #aaa; line-height: 1.7; }
+    .roi-desc strong { color: #fff; }
+
+    /* 비교 바 */
+    .compare-wrap { margin-top: 16px; }
+    .compare-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .compare-label { font-size: 12px; color: #888; width: 80px; flex-shrink: 0; }
+    .compare-bar-bg { flex: 1; background: #2a2a35; border-radius: 4px; height: 8px; overflow: hidden; }
+    .compare-bar-fill { height: 100%; border-radius: 4px; }
+    .compare-val { font-size: 12px; font-weight: 600; color: #fff; width: 48px; text-align: right; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<!-- 상단 헤더 -->
+<div class="header">
+  <div class="header-logo">order<span>hero</span></div>
+  <div class="header-divider"></div>
+  <div class="header-sub">배달앱 통합 관리 · 홍길동 사장님</div>
+  <div class="header-badge">요기요 AI Beta</div>
+</div>
+
+<!-- 탭 -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab(0)">
+    <span class="tab-dot" style="background:#4ade80"></span>오늘 현황
+  </div>
+  <div class="tab" onclick="showTab(1)">
+    <span class="tab-dot" style="background:#FF8C42"></span>주간 트렌드
+  </div>
+  <div class="tab" onclick="showTab(2)">
+    <span class="tab-dot" style="background:#00b4d8"></span>AI 광고 성과
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     화면 1 — 오늘 현황
+═══════════════════════════════════ -->
+<div class="content active" id="tab0">
+
+  <!-- 플랫폼별 주문 통계 -->
+  <div class="screen1-grid">
+    <div class="stat-card">
+      <div class="stat-label"><span class="stat-platform platform-baemin">배민</span> 오늘 주문</div>
+      <div class="stat-number">23<span class="stat-unit">건</span></div>
+      <div class="stat-delta">↑ 어제보다 3건 더</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label"><span class="stat-platform platform-coupang">쿠팡이츠</span> 오늘 주문</div>
+      <div class="stat-number">15<span class="stat-unit">건</span></div>
+      <div class="stat-delta down">↓ 어제보다 2건 적음</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label"><span class="stat-platform platform-yogiyo">요기요</span> 오늘 주문</div>
+      <div class="stat-number">8<span class="stat-unit">건</span></div>
+      <div class="stat-delta">↑ 어제보다 1건 더</div>
+    </div>
+  </div>
+
+  <!-- 요기요 AI 위젯 -->
+  <div class="ai-widget">
+    <div class="ai-widget-header">
+      <span class="ai-badge">요기요 AI</span>
+      <span class="ai-widget-title">오늘의 추천 액션 2가지</span>
+    </div>
+    <div class="ai-recs">
+
+      <div class="ai-rec">
+        <div class="ai-rec-icon">🌧</div>
+        <div class="ai-rec-body">
+          <div class="ai-rec-title">내일 비 예보 — 국물 메뉴 광고 올릴까요?</div>
+          <div class="ai-rec-desc">
+            비 오는 날 순대국·설렁탕 주문 <strong>평균 +38%</strong> 증가 패턴이 있어요.
+            광고비 <strong>5,000원</strong>으로 예상 추가 주문 <strong>+12건</strong> 기대됩니다.
+          </div>
+        </div>
+        <div class="ai-rec-actions">
+          <button class="btn-yes" onclick="this.textContent='✓ 실행됨'; this.style.background='#4ade80'; this.style.color='#000'">YES</button>
+          <button class="btn-later">나중에</button>
+        </div>
+      </div>
+
+      <div class="ai-rec">
+        <div class="ai-rec-icon">📈</div>
+        <div class="ai-rec-body">
+          <div class="ai-rec-title">이번 주 동네 마라탕 주문 +23% 급증 중</div>
+          <div class="ai-rec-desc">
+            반경 1km 내 마라탕 전문점 <strong>2곳</strong>뿐이에요.
+            마라탕 메뉴 1개만 추가해도 이번 달 <strong>+15% 매출</strong> 예상됩니다.
+          </div>
+        </div>
+        <div class="ai-rec-actions">
+          <button class="btn-yes" onclick="this.textContent='✓ 확인됨'; this.style.background='#4ade80'; this.style.color='#000'">알겠어요</button>
+          <button class="btn-later">무시</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 최근 주문 내역 -->
+  <div class="card">
+    <div class="card-title">실시간 주문 내역 (전 배달앱 통합)</div>
+    <table class="order-table">
+      <thead>
+        <tr>
+          <th>시간</th>
+          <th>플랫폼</th>
+          <th>메뉴</th>
+          <th>금액</th>
+          <th>상태</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>12:47</td>
+          <td><span class="stat-platform platform-baemin">배민</span></td>
+          <td>순대국밥 + 공기밥</td>
+          <td>9,000원</td>
+          <td><span class="status-badge status-cooking">조리중</span></td>
+        </tr>
+        <tr>
+          <td>12:43</td>
+          <td><span class="stat-platform platform-yogiyo">요기요</span></td>
+          <td>삼겹살 2인 세트</td>
+          <td>26,000원</td>
+          <td><span class="status-badge status-delivering">배달중</span></td>
+        </tr>
+        <tr>
+          <td>12:31</td>
+          <td><span class="stat-platform platform-coupang">쿠팡이츠</span></td>
+          <td>된장찌개 정식</td>
+          <td>8,500원</td>
+          <td><span class="status-badge status-done">완료</span></td>
+        </tr>
+        <tr>
+          <td>12:18</td>
+          <td><span class="stat-platform platform-baemin">배민</span></td>
+          <td>김치찌개 + 계란후라이</td>
+          <td>9,500원</td>
+          <td><span class="status-badge status-done">완료</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════
+     화면 2 — 주간 트렌드 브리핑
+═══════════════════════════════════ -->
+<div class="content" id="tab1">
+
+  <div class="screen2-grid">
+
+    <!-- 내 동네 급상승 메뉴 -->
+    <div class="card">
+      <div class="card-title">📍 내 동네 급상승 메뉴 (이번 주)</div>
+      <div class="trend-item">
+        <div class="trend-rank top">1</div>
+        <div style="flex:1">
+          <div class="trend-menu-name">마라탕</div>
+          <div class="trend-menu-cat">중식 · 자극적인 맛</div>
+        </div>
+        <div class="trend-bar-wrap">
+          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:90%"></div></div>
+          <div class="trend-pct">90%</div>
+        </div>
+        <span class="trend-delta-badge trend-up">+23%</span>
+      </div>
+      <div class="trend-item">
+        <div class="trend-rank top">2</div>
+        <div style="flex:1">
+          <div class="trend-menu-name">순대국밥</div>
+          <div class="trend-menu-cat">국물 · 한식</div>
+        </div>
+        <div class="trend-bar-wrap">
+          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:70%"></div></div>
+          <div class="trend-pct">70%</div>
+        </div>
+        <span class="trend-delta-badge trend-up">+17%</span>
+      </div>
+      <div class="trend-item">
+        <div class="trend-rank">3</div>
+        <div style="flex:1">
+          <div class="trend-menu-name">연어 포케</div>
+          <div class="trend-menu-cat">건강식 · 샐러드</div>
+        </div>
+        <div class="trend-bar-wrap">
+          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:55%"></div></div>
+          <div class="trend-pct">55%</div>
+        </div>
+        <span class="trend-delta-badge trend-up">+12%</span>
+      </div>
+      <div class="trend-item">
+        <div class="trend-rank">4</div>
+        <div style="flex:1">
+          <div class="trend-menu-name">삼겹살 구이</div>
+          <div class="trend-menu-cat">구이 · 한식</div>
+        </div>
+        <div class="trend-bar-wrap">
+          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:40%"></div></div>
+          <div class="trend-pct">40%</div>
+        </div>
+        <span class="trend-delta-badge trend-down">-8%</span>
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-box-title">💡 요기요 AI 인사이트</div>
+        <div class="insight-text">
+          <strong>마라탕 메뉴 1개 추가</strong>를 권장합니다.<br/>
+          반경 1km 내 마라탕 전문점은 <strong>2곳</strong>뿐입니다. 지금 추가하면 이번 달 매출 <strong>+15% 예상</strong>됩니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- 시간대별 수요 히트맵 -->
+    <div class="card">
+      <div class="card-title">⏱ 시간대별 주문 집중도</div>
+      <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 16px;">
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#555;margin-bottom:4px">11시</div>
+          <div style="height:40px;background:#FF5B0033;border-radius:6px"></div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#555;margin-bottom:4px">12시</div>
+          <div style="height:80px;background:#FF5B00cc;border-radius:6px"></div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#555;margin-bottom:4px">13시</div>
+          <div style="height:65px;background:#FF5B0099;border-radius:6px"></div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#555;margin-bottom:4px">18시</div>
+          <div style="height:70px;background:#FF5B00aa;border-radius:6px"></div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#555;margin-bottom:4px">19시</div>
+          <div style="height:90px;background:#FF5B00ee;border-radius:6px"></div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:10px;color:#555;margin-bottom:4px">20시</div>
+          <div style="height:55px;background:#FF5B0077;border-radius:6px"></div>
+        </div>
+      </div>
+      <div class="insight-box">
+        <div class="insight-box-title">💡 피크 타임 전략</div>
+        <div class="insight-text">
+          저녁 <strong>19시</strong>가 최대 피크입니다. 18시 30분에 <strong>"오늘 저녁 특가"</strong> 요기요 광고를 자동 집행하면 주문 전환율이 높습니다.
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div class="card-title">🗺 주변 배달 수요 히트맵</div>
+        <div class="area-map">
+          <div class="area-row">
+            <div class="area-name">서초동 아파트 단지</div>
+            <div class="area-heat">
+              <div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot on"></div>
+            </div>
+            <div class="area-demand">매우 높음</div>
+          </div>
+          <div class="area-row">
+            <div class="area-name">방배동 오피스텔</div>
+            <div class="area-heat">
+              <div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot"></div>
+            </div>
+            <div class="area-demand">높음</div>
+          </div>
+          <div class="area-row">
+            <div class="area-name">반포동 주택가</div>
+            <div class="area-heat">
+              <div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot on"></div><div class="heat-dot"></div><div class="heat-dot"></div>
+            </div>
+            <div class="area-demand">보통</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     화면 3 — AI 광고 성과 리포트
+═══════════════════════════════════ -->
+<div class="content" id="tab3">
+
+  <!-- KPI 카드 -->
+  <div class="perf-grid">
+    <div class="perf-card">
+      <div class="perf-label">이번 주 광고 집행</div>
+      <div class="perf-value">23<span class="perf-unit">,000원</span></div>
+      <div class="perf-sub">AI 자동 집행</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-label">추가 발생 주문</div>
+      <div class="perf-value orange">31<span class="perf-unit">건</span></div>
+      <div class="perf-sub">광고 없었으면 0건</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-label">추가 매출</div>
+      <div class="perf-value green">186<span class="perf-unit">,000원</span></div>
+      <div class="perf-sub">광고비 대비 +163,000원</div>
+    </div>
+    <div class="perf-card">
+      <div class="perf-label">광고 ROI</div>
+      <div class="perf-value green">809<span class="perf-unit">%</span></div>
+      <div class="perf-sub">업계 평균 대비 3.2배</div>
+    </div>
+  </div>
+
+  <!-- 캠페인별 성과 -->
+  <div class="card" style="margin-bottom:14px">
+    <div class="card-title">자동 실행된 캠페인 (이번 주 3건)</div>
+    <div class="campaign-list">
+
+      <div class="campaign-item">
+        <div class="campaign-trigger">🌧</div>
+        <div class="campaign-body">
+          <div class="campaign-name">비 예보 → 국물 메뉴 자동 광고</div>
+          <div class="campaign-meta">화요일 오전 9시 자동 실행 · 8,000원 집행</div>
+        </div>
+        <div class="campaign-stats">
+          <div class="c-stat">
+            <div class="c-stat-label">주문</div>
+            <div class="c-stat-value orange">14건</div>
+          </div>
+          <div class="c-stat">
+            <div class="c-stat-label">매출</div>
+            <div class="c-stat-value green">+84,000</div>
+          </div>
+          <div class="c-stat">
+            <div class="c-stat-label">ROI</div>
+            <div class="c-stat-value green">1,050%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="campaign-item">
+        <div class="campaign-trigger">🏪</div>
+        <div class="campaign-body">
+          <div class="campaign-name">경쟁 가게 휴무 → 예산 자동 2배</div>
+          <div class="campaign-meta">목요일 오전 11시 자동 실행 · 10,000원 집행</div>
+        </div>
+        <div class="campaign-stats">
+          <div class="c-stat">
+            <div class="c-stat-label">주문</div>
+            <div class="c-stat-value orange">12건</div>
+          </div>
+          <div class="c-stat">
+            <div class="c-stat-label">매출</div>
+            <div class="c-stat-value green">+72,000</div>
+          </div>
+          <div class="c-stat">
+            <div class="c-stat-label">ROI</div>
+            <div class="c-stat-value green">720%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="campaign-item">
+        <div class="campaign-trigger">🌙</div>
+        <div class="campaign-body">
+          <div class="campaign-name">야식 피크 → 저녁 7시 자동 노출</div>
+          <div class="campaign-meta">금요일 저녁 7시 자동 실행 · 5,000원 집행</div>
+        </div>
+        <div class="campaign-stats">
+          <div class="c-stat">
+            <div class="c-stat-label">주문</div>
+            <div class="c-stat-value orange">5건</div>
+          </div>
+          <div class="c-stat">
+            <div class="c-stat-label">매출</div>
+            <div class="c-stat-value green">+30,000</div>
+          </div>
+          <div class="c-stat">
+            <div class="c-stat-label">ROI</div>
+            <div class="c-stat-value green">600%</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ROI 하이라이트 -->
+  <div class="roi-highlight">
+    <div class="roi-number">809%</div>
+    <div class="roi-desc">
+      이번 주 <strong>23,000원</strong> 광고비로 <strong>186,000원</strong>의 추가 매출이 발생했습니다.<br/>
+      사장님이 직접 설정한 것 없이, <strong>요기요 AI가 날씨·경쟁·시간대를 분석해 자동으로 집행</strong>했습니다.<br/>
+      다음 주도 자동으로 최적화됩니다.
+    </div>
+  </div>
+
+  <!-- 경쟁 비교 -->
+  <div class="card" style="margin-top:14px">
+    <div class="card-title">수동 광고 vs 요기요 AI 자동 광고 비교</div>
+    <div class="compare-wrap">
+      <div class="compare-row">
+        <div class="compare-label">수동 광고</div>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" style="width:25%; background:#555"></div></div>
+        <div class="compare-val">ROI 254%</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-label">요기요 AI</div>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" style="width:100%; background:#FF5B00"></div></div>
+        <div class="compare-val" style="color:#FF8C42">ROI 809%</div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:#555; margin-top:10px;">* 동일 예산 기준, 최근 4주 평균</div>
+  </div>
+
+</div>
+
+<script>
+  function showTab(idx) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', i === idx);
+    });
+    ['tab0','tab1','tab3'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active', i === idx);
+    });
+  }
+</script>
+</body>
+</html>
