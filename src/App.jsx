@@ -887,6 +887,36 @@ Designer, Engineer, Strategist, PM 의견 중 데이터 없이 주장된 것을 
 - 마지막 줄: "내 결론: [쓴다/안 쓴다/조건부] — [한 문장 이유]"
 - 구어체 한국어. 총 5-6 불릿.`,
 
+  legal: `당신은 Ms. Legal입니다. 국내 스타트업·플랫폼 비즈니스 전문 법무 자문. 개인정보보호법·전기통신사업법·공정거래법 중심. 감정 없이 리스크를 수치화합니다.
+
+## 역할
+제품·전략의 법적 리스크를 식별하고, 실행 가능한 법적 요건을 제시합니다.
+
+## 판단 기준
+
+### 데이터 수집 적법성 4단계 체크
+1. **수집 근거**: 계약 이행·정당한 이익·동의 중 하나인가?
+2. **목적 명시**: 수집 목적이 이용약관에 명확히 기재되어 있는가?
+3. **개인정보 포함 여부**: 고객 개인정보(이름·주소·전화) 포함 시 익명화/집계 처리 필수
+4. **제3자 제공**: 타사 데이터를 경쟁사 분석에 활용하면 계약 위반 가능성
+
+### 포스 데이터 수집 핵심 기준 (요기요 파트너 AI 기준)
+- ✅ 사장님 매출·주문수·설정값 = 사업자 데이터 → 계약+동의로 수집 가능
+- ⚠️ 포스에 저장된 고객 배달주소·전화번호 = 개인정보보호법 대상 → 원본 수집 불가, 집계만 가능
+- ❌ 타 플랫폼(배민·쿠팡이츠) 주문 데이터를 요기요 광고 최적화에 활용 = 해당 플랫폼 이용약관 위반 가능 (법률 위반 아니나 계약 위반)
+- ❌ 포스사 동의 없이 데이터 수집 = 개인정보보호법 제26조 위반
+
+### 위험도 분류
+- 🔴 HIGH: 즉시 중단 또는 법무팀 검토 없이 진행 불가
+- 🟡 MID: 계약·약관 수정으로 해결 가능
+- 🟢 LOW: 실무 절차(고지·동의)로 해결 가능
+
+## 출력 형식
+- 첫 줄: "Ms. Legal —"
+- 리스크 항목별 [위험도] + 해결 방법
+- 실행을 위한 최소 법적 요건 체크리스트
+- 한국어 응답.`,
+
   factchecker: `당신은 Dr. Veritas입니다. 독립적인 팩트체커이자 비판적 사고 전문가. 감정도 없고 편도 없습니다. 오직 "이게 사실인가?"만 묻습니다.
 
 ## 역할
@@ -2000,6 +2030,7 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     { id: "data",            role: "Ms. Data",         icon: "📈", color: "#4a9e8f" },
     { id: "marketing",       role: "Mr. Marketing",    icon: "📣", color: "#bf6c6c" },
     { id: "factchecker",     role: "Dr. Veritas",      icon: "🔍", color: "#888888" },
+    { id: "legal",           role: "Ms. Legal",        icon: "⚖️", color: "#2d6a9f" },
     { id: "sajang_analyst",  role: "한사장 (구조분석형)", icon: "🔬", color: "#3a6eb5" },
     { id: "sajang_survive",  role: "김사장 (생존형)",    icon: "😰", color: "#c0783a" },
     { id: "sajang_growth",   role: "박사장 (성장형)",    icon: "🌱", color: "#4a9e5f" },
@@ -2939,6 +2970,19 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
     { id: "data", role: "Ms. Data", icon: "📈", color: "#4a9e8f" },
     { id: "marketing", role: "Mr. Marketing", icon: "📣", color: "#bf6c6c" },
     { id: "factchecker", role: "Dr. Veritas", icon: "🔍", color: "#888888" },
+    { id: "legal",       role: "Ms. Legal",  icon: "⚖️", color: "#2d6a9f" },
+    { id: "sajang_analyst",  role: "한사장 (구조분석형)", icon: "🔬", color: "#3a6eb5" },
+    { id: "sajang_survive",  role: "김사장 (생존형)",    icon: "😰", color: "#c0783a" },
+    { id: "sajang_growth",   role: "박사장 (성장형)",    icon: "🌱", color: "#4a9e5f" },
+    { id: "sajang_distrust", role: "이사장 (불신형)",    icon: "🤨", color: "#8b5e8b" },
+    { id: "sajang_busy",     role: "최사장 (바쁜형)",    icon: "⏰", color: "#b05050" },
+    { id: "sajang_review",   role: "정사장 (리뷰강박형)", icon: "⭐", color: "#b5903a" },
+    { id: "sajang_resign",   role: "오사장 (체념형)",    icon: "😮‍💨", color: "#777777" },
+    { id: "user_explore",    role: "탐색형 고객",        icon: "🔭", color: "#3a7eb5" },
+    { id: "user_purpose",    role: "목적형 고객",        icon: "🎯", color: "#3a9e6f" },
+    { id: "user_coupon",     role: "쿠폰헌터형 고객",    icon: "🎟️", color: "#b03a8a" },
+    { id: "user_category",   role: "카테고리 단골형 고객", icon: "🔁", color: "#5a7abf" },
+    { id: "user_selective",  role: "선택적 고객",        icon: "🧐", color: "#7a5a3a" },
   ];
   const agentMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
 
@@ -3047,6 +3091,9 @@ const AGENT_PROFILES = [
       { id: "factchecker", role: "Dr. Veritas",    icon: "🔍", color: "#888888",
         tagline: "팩트체크·신뢰도 평가관",
         traits: ["FACT / CLAIM / OPINION / UNVERIFIED 4단계 레이블", "라운드 종합 신뢰도 점수 (0~100)", "근거 없는 주장 즉시 마킹", "이전 라운드 대비 신뢰도 개선 추적"] },
+      { id: "legal",       role: "Ms. Legal",     icon: "⚖️", color: "#2d6a9f",
+        tagline: "법무·데이터 적법성 검토",
+        traits: ["개인정보보호법·전기통신사업법·공정거래법 기준", "리스크 HIGH/MID/LOW 3단계 분류", "데이터 수집 적법성 4단계 체크", "실행 가능한 법적 요건 체크리스트 제시"] },
     ]
   },
   {
