@@ -2919,7 +2919,7 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
 
   return (
     <>
-      <div onClick={handleClose} style={{ position: "fixed", inset: 0, zIndex: 399, background: "rgba(0,0,0,0.5)" }} />
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 399, background: "rgba(0,0,0,0.5)" }} />
       <div onClick={e => e.stopPropagation()} style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(640px, 100vw)", zIndex: 400, background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "-8px 0 32px rgba(0,0,0,0.12)" }}>
 
         {/* Header */}
