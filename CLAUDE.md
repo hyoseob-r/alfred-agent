@@ -121,6 +121,12 @@ curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
 - 작업 완료/변경 시 `WORKLOG.md` 업데이트 후 `git push`
 - **Why**: 여러 컴퓨터에서 현황 공유. GitHub이 유일한 진실 소스.
 
+### 에이전트 발언 저장 규칙 (필수)
+- 각 에이전트 발언은 **생략 없이 전문 저장** — 요약·축약 금지
+- `step.result`에 발언 전체 텍스트 그대로 저장
+- **이유**: 생략본은 나중에 맥락 추적 불가
+- UI: 기본 접힘(타이틀만), 클릭 시 전문 펼침 (구현 완료)
+
 ### Council 저장 규칙
 - 에이전트 토론 완료 후 **자동 저장** (사용자 요청 없어도)
 - 같은 주제면 같은 ID로 upsert (라운드 누적)

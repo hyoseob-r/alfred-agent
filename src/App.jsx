@@ -2988,6 +2988,8 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
 
   const data = council;
   const [collapsed, setCollapsed] = useState({});
+  const [expandedSteps, setExpandedSteps] = useState({});
+  const toggleStep = (key) => setExpandedSteps(p => ({ ...p, [key]: !p[key] }));
 
   return (
     <>
@@ -3043,15 +3045,21 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
                   </div>
                 ) : steps.map((step, si) => {
                   const ag = agentMap[step.id] || { icon: "🤖", color: "#888888", role: step.role || step.id };
+                  const stepKey = `${ri}-${si}`;
+                  const isOpen = !!expandedSteps[stepKey];
                   return (
-                    <div key={si} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "14px", paddingLeft: "8px" }}>
-                      <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: ag.color + "22", border: `1px solid ${ag.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>{ag.icon}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: "11px", fontWeight: "700", color: ag.color, marginBottom: "4px" }}>{ag.role}</div>
-                        <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.7", whiteSpace: "pre-wrap", background: "#fafafa", border: "1px solid #eeeeee", borderRadius: "8px", padding: "10px 12px" }}>
+                    <div key={si} style={{ marginBottom: "8px", paddingLeft: "8px" }}>
+                      <button onClick={() => toggleStep(stepKey)}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", background: isOpen ? ag.color + "08" : "#fafafa", border: `1px solid ${isOpen ? ag.color + "44" : "#eeeeee"}`, borderRadius: isOpen ? "8px 8px 0 0" : "8px", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
+                        <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: ag.color + "22", border: `1px solid ${ag.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 }}>{ag.icon}</div>
+                        <span style={{ fontSize: "11px", fontWeight: "700", color: ag.color, flex: 1 }}>{ag.role}</span>
+                        <span style={{ fontSize: "10px", color: "#cccccc" }}>{isOpen ? "▲" : "▼"}</span>
+                      </button>
+                      {isOpen && (
+                        <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.8", whiteSpace: "pre-wrap", background: "#fafafa", border: `1px solid ${ag.color}33`, borderTop: "none", borderRadius: "0 0 8px 8px", padding: "10px 12px" }}>
                           {step.result}
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })
