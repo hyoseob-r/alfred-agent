@@ -644,6 +644,56 @@ Designer, Engineer, Strategist, PM 의견 중 데이터 없이 주장된 것을 
 - 마지막 줄: "주문 의향: [높음/중간/낮음] — [한 문장 이유]"
 - 구어체 한국어. 총 5-6 불릿.`,
 
+  user_coupon: `당신은 쿠폰헌터형 고객입니다. 요기요 내부 데이터(2021)에서 전체 유저의 15.9%를 차지한 실제 세그먼트입니다. 배달앱을 열 때 먼저 할인 탭이나 쿠폰함부터 확인합니다. 쿠폰이 없으면 "그냥 집에서 해먹자"가 됩니다. 할인이 있으면 평소보다 단가 높은 메뉴도 주문합니다.
+
+## 당신의 멘탈모델
+- 쿠폰이 없으면 오늘은 안 시킨다는 게 기본 원칙
+- 할인 끝나면 앱 이탈. 다음 쿠폰 올 때까지 안 들어옴.
+- "어차피 쿠폰 뿌리는 날 맞춰 시키면 됨" — 패턴을 학습함
+- 마감특가관, 타임딜, 이벤트 배너에 가장 먼저 반응
+- 할인이 크면 평소 안 가던 가게도 試 (전환 유발 가능)
+- 할인 없는 가게는 아무리 리뷰 좋아도 패스
+
+## 당신이 해야 할 것
+1. 이 기능/전략이 할인 없이도 나를 앱으로 끌어들일 수 있는지 냉정하게 말해라
+2. 마감특가관·타임딜·쿠폰과 어떻게 연결되는지 평가해라
+3. 할인이 끝난 후 나를 유지시킬 수 있는 조건이 있다면 말해라
+4. "할인 없이도 좋다"고 주장하는 에이전트 의견에 반박해라
+
+## 출력 형식
+- 첫 줄: "쿠폰헌터 —"
+- 쿠폰/할인 관점 첫 반응
+- 이 기능이 할인과 연결되는지 여부 판단
+- 할인 없으면 이탈하는 이유 1개
+- 유지 가능한 유일한 조건 1개 (솔직하게)
+- 마지막 줄: "주문 의향: [높음/중간/낮음] — [한 문장 이유]"
+- 구어체 한국어. 총 5-6 불릿.`,
+
+  user_category: `당신은 카테고리 단골형 고객입니다. 요기요 내부 데이터(2021)에서 전체 유저의 33.7%를 차지한 가장 큰 세그먼트입니다. 배달앱을 열 때 이미 카테고리가 정해져 있습니다. "치킨" 또는 "중국집"을 생각하고 앱을 엽니다. 특정 카테고리 내에서 가장 자주 시킨 가게를 반복 주문합니다.
+
+## 당신의 멘탈모델
+- 앱 진입 전에 이미 "무엇"은 결정됨. 어느 가게인지만 확인하러 들어옴.
+- 카테고리 안에서 항상 같은 2~3개 가게 중 선택
+- 신규 가게 탐색은 거의 안 함. 검증된 가게가 더 안전함.
+- 배달 시간과 최소 주문 금액이 조건에 맞으면 바로 결제
+- 쿠폰이 있으면 좋지만 없어도 시킨다. 할인보다 신뢰가 먼저.
+- AI어드바이저 같은 기능은 "굳이?"가 먼저. 이미 루틴이 있음.
+
+## 당신이 해야 할 것
+1. 이 기능/전략이 내 카테고리 루틴을 강화하는지, 방해하는지 평가해라
+2. 단골 가게 이탈을 유발할 수 있는 조건이 있다면 말해라
+3. 새로운 가게로 이탈시키려면 어떤 신호가 필요한지 말해라
+4. "탐색을 늘리면 좋다"는 에이전트 의견에 현실적으로 반박해라
+
+## 출력 형식
+- 첫 줄: "카테고리 단골 —"
+- 카테고리 루틴 관점 첫 반응
+- 이 기능이 내 루틴을 강화 or 방해하는지 판단
+- 단골 이탈 조건 1개 (있다면)
+- 루틴 밖으로 끌어내는 유일한 신호 1개
+- 마지막 줄: "주문 의향: [높음/중간/낮음] — [한 문장 이유]"
+- 구어체 한국어. 총 5-6 불릿.`,
+
   sajang_analyst: `당신은 한사장입니다. 서울에서 카페를 운영하는 40대 사장님. 배달앱 구조를 직접 분석하고 카페에서 다른 사장님들에게 설명해줄 정도로 구조를 잘 이해합니다. 감정보다 구조와 논리로 판단하고, 새로운 기능이 나오면 "이게 플랫폼에 어떤 이득이 되는 구조인가"를 먼저 파악합니다.
 
 ## 당신의 멘탈모델 (실제 경험 기반)
@@ -2864,44 +2914,8 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
   ];
   const agentMap = Object.fromEntries(AGENTS.map(a => [a.id, a]));
 
-  const [data, setData] = useState(() => JSON.parse(JSON.stringify(council)));
-  const [isDirty, setIsDirty] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("idle"); // idle | saving | saved | error
-  const [editingField, setEditingField] = useState(null); // null | "topic" | "summary" | {ri, si}
+  const data = council;
   const [collapsed, setCollapsed] = useState({});
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const update = (fn) => { setData(prev => { const next = JSON.parse(JSON.stringify(prev)); fn(next); return next; }); setIsDirty(true); };
-
-  const save = async (payload) => {
-    if (!user?.id) return;
-    setSaveStatus("saving");
-    try {
-      await dbSaveCouncilSession({ id: payload.id, sessionId: payload.session_id || null, userId: user.id, topic: payload.topic, rounds: payload.rounds, summary: payload.summary });
-      setSaveStatus("saved");
-      onUpdated?.(payload);
-      setIsDirty(false);
-      setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch {
-      setSaveStatus("error");
-    }
-  };
-
-  const handleClose = async () => {
-    if (isDirty) await save(data);
-    onClose();
-  };
-
-  const handleDelete = async () => {
-    try {
-      await dbDeleteCouncilSession(data.id);
-      onDeleted?.(data.id);
-      onClose();
-    } catch { setConfirmDelete(false); }
-  };
-
-  const statusLabel = saveStatus === "saving" ? "저장 중..." : saveStatus === "saved" ? "저장됨" : saveStatus === "error" ? "저장 실패" : isDirty ? "수정됨 (닫으면 자동 저장)" : "";
-  const statusColor = saveStatus === "error" ? "#cc5555" : saveStatus === "saved" ? "#55aa55" : "#aaaaaa";
 
   return (
     <>
@@ -2914,105 +2928,65 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
             <div style={{ fontSize: "10px", color: "#aaaaaa", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
               Council 토론 기록 · {new Date(council.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
               {council.id && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 6px", borderRadius: "4px", fontSize: "9px", fontFamily: "monospace" }}>{council.id}</span>}
-              {statusLabel && <span style={{ color: statusColor, fontSize: "9px", marginLeft: "4px" }}>{statusLabel}</span>}
             </div>
-            {/* Editable topic */}
-            {editingField === "topic" ? (
-              <input autoFocus value={data.topic} onChange={e => update(d => { d.topic = e.target.value; })}
-                onBlur={() => setEditingField(null)}
-                onKeyDown={e => { if (e.key === "Enter") setEditingField(null); }}
-                style={{ width: "100%", fontSize: "13px", fontWeight: "600", color: "#222222", border: "none", borderBottom: "2px solid #6c8ebf", outline: "none", padding: "2px 0", background: "transparent" }} />
-            ) : (
-              <div onClick={() => setEditingField("topic")}
-                title="클릭하여 편집"
-                style={{ fontSize: "13px", fontWeight: "600", color: "#222222", lineHeight: "1.4", cursor: "text", borderBottom: "2px solid transparent", transition: "border-color 0.15s" }}
-                onMouseEnter={e => e.currentTarget.style.borderBottomColor = "#e5e5e5"}
-                onMouseLeave={e => e.currentTarget.style.borderBottomColor = "transparent"}>
-                {data.topic}
-              </div>
-            )}
+            <div style={{ fontSize: "13px", fontWeight: "600", color: "#222222", lineHeight: "1.4" }}>
+              {data.topic}
+            </div>
           </div>
-          {/* Delete + Close */}
-          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-            <button onClick={() => setConfirmDelete(true)}
-              title="삭제"
-              style={{ width: "28px", height: "28px", background: "none", border: "1px solid #e5e5e5", borderRadius: "6px", color: "#cccccc", cursor: "pointer", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#cc5555"; e.currentTarget.style.color = "#cc5555"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#cccccc"; }}>🗑</button>
-            <button onClick={handleClose}
-              style={{ width: "28px", height: "28px", background: "none", border: "1px solid #e5e5e5", borderRadius: "6px", color: "#aaaaaa", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>✕</button>
-          </div>
+          {/* Close only */}
+          <button onClick={onClose}
+            style={{ width: "28px", height: "28px", background: "none", border: "1px solid #e5e5e5", borderRadius: "6px", color: "#aaaaaa", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", flexShrink: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>✕</button>
         </div>
 
-        {/* Delete confirm */}
-        {confirmDelete && (
-          <div style={{ padding: "12px 20px", background: "#fff5f5", borderBottom: "1px solid #ffcccc", display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "12px", color: "#cc5555", flex: 1 }}>이 토론 기록을 삭제할까요? 되돌릴 수 없습니다.</span>
-            <button onClick={handleDelete} style={{ padding: "5px 12px", background: "#cc5555", border: "none", borderRadius: "6px", color: "#ffffff", fontSize: "11px", cursor: "pointer" }}>삭제</button>
-            <button onClick={() => setConfirmDelete(false)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #cccccc", borderRadius: "6px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>취소</button>
-          </div>
-        )}
-
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-          {/* Editable Summary */}
-          <div style={{ marginBottom: "20px" }}>
-            <div style={{ fontSize: "10px", fontWeight: "700", color: "#888888", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>요약</div>
-            {editingField === "summary" ? (
-              <textarea autoFocus value={data.summary || ""} onChange={e => update(d => { d.summary = e.target.value; })}
-                onBlur={() => setEditingField(null)}
-                style={{ width: "100%", minHeight: "100px", fontSize: "12px", color: "#444444", lineHeight: "1.8", border: "1px solid #6c8ebf", borderRadius: "10px", padding: "12px 16px", background: "#fafeff", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
-            ) : (
-              <div onClick={() => setEditingField("summary")}
-                title="클릭하여 편집"
-                style={{ padding: "12px 16px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "10px", cursor: "text", transition: "border-color 0.15s", minHeight: "44px" }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "#bbbbbb"}
-                onMouseLeave={e => e.currentTarget.style.borderColor = "#e5e5e5"}>
-                {data.summary
-                  ? <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.8", whiteSpace: "pre-wrap" }}>{data.summary}</div>
-                  : <div style={{ fontSize: "12px", color: "#cccccc" }}>클릭하여 요약 추가...</div>}
+          {/* Summary (read-only) */}
+          {data.summary && (
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "10px", fontWeight: "700", color: "#888888", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" }}>요약</div>
+              <div style={{ padding: "12px 16px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "10px", minHeight: "44px" }}>
+                <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.8", whiteSpace: "pre-wrap" }}>{data.summary}</div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Rounds */}
-          {(data.rounds || []).map((round, ri) => (
+          {(data.rounds || []).map((round, ri) => {
+            const steps = round.steps || [];
+            const roundLabel = round.round ? `${round.round}라운드` : (round.id || `${ri + 1}라운드`);
+            const isSummaryRound = steps.length === 0 && round.result;
+            return (
             <div key={ri} style={{ marginBottom: "16px" }}>
               <button onClick={() => setCollapsed(p => ({ ...p, [ri]: !p[ri] }))}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: "8px", cursor: "pointer", marginBottom: collapsed[ri] ? 0 : "12px" }}>
-                <span style={{ fontSize: "11px", fontWeight: "700", color: "#555555" }}>{round.round}라운드</span>
-                <span style={{ fontSize: "10px", color: "#aaaaaa" }}>{round.steps?.length || 0}명 참여</span>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "#555555" }}>{roundLabel}</span>
+                <span style={{ fontSize: "10px", color: "#aaaaaa" }}>{isSummaryRound ? "요약" : `${steps.length}명 참여`}</span>
                 <span style={{ marginLeft: "auto", fontSize: "10px", color: "#aaaaaa" }}>{collapsed[ri] ? "▼" : "▲"}</span>
               </button>
-              {!collapsed[ri] && (round.steps || []).map((step, si) => {
-                const ag = agentMap[step.id] || { icon: "🤖", color: "#888888", role: step.role || step.id };
-                const isEditingStep = editingField?.ri === ri && editingField?.si === si;
-                return (
-                  <div key={si} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "14px", paddingLeft: "8px" }}>
-                    <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: ag.color + "22", border: `1px solid ${ag.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>{ag.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "11px", fontWeight: "700", color: ag.color, marginBottom: "4px" }}>{ag.role}</div>
-                      {isEditingStep ? (
-                        <textarea autoFocus value={step.result}
-                          onChange={e => update(d => { d.rounds[ri].steps[si].result = e.target.value; })}
-                          onBlur={() => setEditingField(null)}
-                          style={{ width: "100%", minHeight: "120px", fontSize: "12px", color: "#444444", lineHeight: "1.7", border: `1px solid ${ag.color}88`, borderRadius: "8px", padding: "10px 12px", background: "#fafafa", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
-                      ) : (
-                        <div onClick={() => setEditingField({ ri, si })}
-                          title="클릭하여 편집"
-                          style={{ fontSize: "12px", color: "#444444", lineHeight: "1.7", whiteSpace: "pre-wrap", background: "#fafafa", border: "1px solid #eeeeee", borderRadius: "8px", padding: "10px 12px", cursor: "text", transition: "border-color 0.15s" }}
-                          onMouseEnter={e => e.currentTarget.style.borderColor = "#cccccc"}
-                          onMouseLeave={e => e.currentTarget.style.borderColor = "#eeeeee"}>
+              {!collapsed[ri] && (
+                isSummaryRound ? (
+                  <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.7", whiteSpace: "pre-wrap", background: "#fafafa", border: "1px solid #eeeeee", borderRadius: "8px", padding: "10px 12px", marginLeft: "8px" }}>
+                    {round.result}
+                  </div>
+                ) : steps.map((step, si) => {
+                  const ag = agentMap[step.id] || { icon: "🤖", color: "#888888", role: step.role || step.id };
+                  return (
+                    <div key={si} style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "14px", paddingLeft: "8px" }}>
+                      <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: ag.color + "22", border: `1px solid ${ag.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>{ag.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "11px", fontWeight: "700", color: ag.color, marginBottom: "4px" }}>{ag.role}</div>
+                        <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.7", whiteSpace: "pre-wrap", background: "#fafafa", border: "1px solid #eeeeee", borderRadius: "8px", padding: "10px 12px" }}>
                           {step.result}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </>
@@ -3091,34 +3065,29 @@ function HistorySidebar({ sessions, activeId, onSelect, onNew, onDelete, council
               )}
               {(councilSessions || []).map(c => (
                 <div key={c.id}
-                  style={{ padding: "10px 12px", borderRadius: "8px", marginBottom: "4px", border: "1px solid transparent", transition: "all 0.15s", position: "relative" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#f8f8f8"; e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.querySelector(".del-btn").style.opacity = "1"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; e.currentTarget.querySelector(".del-btn").style.opacity = "0"; }}
+                  onClick={() => { onSelectCouncil(c); onClose(); }}
+                  style={{ padding: "10px 12px", borderRadius: "8px", marginBottom: "4px", border: "1px solid transparent", transition: "all 0.15s", cursor: "pointer" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#f8f8f8"; e.currentTarget.style.borderColor = "#e5e5e5"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}
                 >
-                  <div onClick={() => { onSelectCouncil(c); onClose(); }} style={{ cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                      <span style={{ fontSize: "11px" }}>⚖️</span>
-                      {c.id && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 5px", borderRadius: "4px", fontSize: "9px", fontFamily: "monospace" }}>{c.id}</span>}
-                      <span style={{ fontSize: "9px", color: "#cccccc", marginLeft: "auto" }}>
-                        {new Date(c.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: "11px", color: "#555555", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                      {c.topic}
-                    </div>
-                    {c.summary && (
-                      <div style={{ fontSize: "10px", color: "#aaaaaa", marginTop: "4px", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {c.summary}
-                      </div>
-                    )}
-                    <div style={{ fontSize: "9px", color: "#cccccc", marginTop: "4px" }}>
-                      {c.rounds?.length || 0}라운드
-                    </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "11px" }}>⚖️</span>
+                    {c.id && <span style={{ background: "#f0f0ff", color: "#7777cc", padding: "1px 5px", borderRadius: "4px", fontSize: "9px", fontFamily: "monospace" }}>{c.id}</span>}
+                    <span style={{ fontSize: "9px", color: "#cccccc", marginLeft: "auto" }}>
+                      {new Date(c.created_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                    </span>
                   </div>
-                  <button className="del-btn" onClick={e => { e.stopPropagation(); onDeleteCouncil?.(c.id); }}
-                    style={{ position: "absolute", top: "8px", right: "8px", opacity: 0, background: "none", border: "none", color: "#cccccc", cursor: "pointer", fontSize: "11px", padding: "2px 4px", borderRadius: "4px", transition: "color 0.15s" }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#cc5555"}
-                    onMouseLeave={e => e.currentTarget.style.color = "#cccccc"}>✕</button>
+                  <div style={{ fontSize: "11px", color: "#555555", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {c.topic}
+                  </div>
+                  {c.summary && (
+                    <div style={{ fontSize: "10px", color: "#aaaaaa", marginTop: "4px", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {c.summary}
+                    </div>
+                  )}
+                  <div style={{ fontSize: "9px", color: "#cccccc", marginTop: "4px" }}>
+                    {c.rounds?.length || 0}라운드
+                  </div>
                 </div>
               ))}
             </>
