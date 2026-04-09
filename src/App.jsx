@@ -3052,8 +3052,15 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
                       <button onClick={() => toggleStep(stepKey)}
                         style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "7px 10px", background: isOpen ? ag.color + "08" : "#fafafa", border: `1px solid ${isOpen ? ag.color + "44" : "#eeeeee"}`, borderRadius: isOpen ? "8px 8px 0 0" : "8px", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
                         <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: ag.color + "22", border: `1px solid ${ag.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 }}>{ag.icon}</div>
-                        <span style={{ fontSize: "11px", fontWeight: "700", color: ag.color, flex: 1 }}>{ag.role}</span>
-                        <span style={{ fontSize: "10px", color: "#cccccc" }}>{isOpen ? "▲" : "▼"}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: "11px", fontWeight: "700", color: ag.color }}>{ag.role}</span>
+                          {!isOpen && step.result && (
+                            <span style={{ fontSize: "11px", color: "#888888", marginLeft: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block", maxWidth: "calc(100% - 80px)", verticalAlign: "middle" }}>
+                              {step.result.replace(/\n/g, " ").slice(0, 80)}{step.result.length > 80 ? "…" : ""}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: "10px", color: "#cccccc", flexShrink: 0 }}>{isOpen ? "▲" : "▼"}</span>
                       </button>
                       {isOpen && (
                         <div style={{ fontSize: "12px", color: "#444444", lineHeight: "1.8", whiteSpace: "pre-wrap", background: "#fafafa", border: `1px solid ${ag.color}33`, borderTop: "none", borderRadius: "0 0 8px 8px", padding: "10px 12px" }}>
