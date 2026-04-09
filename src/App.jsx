@@ -3724,7 +3724,7 @@ export default function App() {
       <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} />}
-      <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />}
+      <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
       <div
         onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
         style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f5f5f5", fontFamily: "'Pretendard', sans-serif", color: "#111111", position: "relative" }}
