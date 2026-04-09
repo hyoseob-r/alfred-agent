@@ -166,7 +166,7 @@
 ## 다음 작업 (백로그)
 
 ### 요기요 전략
-- [ ] 요기요 파트너 AI 제안서 프러덕트 헤드 제출 (proposal-partner-ai.html + proposal-ai-advisor.html + proposal-closing-deal.html 세트)
+- [x] 요기요 파트너 AI 제안서 프러덕트 헤드 제출 (proposal-partner-ai.html + proposal-ai-advisor.html + proposal-closing-deal.html 세트) — 내용 완성 (2026-04-09)
 - [ ] 마감특가관 Council 이어서 진행 (#c-00001 or 새 Council)
 - [ ] B2B 버티컬 방향 구체화 (일반 사장님 포함 범위 재정의)
 - [ ] 시즈널 관광지 배달 전략 — 해수욕장·MT·야유회 지역 시즌성 수요. 상권 외곽 수요를 시즈널하게 연결하는 지방 살리기 전략으로 별도 Council 예정.
