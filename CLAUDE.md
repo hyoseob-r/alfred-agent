@@ -28,6 +28,32 @@ curl -s https://alfred-agent-nine.vercel.app/api/get-context
 
 ---
 
+## 세션 종료 필수 절차 (다른 컴퓨터에서 이어받기 위해 반드시 실행)
+
+대화가 끝나거나 자리를 바꿀 때 아래 3단계를 순서대로 실행합니다.
+
+**Step 1 — 현재 전략 상태 저장**
+
+```bash
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
+  -H "Content-Type: application/json" \
+  -d '{"type":"strategy","title":"현재_세션_마지막_상태","content":"[진행한 작업 요약 + 다음 액션]","tags":["세션종료"]}'
+```
+
+**Step 2 — WORKLOG.md 업데이트**
+
+오늘 완료한 작업, 결정 사항, 다음 액션을 WORKLOG.md에 기록.
+
+**Step 3 — git push**
+
+```bash
+cd ~/Desktop/alfred-agent && git add -A && git commit -m "session: [날짜] 작업 내용 요약" && git push
+```
+
+> 이 3단계가 완료되면 다른 컴퓨터에서 세션 시작 절차(위의 Step 1~3)만 실행하면 완전히 이어받을 수 있습니다.
+
+---
+
 ## 사용자 정보
 
 - **GitHub**: hyoseob-r / hyoseob.r@gmail.com
