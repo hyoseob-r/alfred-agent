@@ -30,8 +30,16 @@ export default async function handler(req, res) {
       ).then(r => r.json()),
     ])
 
+    // worklog 항목 분리
+    const allNotes = Array.isArray(notesRaw) ? notesRaw : []
+    const worklogNotes = allNotes
+      .filter(n => n.type === 'worklog' && n.title !== 'WORKLOG_task_status')
+      .sort((a, b) => b.title.localeCompare(a.title))
+      .slice(0, 7)
+    const taskStatus = allNotes.find(n => n.title === 'WORKLOG_task_status')
+
     const sessions = Array.isArray(listRaw) ? listRaw : []
-    const notes = Array.isArray(notesRaw) ? notesRaw : []
+    const notes = allNotes.filter(n => n.type !== 'worklog')
 
     // 최신 council 전체 내용
     let latestFull = null
@@ -45,7 +53,7 @@ export default async function handler(req, res) {
 
     const context = {
       generated_at: new Date().toISOString(),
-      briefing: buildBriefing(sessions, latestFull, notes),
+      briefing: buildBriefing(sessions, latestFull, notes, worklogNotes, taskStatus),
       sessions: sessions.map(s => ({
         id: s.id,
         topic: s.topic,
@@ -68,12 +76,29 @@ export default async function handler(req, res) {
   }
 }
 
-function buildBriefing(sessions, latest, notes) {
+function buildBriefing(sessions, latest, notes, worklogNotes = [], taskStatus = null) {
   const lines = []
 
   lines.push('=== 인수인계 브리핑 ===')
   lines.push(`생성: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`)
   lines.push('')
+
+  // ── 작업 현황 (WORKLOG) ──
+  if (taskStatus) {
+    lines.push('[진행중인 작업]')
+    lines.push(taskStatus.content)
+    lines.push('')
+  }
+
+  if (worklogNotes.length > 0) {
+    lines.push('[최근 작업 로그]')
+    worklogNotes.forEach(n => {
+      const date = n.title.replace('WORKLOG_', '')
+      lines.push(`▸ ${date}`)
+      n.content.split('\n').forEach(l => lines.push(`  ${l}`))
+    })
+    lines.push('')
+  }
 
   // ── 학습된 컨텍스트 노트 ──
   if (notes && notes.length > 0) {

@@ -16,9 +16,9 @@ curl -s https://alfred-agent-nine.vercel.app/api/get-context
 응답의 `briefing`과 `latest_full.rounds`를 전부 읽고 숙지하세요.
 사용자 발언(role: "user" 스텝)을 특히 중요하게 읽으세요 — 전략 방향의 핵심 보정이 들어 있습니다.
 
-**Step 2 — WORKLOG.md 조회**
+**Step 2 — (자동 포함)**
 
-`~/Desktop/alfred-agent/WORKLOG.md` 읽기. 가장 최근 항목부터 확인.
+`get-context` 응답에 작업 로그가 포함됩니다. 별도 파일 조회 불필요.
 
 **Step 3 — 한 줄 브리핑**
 
@@ -40,17 +40,30 @@ curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
   -d '{"type":"strategy","title":"현재_세션_마지막_상태","content":"[진행한 작업 요약 + 다음 액션]","tags":["세션종료"]}'
 ```
 
-**Step 2 — WORKLOG.md 업데이트**
+**Step 2 — 작업 로그 저장 (API)**
 
-오늘 완료한 작업, 결정 사항, 다음 액션을 WORKLOG.md에 기록.
+```bash
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-worklog \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "YYYY-MM-DD",
+    "content": "- [완료] 작업1\n- [완료] 작업2\n- [결정] 중요 결정 사항",
+    "tasks": [
+      {"name": "에이전트 어벤저스 고도화", "status": "🔄 진행중"},
+      {"name": "파트너 AI 전략", "status": "🔄 진행중"}
+    ]
+  }'
+```
 
-**Step 3 — git push**
+`tasks` 배열은 현재 진행중인 작업 목록 전체를 넣어 덮어씁니다 (선택).
+
+**Step 3 — 코드 변경이 있을 때만 git push**
 
 ```bash
 cd ~/Desktop/alfred-agent && git add -A && git commit -m "session: [날짜] 작업 내용 요약" && git push
 ```
 
-> 이 3단계가 완료되면 다른 컴퓨터에서 세션 시작 절차(위의 Step 1~3)만 실행하면 완전히 이어받을 수 있습니다.
+> API 저장(Step 1+2)만으로 다른 컴퓨터에서 get-context 한 번으로 전체 맥락 이어받기 가능합니다. git push는 코드 변경 시에만 필요.
 
 ---
 
@@ -143,9 +156,9 @@ curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
 ## 작업 규칙 (Feedback — 반드시 준수)
 
 ### WORKLOG 규칙
-- 새 대화 시작 시 `WORKLOG.md` **먼저** 읽기
-- 작업 완료/변경 시 `WORKLOG.md` 업데이트 후 `git push`
-- **Why**: 여러 컴퓨터에서 현황 공유. GitHub이 유일한 진실 소스.
+- 새 대화 시작 시 `get-context` API 응답에 worklog가 포함됨 — 별도 파일 조회 불필요
+- 작업 완료/변경 시 `save-worklog` API로 저장 (git push 불필요)
+- **Why**: Supabase가 유일한 진실 소스. git pull 없이 어느 컴에서든 즉시 이어받기 가능.
 
 ### 에이전트 발언 저장 규칙 ⚠️ 절대 준수
 - **각 에이전트 발언은 전문 그대로 저장. 예외 없음.**
