@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>마감특가관 — 요기요 제품 제안</title>
+<title>타임딜 — 요기요 제품 제안</title>
 <style>
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
@@ -378,8 +378,8 @@
   /* MVP */
   .mvp-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
   }
   .mvp-phase {
     border-radius: var(--r4);
@@ -395,6 +395,7 @@
     margin-bottom: 8px;
   }
   .phase-tag.p1 { background: #ffeadc; color: var(--orange); }
+  .phase-tag.p15 { background: #fff3e0; color: #e65100; }
   .phase-tag.p2 { background: #e8f4e8; color: #2e7d32; }
   .mvp-phase h3 {
     font-size: 13px;
@@ -487,7 +488,7 @@
   <!-- Header -->
   <div class="header">
     <div class="header-tag">Product Proposal · 요기요 할인랭킹 진화</div>
-    <h1>마감특가관</h1>
+    <h1>타임딜</h1>
     <p>팔리지 않으면 버려야 하는 메뉴가 있습니다. 사장님은 이미 20~30% 할인할 준비가 돼 있습니다.<br>
     입찰 경쟁이 아닌 시간 기반 마감 할인으로 구조를 바꿉니다.</p>
   </div>
@@ -566,7 +567,7 @@
             <td>30일 비주문 손님 다시 부르기</td>
           </tr>
           <tr class="highlight">
-            <td>마감특가관 <span class="badge good">NEW</span></td>
+            <td>타임딜 <span class="badge good">NEW</span></td>
             <td>재고 처리</td>
             <td>오늘 못 팔 것 지금 팔기 — 수수료 없음</td>
           </tr>
@@ -576,13 +577,13 @@
 
     <!-- Comparison -->
     <div>
-      <div class="section-title">Solution — 할인랭킹 vs 마감특가관</div>
+      <div class="section-title">Solution — 할인랭킹 vs 타임딜</div>
       <table class="compare-table">
         <thead>
           <tr>
             <th>구분</th>
             <th>기존 할인랭킹</th>
-            <th>마감특가관 <span class="badge good">NEW</span></th>
+            <th>타임딜 <span class="badge good">NEW</span></th>
           </tr>
         </thead>
         <tbody>
@@ -622,9 +623,9 @@
 
     <!-- Mockup -->
     <div class="mockup-wrap">
-      <div class="section-title" style="margin-bottom: 16px;">UI 컨셉 — 소비자 앱 마감특가관 탭</div>
+      <div class="section-title" style="margin-bottom: 16px;">UI 컨셉 — 소비자 앱 타임딜 탭</div>
       <div class="mockup-phone">
-        <div class="mockup-header">⏰ 오늘의 마감특가</div>
+        <div class="mockup-header">⏰ 오늘의 타임딜</div>
         <div class="mockup-sub">마감 2시간 전 · 한정 수량 · 지금만 이 가격</div>
 
         <div class="deal-card">
@@ -725,22 +726,33 @@
       <div class="mvp-row">
         <div class="mvp-phase">
           <span class="phase-tag p1">Phase 1 · 3주</span>
-          <h3>마감특가 등록 + 탭 노출</h3>
+          <h3>타임딜 탭 + 등록 + 배지</h3>
           <ul>
             <li>사장님센터: 마감 시간·할인율·잔여 수량 설정</li>
-            <li>소비자 앱: "마감특가관" 탭 신설 (카테고리 필터)</li>
-            <li>마감 임박 순 자동 정렬 (광고비 입찰 없음)</li>
-            <li>반찬·베이커리·밀키트 카테고리 업장 우선 온보딩</li>
+            <li>소비자 앱: "타임딜" 탭 신설, 마감 임박순 자동 정렬</li>
+            <li>업장 리스트 배지 표시 (타임딜 진행 중)</li>
+            <li>최소 할인율 기준 적용 (반찬·베이커리 15%, 밀키트 20%+)</li>
+            <li>반찬·베이커리·밀키트 카테고리 우선 온보딩</li>
           </ul>
         </div>
         <div class="mvp-phase">
-          <span class="phase-tag p2">Phase 2 · +3주</span>
-          <h3>알림 + 데이터 피드백</h3>
+          <span class="phase-tag p15">Phase 1.5 · +2주</span>
+          <h3>정기예약 등록</h3>
           <ul>
-            <li>소비자 푸시 알림 "단골 카테고리 마감특가 시작"</li>
-            <li>사장님: 마감특가 매출·폐기율 감소 리포트</li>
+            <li>사장님센터: 요일·시간대 반복 등록 (매일 19시 30% 등)</li>
+            <li>딜 준비 부담 최소화 → 습관적 사용 유도</li>
+            <li>사장님: 딜별 매출·폐기율 감소 리포트</li>
+            <li>수수료 구간 연동 — 추가 주문 건수 → 수수료 절감 표시</li>
+          </ul>
+        </div>
+        <div class="mvp-phase">
+          <span class="phase-tag p2">Phase 2 · 법무 검토 후</span>
+          <h3>단골 알림 + AI 연동</h3>
+          <ul>
+            <li>소비자 푸시 알림 "단골 카테고리 타임딜 시작" (옵트인)</li>
+            <li>개인정보·마케팅 동의 처리 법무 검토 필요</li>
             <li>AI 어드바이저 연동 — "지금 등록하면 주문 예상 +N건"</li>
-            <li>반찬·베이커리 카테고리 확장 (밀키트·국탕 추가)</li>
+            <li>카테고리 확장 (국·탕·찌개, 샐러드 추가)</li>
           </ul>
         </div>
       </div>
@@ -750,7 +762,7 @@
     <div class="positioning">
       <div>
         <div class="pos-label">포지셔닝</div>
-        <div class="pos-text">새 기능이 아닙니다. <span>기존 할인랭킹이 하지 못했던 것</span>을 하는 겁니다.</div>
+        <div class="pos-text">새 기능이 아닙니다. <span>기존 할인랭킹이 하지 못했던 것</span>을 <span>타임딜</span>이 하는 겁니다.</div>
       </div>
       <div class="pos-divider"></div>
       <div>
