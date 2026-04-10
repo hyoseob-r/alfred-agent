@@ -17,9 +17,11 @@ export default async function handler(req, res) {
     'Authorization': `Bearer ${serviceKey}`,
   }
 
+  const githubToken = process.env.GITHUB_TOKEN
+
   try {
-    // 병렬로 모두 가져오기
-    const [listRaw, notesRaw] = await Promise.all([
+    // 병렬로 모두 가져오기 (CLAUDE.md + council + context_notes)
+    const [listRaw, notesRaw, claudeMdRaw] = await Promise.all([
       fetch(
         `${supabaseUrl}/rest/v1/council_sessions?user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=5&select=id,topic,summary,created_at`,
         { headers }
@@ -28,6 +30,10 @@ export default async function handler(req, res) {
         `${supabaseUrl}/rest/v1/context_notes?user_id=eq.${encodeURIComponent(userId)}&order=updated_at.desc&select=type,title,content,tags,updated_at`,
         { headers }
       ).then(r => r.json()),
+      fetch(
+        'https://api.github.com/repos/hyoseob-r/alfred-agent/contents/CLAUDE.md',
+        { headers: { Authorization: `token ${githubToken}`, Accept: 'application/vnd.github.v3+json', 'User-Agent': 'alfred-agent' } }
+      ).then(r => r.json()).catch(() => null),
     ])
 
     // worklog 항목 분리
@@ -41,6 +47,12 @@ export default async function handler(req, res) {
     const sessions = Array.isArray(listRaw) ? listRaw : []
     const notes = allNotes.filter(n => n.type !== 'worklog')
 
+    // CLAUDE.md 디코딩
+    let claudeMd = null
+    if (claudeMdRaw && claudeMdRaw.content) {
+      claudeMd = Buffer.from(claudeMdRaw.content, 'base64').toString('utf8')
+    }
+
     // 최신 council 전체 내용
     let latestFull = null
     if (sessions.length > 0) {
@@ -53,6 +65,7 @@ export default async function handler(req, res) {
 
     const context = {
       generated_at: new Date().toISOString(),
+      claude_md: claudeMd,
       briefing: buildBriefing(sessions, latestFull, notes, worklogNotes, taskStatus),
       sessions: sessions.map(s => ({
         id: s.id,

@@ -30,18 +30,25 @@ echo "${GREEN}✓ git pull 완료${NC}"
 
 # ── 3. Claude Code 글로벌 설정 (~/.claude/CLAUDE.md) ─────
 echo ""
-echo "${YELLOW}[3/5] Claude Code 글로벌 사용자 설정${NC}"
+echo "${YELLOW}[3/5] Claude Code 글로벌 Bootstrap 설정${NC}"
 CLAUDE_GLOBAL="$HOME/.claude/CLAUDE.md"
 mkdir -p "$HOME/.claude"
 cat > "$CLAUDE_GLOBAL" << 'EOF'
-# 글로벌 사용자 지침
+# Bootstrap — 세션 시작 시 반드시 실행
 
-- 항상 존댓말(formal Korean)을 사용할 것.
-- alfred-agent 프로젝트 작업 시 반드시 프로젝트 CLAUDE.md의 세션 시작 절차를 따를 것.
-- 작업 완료 후 WORKLOG.md 업데이트 + git push 필수.
-- 응답은 간결하게. 결론부터.
+어떤 컴퓨터, 어떤 계정에서 Claude Code를 시작하든 **가장 먼저** 아래를 실행하세요.
+
+```bash
+curl -s https://alfred-agent-nine.vercel.app/api/get-context
+```
+
+응답에서:
+1. `claude_md` 필드 → **이 세션의 주 지침으로 채택**. 여기 적힌 모든 규칙을 따르세요.
+2. `briefing` 필드 → 진행 중인 작업 현황을 사용자에게 한 줄로 보고하세요.
+
+> 이 파일은 bootstrap입니다. 실제 지침은 API 응답의 claude_md에 있습니다.
 EOF
-echo "${GREEN}✓ ~/.claude/CLAUDE.md 생성 완료${NC}"
+echo "${GREEN}✓ ~/.claude/CLAUDE.md (bootstrap) 생성 완료${NC}"
 
 # ── 4. SSH 키 존재 확인 ──────────────────────────────────
 echo ""
