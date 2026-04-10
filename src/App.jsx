@@ -3450,6 +3450,30 @@ function AppMenu({ current }) {
   );
 }
 
+const STATUS_CYCLE = ["in-progress", "hold", "declined", "done"];
+const STATUS_META = {
+  "in-progress": { label: "In Progress", bg: "#e8f4e8", border: "#b3e5de", color: "#2e7d32" },
+  "hold":        { label: "Hold",        bg: "#fff8e1", border: "#ffe082", color: "#e65100" },
+  "declined":    { label: "Declined",    bg: "#fce4ec", border: "#f48fb1", color: "#c62828" },
+  "done":        { label: "Done",        bg: "#f3e5f5", border: "#ce93d8", color: "#7b1fa2" },
+};
+
+function useDocStatuses(papers) {
+  const [statuses, setStatuses] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("paper-statuses") || "{}"); } catch { return {}; }
+  });
+  const getStatus = (p) => statuses[p.filename] ?? p.status ?? "in-progress";
+  const cycleStatus = (p, e) => {
+    e.stopPropagation();
+    const cur = getStatus(p);
+    const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length];
+    const updated = { ...statuses, [p.filename]: next };
+    setStatuses(updated);
+    localStorage.setItem("paper-statuses", JSON.stringify(updated));
+  };
+  return { getStatus, cycleStatus };
+}
+
 function PapersModal({ onClose }) {
   const [papers, setPapers] = useState([]);
   const [query, setQuery] = useState("");
@@ -3468,6 +3492,8 @@ function PapersModal({ onClose }) {
     setTimeout(() => inputRef.current?.focus(), 80);
   }, []);
 
+  const { getStatus, cycleStatus } = useDocStatuses(papers);
+
   const filtered = papers.filter(p =>
     !query || p.title.toLowerCase().includes(query.toLowerCase()) || p.filename.toLowerCase().includes(query.toLowerCase())
   );
@@ -3484,6 +3510,8 @@ function PapersModal({ onClose }) {
     return "Document";
   };
 
+  const fmtDate = d => d ? d.replace(/^(\d{4})-(\d{2})-(\d{2})$/, "$1.$2.$3") : null;
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
       onClick={e => { if (e.target === e.currentTarget) { if (selected) setSelected(null); else onClose(); } }}>
@@ -3493,7 +3521,25 @@ function PapersModal({ onClose }) {
         <div style={{ width: "100%", height: "100%", maxWidth: "1200px", maxHeight: "92vh", background: "#fff", borderRadius: "16px", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px rgba(0,0,0,0.32)" }}>
           <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", gap: "10px", background: "#fff", flexShrink: 0 }}>
             <button onClick={() => setSelected(null)} style={{ padding: "4px 10px", border: "1px solid #e5e5e5", borderRadius: "8px", background: "none", color: "#888", fontSize: "11px", cursor: "pointer" }}>← 목록</button>
-            <div style={{ flex: 1, fontSize: "13px", fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.title}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.title}</div>
+              <div style={{ fontSize: "10px", color: "#aaa", marginTop: "1px" }}>
+                {selected.created && `생성 ${fmtDate(selected.created)}`}
+                {selected.created && selected.updated && " · "}
+                {selected.updated && `수정 ${fmtDate(selected.updated)}`}
+              </div>
+            </div>
+            {(() => {
+              const st = getStatus(selected);
+              const sm = STATUS_META[st] || STATUS_META["in-progress"];
+              return (
+                <button onClick={e => { cycleStatus(selected, e); setSelected(p => ({ ...p })); }}
+                  title="클릭해서 상태 변경"
+                  style={{ flexShrink: 0, fontSize: "10px", fontWeight: 700, padding: "3px 9px", borderRadius: "20px", background: sm.bg, border: `1px solid ${sm.border}`, color: sm.color, cursor: "pointer" }}>
+                  {sm.label}
+                </button>
+              );
+            })()}
             <a href={selected.path} target="_blank" rel="noreferrer" style={{ padding: "4px 10px", border: "1px solid #e5e5e5", borderRadius: "8px", background: "none", color: "#888", fontSize: "11px", cursor: "pointer", textDecoration: "none" }}>새 탭 ↗</a>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "#aaa", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>✕</button>
           </div>
@@ -3501,7 +3547,7 @@ function PapersModal({ onClose }) {
         </div>
       ) : (
         /* 검색 + 셀렉 패널 */
-        <div style={{ width: "100%", maxWidth: "480px", background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 48px rgba(0,0,0,0.24)" }}>
+        <div style={{ width: "100%", maxWidth: "520px", background: "#fff", borderRadius: "16px", overflow: "hidden", boxShadow: "0 8px 48px rgba(0,0,0,0.24)" }}>
           {/* 헤더 */}
           <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #f0f0f0" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
@@ -3524,7 +3570,7 @@ function PapersModal({ onClose }) {
           </div>
 
           {/* 목록 */}
-          <div style={{ maxHeight: "400px", overflowY: "auto", padding: "8px" }}>
+          <div style={{ maxHeight: "420px", overflowY: "auto", padding: "8px" }}>
             {loading ? (
               <div style={{ padding: "32px", textAlign: "center", color: "#bbb", fontSize: "12px" }}>불러오는 중...</div>
             ) : filtered.length === 0 ? (
@@ -3532,6 +3578,8 @@ function PapersModal({ onClose }) {
             ) : (
               filtered.map(p => {
                 const lc = labelColor(p.filename);
+                const st = getStatus(p);
+                const sm = STATUS_META[st] || STATUS_META["in-progress"];
                 return (
                   <button key={p.filename} onClick={() => setSelected(p)}
                     style={{ width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: "10px", border: "1px solid transparent", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s", marginBottom: "2px" }}
@@ -3542,9 +3590,18 @@ function PapersModal({ onClose }) {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: "12px", fontWeight: 600, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
-                      <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px" }}>{p.filename}</div>
+                      <div style={{ fontSize: "10px", color: "#aaa", marginTop: "2px", display: "flex", gap: "6px" }}>
+                        {p.created && <span>생성 {fmtDate(p.created)}</span>}
+                        {p.updated && <span>· 수정 {fmtDate(p.updated)}</span>}
+                      </div>
                     </div>
-                    <span style={{ flexShrink: 0, fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "20px", background: lc.bg, border: `1px solid ${lc.border}`, color: lc.color }}>{typeLabel(p.filename)}</span>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
+                      <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "20px", background: lc.bg, border: `1px solid ${lc.border}`, color: lc.color }}>{typeLabel(p.filename)}</span>
+                      <span onClick={e => cycleStatus(p, e)} title="클릭해서 상태 변경"
+                        style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "20px", background: sm.bg, border: `1px solid ${sm.border}`, color: sm.color, cursor: "pointer" }}>
+                        {sm.label}
+                      </span>
+                    </div>
                   </button>
                 );
               })
@@ -3552,7 +3609,7 @@ function PapersModal({ onClose }) {
           </div>
 
           <div style={{ padding: "10px 16px", borderTop: "1px solid #f0f0f0", fontSize: "10px", color: "#bbb", textAlign: "right" }}>
-            {filtered.length}개 문서 · public/*.html 자동 로드
+            {filtered.length}개 문서 · 상태 배지 클릭해서 변경
           </div>
         </div>
       )}
