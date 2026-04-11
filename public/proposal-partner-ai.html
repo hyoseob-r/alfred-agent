@@ -593,6 +593,100 @@
     letter-spacing: 0.06em;
   }
 
+  /* Tracker UI */
+  .tracker-card {
+    background: #f0faf8;
+    border: 1.5px solid #b3e5de;
+    border-radius: var(--r3);
+    padding: 10px 12px;
+    margin-bottom: 6px;
+  }
+  .tracker-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .tracker-title { font-size: 11px; font-weight: 700; color: var(--green); }
+  .tracker-count { font-size: 10px; color: var(--text-tertiary); }
+  .tracker-bar-bg {
+    height: 6px;
+    background: var(--gray-100);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 5px;
+  }
+  .tracker-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+  }
+  .tracker-bottom {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .tracker-bottom strong { color: var(--green); }
+  .opp-card {
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: var(--r3);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .opp-label { font-size: 10px; color: #e65100; font-weight: 600; }
+  .opp-amount { font-size: 13px; font-weight: 800; color: #e65100; }
+
+  /* 3-step sequence */
+  .seq-row {
+    display: grid;
+    grid-template-columns: 1fr 32px 1fr 32px 1fr;
+    gap: 0;
+    align-items: stretch;
+  }
+  .seq-step {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px;
+  }
+  .seq-step.s1 { background: #f0faf8; border: 1.5px solid #b3e5de; }
+  .seq-step.s2 { background: #f0f6ff; border: 1.5px solid #b3d0f5; }
+  .seq-step.s3 { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .seq-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .seq-step.s1 .seq-badge { color: var(--green); }
+  .seq-step.s2 .seq-badge { color: var(--blue); }
+  .seq-step.s3 .seq-badge { color: var(--primary); }
+  .seq-title { font-size: 13px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+  .seq-body { font-size: 11px; color: var(--text-secondary); line-height: 1.6; }
+  .seq-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-100);
+    font-size: 20px;
+  }
+  .seq-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+  }
+  .seq-step.s1 .seq-tag { background: #e8f4e8; color: var(--green); }
+  .seq-step.s2 .seq-tag { background: #ddeeff; color: var(--blue); }
+  .seq-step.s3 .seq-tag { background: var(--primary-50); color: var(--primary); }
+
   /* Roadmap */
   .roadmap-grid {
     display: grid;
@@ -841,10 +935,10 @@
           <h3>정산 투명화</h3>
           <p>업계 전체가 정산 불투명 상태 (배민 쿠폰 깜깜이 정산 2024 논란). 주문 직후 <strong>예상 정산액</strong> 표시 → 정산 완료 후 실제 차이 피드백. 포스 연동 시 원가까지 더해 예상 영업이익으로 확장. "정확한 실수익"이 아니어도 업계 최초 정산 투명화 포지션이 차별화.</p>
         </div>
-        <div class="solution-card">
-          <div class="solution-icon">⚡</div>
-          <h3>원탭 최적화</h3>
-          <p>"배달비 200원 낮추면 주문 +40% 예상" → 버튼 하나로 즉시 적용. 설명 없이 실행.</p>
+        <div class="solution-card" style="border: 1.5px solid #b3e5de; background: #f0faf8;">
+          <div class="solution-icon" style="background:#c8f0ea;">📈</div>
+          <h3 style="color:var(--green);">수수료 구간 트래커</h3>
+          <p>"다음 구간까지 47건 — 달성 시 월 37,500원 절감." 요기요 수수료 구간 진입 목표를 실시간으로 보여줌. 이번 달 놓친 절감액도 함께 노출해 행동 유도.</p>
         </div>
         <div class="solution-card">
           <div class="solution-icon">📅</div>
@@ -872,30 +966,47 @@
           <div class="mockup-label">사장님센터 AI 카드</div>
           <div class="mockup-phone">
             <div class="mockup-header">🤖 요기요 파트너 AI <span style="font-size:10px;font-weight:500;color:var(--text-tertiary);margin-left:4px;">실시간</span></div>
+            <div class="tracker-card">
+              <div class="tracker-top">
+                <span class="tracker-title">📈 수수료 구간 트래커</span>
+                <span class="tracker-count">이번 달 243건</span>
+              </div>
+              <div class="tracker-bar-bg">
+                <div class="tracker-bar-fill" style="width: 81%;"></div>
+              </div>
+              <div class="tracker-bottom">
+                <span>3구간 진행 중 · 다음 구간까지 <strong>57건</strong></span>
+                <span>달성 시 월 <strong>37,500원</strong> 절감</span>
+              </div>
+            </div>
+            <div class="opp-card">
+              <span class="opp-label">⚠️ 이번 달 놓친 절감액</span>
+              <span class="opp-amount">62,000원</span>
+            </div>
             <div class="alert-card">
-              <div class="alert-badge">⚡ 지금 조치하면 주문 늘어요</div>
-              <div class="alert-title">배달비가 상권 평균보다 300원 높습니다</div>
+              <div class="alert-badge">⚡ 지금 조치하면 구간 진입 가능</div>
+              <div class="alert-title">배달비 200원 낮추면 주문 +31건 예상</div>
               <div class="alert-body">
-                같은 상권 족발 업장 평균 대비 배달비가 높습니다.<br>
-                3,500원 → 3,200원으로 낮추면 <strong>주문 +28% 예상</strong>됩니다.
+                3,500원 → 3,200원 조정 시 이번 달 내 4구간 진입.<br>
+                수수료 <strong>7.7% → 4.7%</strong> · 월 절감 37,500원 추가.
               </div>
               <div class="alert-footer">
                 <span class="alert-basis">추천 기준: 요기요 주문 최적화 · 지난 14일</span>
-                <span class="alert-btn">지금 바꾸기</span>
+                <span class="alert-btn">원탭 적용</span>
               </div>
             </div>
             <div class="stat-row">
               <div class="stat-box">
-                <div class="s-val">47.2%</div>
-                <div class="s-lbl">요기요 비중</div>
+                <div class="s-val">3구간</div>
+                <div class="s-lbl">현재 수수료 구간</div>
               </div>
               <div class="stat-box">
-                <div class="s-val down">-18건</div>
-                <div class="s-lbl">이번 주 주문</div>
+                <div class="s-val down">57건</div>
+                <div class="s-lbl">다음 구간까지</div>
               </div>
               <div class="stat-box">
-                <div class="s-val up">+23건</div>
-                <div class="s-lbl">지난 실행 효과</div>
+                <div class="s-val up">4.7%</div>
+                <div class="s-lbl">4구간 달성 시</div>
               </div>
             </div>
           </div>
@@ -1065,47 +1176,34 @@
         </div>
       </div>
 
-      <!-- 잇브랜드 포섭 플라이휠 -->
+      <!-- 잇브랜드 포섭 3단계 시퀀스 -->
       <div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">잇브랜드 포섭 로직 — 수수료로 증명하는 플라이휠</div>
-        <div class="flywheel">
-          <div class="fly-step">
-            <div class="fly-icon">🏢</div>
-            <div class="fly-label">잇브랜드<br>고매출 매장</div>
-            <div class="fly-sub">배민 자동<br>상위 35%=7.8%</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">잇브랜드 포섭 전략 — 3단계 시퀀스</div>
+        <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:var(--r3);padding:10px 14px;font-size:11px;color:#7a5200;margin-bottom:12px;line-height:1.6;">
+          ⚠️ <strong>순환 모순 인지</strong> — 수도권 고매출 매장 기준 요기요 월 500건은 쉽지 않음 (배민 대비 점유율 20~25%). 수수료 이점 논거를 <strong>즉시 전면에 내세우지 않고</strong>, 지방 파일럿으로 성과를 먼저 만든 뒤 단계적으로 확장.
+        </div>
+        <div class="seq-row">
+          <div class="seq-step s1">
+            <div class="seq-badge">Step 1 · 0~3개월</div>
+            <div class="seq-title">지방 파일럿</div>
+            <div class="seq-body">요기요 점유율 30~40% 지역 (대구·부산·경남) 에서 300~600건 이미 나오는 매장 30~50개 선정. 파트너 AI + 수수료 구간 트래커 설치. 4구간 달성 케이스 데이터 확보.</div>
+            <span class="seq-tag">성과 데이터 확보</span>
           </div>
-          <div class="fly-arrow">›</div>
-          <div class="fly-step">
-            <div class="fly-icon">🤖</div>
-            <div class="fly-label">파트너 AI<br>채널 최적화</div>
-            <div class="fly-sub">요기요 주문<br>건수 증가</div>
+          <div class="seq-arrow">›</div>
+          <div class="seq-step s2">
+            <div class="seq-badge">Step 2 · 3~6개월</div>
+            <div class="seq-title">수도권 채널 분산</div>
+            <div class="seq-body">배민 상위 35% 고착 매장에 "한 채널 올인 = 7.8% 고정" 프레임. 요기요 병행 시 전체 평균 수수료율 하락 수치 제시. 500건 없어도 유효한 논리 — 추가 채널 개념.</div>
+            <span class="seq-tag">채널 분산 프레임</span>
           </div>
-          <div class="fly-arrow">›</div>
-          <div class="fly-step">
-            <div class="fly-icon">📉</div>
-            <div class="fly-label">4구간 진입<br>4.7% 적용</div>
-            <div class="fly-sub">실효율<br>5~6%대</div>
-          </div>
-          <div class="fly-arrow">›</div>
-          <div class="fly-step">
-            <div class="fly-icon">💰</div>
-            <div class="fly-label">수수료 절감<br>수치 확인</div>
-            <div class="fly-sub">연 570~<br>2,100만원</div>
-          </div>
-          <div class="fly-arrow">›</div>
-          <div class="fly-step">
-            <div class="fly-icon">📊</div>
-            <div class="fly-label">잇브랜드<br>"요기요 키워라"</div>
-            <div class="fly-sub">데이터 기반<br>채널 추천</div>
-          </div>
-          <div class="fly-arrow">›</div>
-          <div class="fly-step">
-            <div class="fly-icon">📈</div>
-            <div class="fly-label">광고 투자<br>증가</div>
-            <div class="fly-sub">요기요 매출<br>확대</div>
+          <div class="seq-arrow">›</div>
+          <div class="seq-step s3">
+            <div class="seq-badge">Step 3 · 6개월+</div>
+            <div class="seq-title">잇브랜드 API 파트너십</div>
+            <div class="seq-body">수수료 설득이 아닌 <strong>데이터 접근권 제공</strong>. "보고서에 요기요 수수료 시뮬레이션 자동 삽입 무료로 드립니다." 잇브랜드 고객사 수백 곳 = 자동 배포 채널.</div>
+            <span class="seq-tag">B2B 확장 채널</span>
           </div>
         </div>
-        <div class="fly-loop">파트너 AI 도입 → 건수 증가 → 수수료 절감 증명 → 잇브랜드 채널 추천 → 광고 투자 → 건수 증가 ↺</div>
       </div>
     </div>
 
@@ -1113,45 +1211,45 @@
 
     <!-- Roadmap -->
     <div>
-      <div class="section-title">실행 로드맵 — 8주</div>
+      <div class="section-title">실행 로드맵</div>
       <div class="roadmap-grid">
         <div class="roadmap-week">
           <span class="week-tag w1">Week 1–2</span>
-          <h4>AI 어드바이저 개발</h4>
+          <h4>AI + 구간 트래커 개발</h4>
           <ul>
             <li>Rule Engine 진단 모델</li>
-            <li>사장님센터 AI 카드 UI</li>
-            <li>원탭 배달비·쿠폰 변경</li>
-            <li>타깃: D30 주문 -20% 세그먼트</li>
+            <li>수수료 구간 트래커 UI</li>
+            <li>기회비용 알림 ("놓친 절감액")</li>
+            <li>원탭 배달비 조정 + 구간 진입 예측</li>
           </ul>
         </div>
         <div class="roadmap-week">
-          <span class="week-tag w2">Week 3–4</span>
-          <h4>베타 + 포스사 협약 착수</h4>
+          <span class="week-tag w2">Week 3–6</span>
+          <h4>지방 파일럿 론칭</h4>
           <ul>
-            <li>AI 어드바이저 베타 론칭</li>
-            <li>A/B 테스트 시작</li>
-            <li>포스사 1차 미팅 (BD/전략)</li>
-            <li>데이터 MOU + 처리위탁 협상</li>
+            <li>대구·부산·경남 매장 30~50개 선정</li>
+            <li>요기요 월 300건+ 기준 (4구간 도달 가능)</li>
+            <li>수수료 절감 케이스 데이터 수집</li>
+            <li>포스사 MOU 병행 착수</li>
           </ul>
         </div>
         <div class="roadmap-week">
-          <span class="week-tag w3">Week 5–6</span>
-          <h4>MOU 완료 + 위젯 개발</h4>
+          <span class="week-tag w3">Week 7–10</span>
+          <h4>수도권 채널 분산 확장</h4>
           <ul>
-            <li>포스사 MOU 체결</li>
-            <li>포스 위젯 개발 (웹뷰)</li>
-            <li>베타 데이터 경영진 공유</li>
-            <li>포스 어댑터 표준화</li>
+            <li>파일럿 성과 데이터 내부 공유</li>
+            <li>배민 상위 35% 매장 세그먼트 타겟</li>
+            <li>포스 위젯 개발 + QA</li>
+            <li>"채널 분산 = 수수료 절감" 프레임 온보딩</li>
           </ul>
         </div>
         <div class="roadmap-week">
-          <span class="week-tag w4">Week 7–8</span>
-          <h4>포스 위젯 라이브</h4>
+          <span class="week-tag w4">Week 11–12</span>
+          <h4>잇브랜드 API 파트너십</h4>
           <ul>
-            <li>포스 위젯 QA + 배포</li>
-            <li>결과 피드백 카드 A/B</li>
-            <li>포스피드 계약 협상 착수</li>
+            <li>파일럿 케이스 데이터 지참 협상</li>
+            <li>보고서 수수료 시뮬레이션 자동 삽입 제안</li>
+            <li>데이터 처리위탁 MOU 체결</li>
             <li>NS 측정 시작</li>
           </ul>
         </div>
