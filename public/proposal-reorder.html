@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-04-10">
+<meta name="doc-updated" content="2026-04-10">
+<meta name="doc-status" content="in-progress">
+<title>재주문 숏컷 — 버티컬 특화 전략</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --primary-600: #c8003f;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --yellow: #f5a623;
+    --purple: #7c3aed;
+    --gray-100: #e5e5e5;
+    --gray-50: #f2f2f2;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: #1a1a2e;
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header h1 span { color: #fa0050; }
+  .header p {
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.7;
+  }
+
+  /* Body */
+  .body {
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 14px;
+  }
+
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--gray-100);
+  }
+
+  /* Diagnosis — current vs. proposed */
+  .diag-row {
+    display: grid;
+    grid-template-columns: 1fr 40px 1fr;
+    gap: 0;
+    align-items: stretch;
+  }
+  .diag-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 18px 20px;
+  }
+  .diag-card.bad { border-top: 3px solid var(--gray-100); }
+  .diag-card.good { border-top: 3px solid var(--green); background: #f0faf8; }
+  .diag-arrow {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: var(--gray-100);
+  }
+  .diag-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 8px;
+    color: var(--text-tertiary);
+  }
+  .diag-card.good .diag-label { color: var(--green); }
+  .diag-title {
+    font-size: 16px; font-weight: 800; margin-bottom: 8px;
+    color: var(--text-primary);
+  }
+  .diag-body { font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
+  .diag-tag {
+    display: inline-block; margin-top: 10px;
+    font-size: 10px; font-weight: 700; padding: 3px 10px;
+    border-radius: var(--rfull); background: var(--gray-100); color: var(--text-secondary);
+  }
+  .diag-card.good .diag-tag { background: #cef0eb; color: var(--green); }
+
+  /* Reference: Barniepresso */
+  .ref-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .ref-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px;
+  }
+  .ref-icon {
+    font-size: 22px; margin-bottom: 8px;
+  }
+  .ref-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+  .ref-body { font-size: 11px; color: var(--text-secondary); line-height: 1.6; }
+  .ref-verdict {
+    margin-top: 8px; font-size: 11px; font-weight: 700;
+    color: var(--blue);
+  }
+
+  /* Swim lanes */
+  .lane-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .lane-card {
+    border-radius: var(--r4);
+    padding: 18px;
+    border: 1.5px solid var(--gray-100);
+    position: relative;
+    overflow: hidden;
+  }
+  .lane-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .lane-card.morning::before { background: var(--yellow); }
+  .lane-card.lunch::before { background: var(--orange); }
+  .lane-card.cycle::before { background: var(--green); }
+  .lane-card.route::before { background: var(--blue); }
+  .lane-card.weekly::before { background: var(--purple); }
+  .lane-card.night::before { background: #1a1a2e; }
+
+  .lane-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 700; margin-bottom: 10px;
+    padding: 3px 8px; border-radius: var(--rfull);
+  }
+  .morning .lane-badge { background: #fff8e0; color: var(--yellow); }
+  .lunch .lane-badge { background: #fff3ee; color: var(--orange); }
+  .cycle .lane-badge { background: #edfaf7; color: var(--green); }
+  .route .lane-badge { background: #ebf4ff; color: var(--blue); }
+  .weekly .lane-badge { background: #f5f0ff; color: var(--purple); }
+  .night .lane-badge { background: #ebebf5; color: #1a1a2e; }
+
+  .lane-title { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+  .lane-trigger {
+    font-size: 11px; color: var(--text-tertiary); margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .lane-trigger strong { color: var(--text-secondary); }
+  .lane-body { font-size: 12px; color: var(--text-secondary); line-height: 1.65; }
+
+  /* Mockup phone */
+  .mockup-wrap {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+  .mockup-desc {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .mockup-phone {
+    width: 220px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border: 2px solid #e5e5e5;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: var(--shadow-2);
+  }
+  .phone-status {
+    background: #1a1a2e;
+    padding: 10px 16px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .phone-time { font-size: 11px; font-weight: 700; color: #fff; }
+  .phone-icons { font-size: 9px; color: rgba(255,255,255,0.6); letter-spacing: 2px; }
+  .phone-nav {
+    background: #1a1a2e;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .yogi-logo {
+    width: 22px; height: 22px; background: var(--primary);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 900; color: #fff;
+  }
+  .phone-nav-title { font-size: 13px; font-weight: 700; color: #fff; }
+  .phone-body { padding: 12px; background: #f6f6f6; min-height: 320px; }
+
+  .ctx-banner {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .ctx-time-label {
+    font-size: 9px; font-weight: 700; color: var(--yellow);
+    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .ctx-question {
+    font-size: 12px; font-weight: 800; color: #fff; line-height: 1.4;
+  }
+  .ctx-sub {
+    font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 3px;
+  }
+  .ctx-actions {
+    display: flex; gap: 6px; margin-top: 8px;
+  }
+  .ctx-btn {
+    flex: 1; padding: 6px 0; border-radius: 6px;
+    font-size: 10px; font-weight: 700; text-align: center;
+    cursor: pointer;
+  }
+  .ctx-btn.primary { background: var(--primary); color: #fff; }
+  .ctx-btn.ghost { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); }
+
+  .lane-scroll-label {
+    font-size: 10px; font-weight: 700; color: var(--text-tertiary);
+    letter-spacing: 0.04em; margin-bottom: 6px;
+    display: flex; justify-content: space-between;
+  }
+  .lane-scroll-label a { color: var(--blue); font-weight: 600; }
+  .mini-card-row {
+    display: flex; gap: 7px; overflow-x: hidden;
+    margin-bottom: 10px;
+  }
+  .mini-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 10px;
+    flex-shrink: 0;
+    width: 100px;
+    box-shadow: var(--shadow-1);
+  }
+  .mini-card-name { font-size: 10px; font-weight: 700; margin-bottom: 2px; }
+  .mini-card-sub { font-size: 9px; color: var(--text-tertiary); }
+  .mini-card-action {
+    margin-top: 6px; background: var(--primary-50);
+    color: var(--primary); font-size: 9px; font-weight: 700;
+    padding: 3px 6px; border-radius: 4px; display: inline-block;
+  }
+  .mini-card.cycle { border-top: 2px solid var(--green); }
+  .mini-card.route { border-top: 2px solid var(--blue); }
+  .mini-card.morning { border-top: 2px solid var(--yellow); }
+
+  .mockup-desc-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .desc-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #1a1a2e; color: #fff;
+    font-size: 10px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .desc-text { font-size: 12px; color: var(--text-secondary); line-height: 1.65; }
+  .desc-text strong { color: var(--text-primary); font-weight: 700; }
+
+  /* AI engine */
+  .engine-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .engine-step {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px;
+    text-align: center;
+  }
+  .engine-num {
+    display: inline-block;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #1a1a2e; color: #fff;
+    font-size: 12px; font-weight: 800;
+    line-height: 28px; text-align: center;
+    margin-bottom: 10px;
+  }
+  .engine-title { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+  .engine-body { font-size: 11px; color: var(--text-secondary); line-height: 1.6; }
+  .engine-tag {
+    display: inline-block; margin-top: 8px;
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: var(--rfull); background: var(--gray-100); color: var(--text-tertiary);
+  }
+
+  /* Synergy */
+  .synergy-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .synergy-card {
+    border-radius: var(--r4);
+    padding: 18px;
+    background: var(--bg-subtle);
+  }
+  .synergy-card.b2c { border-left: 3px solid #1a1a2e; }
+  .synergy-card.b2b { border-left: 3px solid var(--primary); }
+  .synergy-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .b2c .synergy-label { color: #1a1a2e; }
+  .b2b .synergy-label { color: var(--primary); }
+  .synergy-title { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+  .synergy-list {
+    list-style: none; padding: 0;
+  }
+  .synergy-list li {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.7;
+    padding-left: 14px; position: relative;
+  }
+  .synergy-list li::before {
+    content: '→'; position: absolute; left: 0;
+    color: var(--text-tertiary); font-size: 10px; top: 2px;
+  }
+
+  /* Roadmap */
+  .roadmap-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .roadmap-week {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 14px;
+  }
+  .roadmap-week.now { background: #1a1a2e; }
+  .rw-phase {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .roadmap-week.now .rw-phase { color: rgba(255,255,255,0.5); }
+  .rw-phase.p1 { color: var(--green); }
+  .rw-phase.p2 { color: var(--blue); }
+  .rw-phase.p3 { color: var(--purple); }
+  .rw-phase.p4 { color: var(--primary); }
+  .rw-week {
+    font-size: 11px; font-weight: 700; margin-bottom: 6px;
+  }
+  .roadmap-week.now .rw-week { color: rgba(255,255,255,0.9); }
+  .rw-items { list-style: none; padding: 0; }
+  .rw-items li {
+    font-size: 11px; color: var(--text-secondary); line-height: 1.65;
+    padding-left: 12px; position: relative;
+  }
+  .roadmap-week.now .rw-items li { color: rgba(255,255,255,0.65); }
+  .rw-items li::before {
+    content: '·'; position: absolute; left: 2px;
+    color: var(--text-tertiary);
+  }
+  .roadmap-week.now .rw-items li::before { color: rgba(255,255,255,0.3); }
+
+  /* Footer */
+  .footer {
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-meta { font-size: 11px; color: var(--text-tertiary); }
+  .footer-ask { font-size: 12px; font-weight: 600; color: #1a1a2e; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-tag">Product Proposal · 요기요 소비자 앱</div>
+    <h1>재주문 숏컷 — <span>버티컬 특화</span> 전략</h1>
+    <p>바니프레소가 커피 하나로 만든 것을 요기요는 모든 카테고리에서 만들 수 있습니다.<br>
+    "자주 주문한 이 메뉴 어때요?"를 컨텍스트 인식 재주문으로 교체합니다.</p>
+  </div>
+
+  <div class="body">
+
+    <!-- Problem Diagnosis -->
+    <div>
+      <div class="section-title">진단 — 왜 지금 재주문 UI가 약한가</div>
+      <div class="diag-row">
+        <div class="diag-card bad">
+          <div class="diag-label">현재 구조</div>
+          <div class="diag-title">"자주 주문한 이 메뉴 어때요?"</div>
+          <div class="diag-body">
+            시간·위치·패턴 무관하게 단일 레이어. 저녁 11시에 아침 커피 추천, 주말에 평일 도시락 노출.
+            카테고리 혼합 → 맥락 없는 카드 나열 → 스크롤 없이 지나침.
+          </div>
+          <span class="diag-tag">맥락 없음 · 버티컬 없음 · 습관 형성 없음</span>
+        </div>
+        <div class="diag-arrow">→</div>
+        <div class="diag-card good">
+          <div class="diag-label">제안 구조</div>
+          <div class="diag-title">컨텍스트 인식 재주문</div>
+          <div class="diag-body">
+            앱을 여는 시간·요일·위치·주기 데이터를 조합해 지금 이 순간에 맞는 버티컬 하나만 노출.
+            바니프레소처럼 "오늘도 아메리카노?" 수준의 습관 루프를 모든 카테고리에서 구현.
+          </div>
+          <span class="diag-tag">시간 기반 · 주기 감지 · 루트 연계 · 패턴 학습</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Barniepresso Reference -->
+    <div>
+      <div class="section-title">레퍼런스 — 바니프레소가 단일 브랜드 앱으로 해낸 것</div>
+      <div class="ref-row">
+        <div class="ref-card">
+          <div class="ref-icon">⏰</div>
+          <div class="ref-title">시간 컨텍스트</div>
+          <div class="ref-body">아침 출근 루틴에 완전 최적화. 7~9시에 앱을 열면 바로 "오늘도 [단골 메뉴]?"가 전면 노출. 다른 선택지 없음.</div>
+          <div class="ref-verdict">→ 결정 피로 제거</div>
+        </div>
+        <div class="ref-card">
+          <div class="ref-icon">📍</div>
+          <div class="ref-title">픽업 예약</div>
+          <div class="ref-body">도착 시간 역산 → "15분 후 픽업"으로 주문. 배달 대기 없이 가게 앞에서 수령. 출퇴근 동선에 완전 내재화.</div>
+          <div class="ref-verdict">→ 배달 의존 탈피</div>
+        </div>
+        <div class="ref-card">
+          <div class="ref-icon">🔁</div>
+          <div class="ref-title">습관 루프</div>
+          <div class="ref-body">첫 주문 → 편의성 체험 → 다음 날 또 → 3주 후 무의식. 앱이 습관의 트리거가 됨. 경쟁 앱 진입 차단.</div>
+          <div class="ref-verdict">→ 락인 없는 락인</div>
+        </div>
+      </div>
+      <div style="margin-top:12px; padding:14px 16px; background:#f0f6ff; border-radius:var(--r3); border-left:3px solid var(--blue);">
+        <span style="font-size:12px; color:var(--blue); font-weight:700;">요기요의 어드밴티지:</span>
+        <span style="font-size:12px; color:var(--text-secondary); margin-left:6px;">바니프레소는 커피 하나. 요기요는 커피·반찬·야식·마트·밀키트 — 버티컬마다 각각의 바니프레소를 만들 수 있습니다.</span>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Swim Lanes -->
+    <div>
+      <div class="section-title">버티컬 스윔레인 — 6개 컨텍스트 레이어</div>
+      <div class="lane-grid">
+
+        <div class="lane-card morning">
+          <div class="lane-badge">☀️ 아침 루틴</div>
+          <div class="lane-title">카페 버티컬 — 바니프레소 모드</div>
+          <div class="lane-trigger"><strong>트리거:</strong> 평일 오전 7~9시 앱 오픈</div>
+          <div class="lane-body">
+            단골 카페 메뉴를 전면 카드로 노출. 픽업 시간 선택(10/20/30분 후)만 누르면 주문 완료.
+            3주간 패턴이 쌓이면 앱 열자마자 "오늘도 [카페명]?" 배너로 선점.
+          </div>
+        </div>
+
+        <div class="lane-card cycle">
+          <div class="lane-badge">🗓️ 주기 감지</div>
+          <div class="lane-title">반찬·밀키트 버티컬 — 소진 예측</div>
+          <div class="lane-trigger"><strong>트리거:</strong> 마지막 주문 후 학습된 주기 도달</div>
+          <div class="lane-body">
+            구매 주기 자동 학습(7일/10일/14일). "지난번 [반찬가게] 주문한지 12일 됐어요" 알림 발송.
+            푸시 → 앱 진입 → 원탭 재주문. 소진 타이밍에 딱 맞게 도착.
+          </div>
+        </div>
+
+        <div class="lane-card lunch">
+          <div class="lane-badge">🍱 점심 단골</div>
+          <div class="lane-title">편의식 버티컬 — 점심 루틴</div>
+          <div class="lane-trigger"><strong>트리거:</strong> 평일 11:30~12:30 + 자주 주문한 위치</div>
+          <div class="lane-body">
+            사무실·학교 근처 단골 도시락·분식 숏컷. "지금 주문하면 12:30 도착" 도착 시간을 전면에.
+            같은 메뉴를 5회 이상 주문 시 자동으로 "오늘의 점심" 레이블 부여.
+          </div>
+        </div>
+
+        <div class="lane-card route">
+          <div class="lane-badge">🗺️ 퇴근 루트</div>
+          <div class="lane-title">픽업 루트 버티컬 — 동선 내재화</div>
+          <div class="lane-trigger"><strong>트리거:</strong> 퇴근 시간대 + 설정된 귀가 루트</div>
+          <div class="lane-body">
+            퇴근 루트 주요 지점 등록 → 경로상 단골 매장 미리 주문.
+            "지금 지하철 탑승하셨나요? [강남역 단골집] 미리 주문하면 도착 시 픽업 가능."
+            바니프레소의 핵심을 요기요 전체 카테고리로 확장.
+          </div>
+        </div>
+
+        <div class="lane-card weekly">
+          <div class="lane-badge">📦 주간 장보기</div>
+          <div class="lane-title">마트·생필품 버티컬 — 번들 재주문</div>
+          <div class="lane-trigger"><strong>트리거:</strong> 매주 동일 요일 + 마트/장보기 카테고리 패턴</div>
+          <div class="lane-body">
+            지난번 장바구니를 통째로 재주문. 품목 조정만 하면 주문 완료.
+            "지난 일요일 [마트명] 장바구니 그대로?" → 확인 화면에서 빠른 수정 가능.
+            월 1~2회 주기 패턴에 최적화.
+          </div>
+        </div>
+
+        <div class="lane-card night">
+          <div class="lane-badge">🌙 야식 패턴</div>
+          <div class="lane-title">야식 버티컬 — 요일·감성 기반</div>
+          <div class="lane-trigger"><strong>트리거:</strong> 금·토 오후 9시 이후</div>
+          <div class="lane-body">
+            금/토 심야 단골 치킨·피자·분식 숏컷. "지난 금요일 그 집, 오늘도?" 형태로 감성 터치.
+            날씨 연동(비 오는 날 + 야식 패턴) 보너스 노출로 전환율 극대화.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Mockup -->
+    <div>
+      <div class="section-title">목업 — 컨텍스트 인식 홈 화면</div>
+      <div class="mockup-wrap">
+
+        <div class="mockup-phone">
+          <div class="phone-status">
+            <span class="phone-time">08:14</span>
+            <span class="phone-icons">● ● ●</span>
+          </div>
+          <div class="phone-nav">
+            <div class="yogi-logo">요</div>
+            <span class="phone-nav-title">요기요</span>
+          </div>
+          <div class="phone-body">
+
+            <!-- Context banner -->
+            <div class="ctx-banner">
+              <div class="ctx-time-label">☀️ 아침 루틴 · 평일 오전</div>
+              <div class="ctx-question">오늘도 아메리카노?<br>카페 루소 픽업 숏컷</div>
+              <div class="ctx-sub">지난 12일간 8회 · 18분 걸어서 2km</div>
+              <div class="ctx-actions">
+                <div class="ctx-btn primary">20분 후 픽업</div>
+                <div class="ctx-btn ghost">다른 시간</div>
+              </div>
+            </div>
+
+            <!-- Cycle lane -->
+            <div class="lane-scroll-label">
+              <span>🗓️ 주기 알림</span>
+              <span style="color:var(--green);font-weight:700;">12일 경과</span>
+            </div>
+            <div class="mini-card-row">
+              <div class="mini-card cycle">
+                <div class="mini-card-name">맛있는 반찬</div>
+                <div class="mini-card-sub">12일 전 주문</div>
+                <div class="mini-card-action">재주문</div>
+              </div>
+              <div class="mini-card cycle">
+                <div class="mini-card-name">일품 밀키트</div>
+                <div class="mini-card-sub">9일 전 주문</div>
+                <div class="mini-card-action">재주문</div>
+              </div>
+            </div>
+
+            <!-- Lunch lane -->
+            <div class="lane-scroll-label">
+              <span>🍱 점심 단골</span>
+              <span style="color:var(--orange);font-weight:700;">11:30 이후 노출</span>
+            </div>
+            <div class="mini-card-row">
+              <div class="mini-card morning">
+                <div class="mini-card-name">현대도시락</div>
+                <div class="mini-card-sub">주 3회 단골</div>
+                <div class="mini-card-action">주문하기</div>
+              </div>
+              <div class="mini-card morning">
+                <div class="mini-card-name">김밥천국</div>
+                <div class="mini-card-sub">주 1회 단골</div>
+                <div class="mini-card-action">주문하기</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="mockup-desc">
+          <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin-bottom:4px;">
+            컨텍스트 홈의 3가지 레이어
+          </div>
+          <div class="mockup-desc-item">
+            <div class="desc-num">1</div>
+            <div class="desc-text">
+              <strong>컨텍스트 배너 (최상단)</strong><br>
+              지금 이 순간 가장 관련성 높은 버티컬 1개를 전면 배너로 점유.
+              시간·위치·패턴 조합으로 결정. 패턴이 없으면 배너 없음.
+            </div>
+          </div>
+          <div class="mockup-desc-item">
+            <div class="desc-num">2</div>
+            <div class="desc-text">
+              <strong>주기 알림 레인</strong><br>
+              주기 임박한 가게를 최대 3개 카드로. 소진 예측 기반이라
+              배달비 할인 메시지 없이도 자연스럽게 전환 유도.
+            </div>
+          </div>
+          <div class="mockup-desc-item">
+            <div class="desc-num">3</div>
+            <div class="desc-text">
+              <strong>시간대 단골 레인</strong><br>
+              점심·저녁 시간대엔 해당 버티컬 단골만 노출.
+              기존 "자주 주문한 메뉴"를 대체 — 맥락 없는 카드 나열 제거.
+            </div>
+          </div>
+          <div style="background:var(--bg-subtle);border-radius:var(--r3);padding:12px 14px;margin-top:4px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">⚡ 픽업 예약 통합 시 킬러 기능</div>
+            <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
+              배달만 지원하는 현재 구조에서, 픽업 예약 지원 시 바니프레소 모델을 요기요 전 카테고리로 확장 가능.
+              카페 버티컬만으로도 아침 DAU 대폭 상승 기대.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- AI Engine -->
+    <div>
+      <div class="section-title">패턴 학습 엔진 — 3단계 개인화</div>
+      <div class="engine-row">
+        <div class="engine-step">
+          <div class="engine-num">1</div>
+          <div class="engine-title">관찰기 (1~3주)</div>
+          <div class="engine-body">주문 시간대, 요일, 카테고리, 위치를 수집. 추천 없음. 최소 5회 주문 데이터 확보 후 다음 단계로.</div>
+          <span class="engine-tag">침묵 수집</span>
+        </div>
+        <div class="engine-step">
+          <div class="engine-num">2</div>
+          <div class="engine-title">감지기 (4~6주)</div>
+          <div class="engine-body">패턴 신뢰도 70% 이상일 때만 첫 추천 노출. 거부 시 신뢰도 리셋. 클릭 시 가중치 +1.5배 부여.</div>
+          <span class="engine-tag">조심스러운 첫 제안</span>
+        </div>
+        <div class="engine-step">
+          <div class="engine-num">3</div>
+          <div class="engine-title">정교화 (7주~)</div>
+          <div class="engine-body">CTR·전환율로 추천 품질 자동 조정. 버티컬 간 충돌 시 최고 신뢰도 버티컬 우선. 계절·날씨 보정 추가.</div>
+          <span class="engine-tag">자동 최적화</span>
+        </div>
+      </div>
+      <div style="margin-top:12px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px;">
+        <div style="background:#f0faf8;border-radius:var(--r3);padding:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:var(--green);">70%</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;">첫 추천 신뢰도 임계치</div>
+        </div>
+        <div style="background:#f0f6ff;border-radius:var(--r3);padding:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:var(--blue);">5회</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;">패턴 감지 최소 주문 수</div>
+        </div>
+        <div style="background:#f5f0ff;border-radius:var(--r3);padding:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:var(--purple);">±30분</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;">시간대 매칭 허용 범위</div>
+        </div>
+        <div style="background:var(--primary-25);border-radius:var(--r3);padding:12px;text-align:center;">
+          <div style="font-size:18px;font-weight:900;color:var(--primary);">1개</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:2px;">동시간 노출 버티컬 최대</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Synergy with Partner AI -->
+    <div>
+      <div class="section-title">파트너 AI 시너지 — 소비자 데이터 → 사장님 도구</div>
+      <div class="synergy-row">
+        <div class="synergy-card b2c">
+          <div class="synergy-label">소비자 앱 (재주문 숏컷)</div>
+          <div class="synergy-title">쌓이는 행동 데이터</div>
+          <ul class="synergy-list">
+            <li>재주문 주기 (7일/14일 패턴)</li>
+            <li>픽업 vs. 배달 선호도</li>
+            <li>이탈 시점 (언제 안 왔는지)</li>
+            <li>버티컬 전환 패턴 (커피→반찬→야식)</li>
+            <li>가격 탄력성 (할인 유무에 따른 반응)</li>
+          </ul>
+        </div>
+        <div class="synergy-card b2b">
+          <div class="synergy-label">파트너 AI (사장님 도구)</div>
+          <div class="synergy-title">사장님이 받는 인사이트</div>
+          <ul class="synergy-list">
+            <li>"이 손님 매주 화요일 오세요 → 화요일 쿠폰 자동 발송"</li>
+            <li>"이 손님 2주째 안 오셨어요 → 재방문 유도 알림"</li>
+            <li>"이 시간대 픽업 주문 집중 → 픽업 운영 시간 최적화"</li>
+            <li>"단골 손님 주기 임박 → 선제 할인 제안 타이밍"</li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:14px 16px;background:#1a1a2e;border-radius:var(--r3);color:rgba(255,255,255,0.85);font-size:12px;line-height:1.7;">
+        <strong style="color:#fff;">플라이휠:</strong>
+        재주문 숏컷이 쌓을수록 파트너 AI의 추천 정밀도가 올라갑니다.
+        사장님이 적절한 시점에 쿠폰을 보내면 소비자가 다시 오고, 소비자가 오면 재주문 데이터가 다시 쌓입니다.
+        버티컬이 많을수록, 사용 기간이 길수록 격차는 벌어집니다.
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Roadmap -->
+    <div>
+      <div class="section-title">구현 로드맵</div>
+      <div class="roadmap-grid">
+        <div class="roadmap-week now">
+          <div class="rw-phase">현재</div>
+          <div class="rw-week">기반 데이터</div>
+          <ul class="rw-items">
+            <li>주문 시간대·요일 로깅</li>
+            <li>카테고리별 주기 분석</li>
+            <li>위치 클러스터링</li>
+          </ul>
+        </div>
+        <div class="roadmap-week">
+          <div class="rw-phase p1">1단계 · 2주</div>
+          <div class="rw-week">시간대 기반</div>
+          <ul class="rw-items">
+            <li>홈 상단 컨텍스트 배너</li>
+            <li>시간대 맞춤 재주문 카드</li>
+            <li>CTR A/B 테스트</li>
+          </ul>
+        </div>
+        <div class="roadmap-week">
+          <div class="rw-phase p2">2단계 · 6주</div>
+          <div class="rw-week">주기 감지</div>
+          <ul class="rw-items">
+            <li>소진 예측 푸시 알림</li>
+            <li>주기 학습 엔진 배포</li>
+            <li>반찬·밀키트 버티컬 집중</li>
+          </ul>
+        </div>
+        <div class="roadmap-week">
+          <div class="rw-phase p3">3단계 · 12주</div>
+          <div class="rw-week">픽업 루트</div>
+          <ul class="rw-items">
+            <li>퇴근 루트 설정 UI</li>
+            <li>픽업 예약 기능 연동</li>
+            <li>카페 버티컬 전면 배포</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-meta">요기요 Product Proposal · 2026.04 · 내부 검토용</div>
+    <div class="footer-ask">습관이 되면 경쟁은 없습니다.</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-04-13">
+<meta name="doc-updated" content="2026-04-13">
+<meta name="doc-status" content="in-progress">
+<title>요기요 파트너 AI — 엘리베이터 피치</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: #f2f2f2;
+    color: #1a1a1a;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 720px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.10);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: #fa0050;
+    padding: 36px 44px 32px;
+    color: #fff;
+  }
+  .tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 12px;
+    letter-spacing: 0.04em;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .header-sub {
+    font-size: 15px;
+    opacity: 0.88;
+    line-height: 1.65;
+    font-weight: 400;
+  }
+
+  /* Body */
+  .body {
+    padding: 36px 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #999;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* Problem */
+  .problem-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .problem-card {
+    background: #f7f7f7;
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .problem-card .num {
+    font-size: 22px;
+    font-weight: 900;
+    color: #fa0050;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .problem-card .desc {
+    font-size: 12px;
+    color: #555;
+    line-height: 1.55;
+  }
+
+  /* One-liner */
+  .oneliner {
+    background: #fff8f9;
+    border: 1.5px solid #fecdd7;
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a1a;
+    line-height: 1.6;
+  }
+  .oneliner span {
+    color: #fa0050;
+  }
+
+  /* How */
+  .how-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .how-card {
+    border-radius: 10px;
+    background: #f7f7f7;
+    padding: 18px;
+  }
+  .how-card .icon {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+  .how-card h3 {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 5px;
+  }
+  .how-card p {
+    font-size: 12px;
+    color: #555;
+    line-height: 1.6;
+  }
+
+  /* Why now */
+  .why-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .why-card {
+    border-radius: 10px;
+    background: #f7f7f7;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: #444;
+    line-height: 1.6;
+  }
+  .why-card strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+  }
+
+  /* Ask */
+  .ask {
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .ask-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.5;
+  }
+  .ask-text span {
+    color: #fa0050;
+  }
+  .ask-sub {
+    font-size: 11px;
+    color: #888;
+    margin-top: 4px;
+    font-weight: 400;
+  }
+  .ask-badge {
+    flex-shrink: 0;
+    background: #fa0050;
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* Footer */
+  .footer {
+    padding: 16px 44px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-left {
+    font-size: 11px;
+    color: #bbb;
+  }
+  .footer-right {
+    font-size: 11px;
+    color: #bbb;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="tag">Elevator Pitch · 요기요 파트너 AI</div>
+    <h1>사장님은 요기요를<br>몰라서 안 쓰는 게 아닙니다.</h1>
+    <p class="header-sub">요기요가 먼저 말을 걸지 않아서입니다.<br>파트너 AI는 그 침묵을 깨는 제품입니다.</p>
+  </div>
+
+  <div class="body">
+
+    <!-- Problem -->
+    <div>
+      <div class="label">Problem — 지금 실제로 일어나는 일</div>
+      <div class="problem-row">
+        <div class="problem-card">
+          <div class="num">배민 60%</div>
+          <div class="desc">점유율. 사장님 대부분이 배민에 더 집중하고 요기요는 2순위로 방치</div>
+        </div>
+        <div class="problem-card">
+          <div class="num">수수료 차이</div>
+          <div class="desc">월 500건 이상이면 요기요 실효 수수료가 배민보다 낮아짐 — 하지만 이 사실을 아는 사장님이 없음</div>
+        </div>
+        <div class="problem-card">
+          <div class="num">정산 깜깜이</div>
+          <div class="desc">주문 완료 후 실제로 얼마 남는지 모름. 요기요·배민·쿠팡이츠 3사 모두 동일 문제</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- One-liner -->
+    <div class="oneliner">
+      요기요 파트너 AI는 <span>사장님 포스와 사장님센터에 상주하는 AI 어드바이저</span>입니다.<br>
+      3사 데이터를 분석하되, 실행은 요기요 채널 성과 최적화에만 집중합니다.
+    </div>
+
+    <!-- How it works -->
+    <div>
+      <div class="label">How it works — 핵심 기능 3가지</div>
+      <div class="how-row">
+        <div class="how-card">
+          <div class="icon">📊</div>
+          <h3>수수료 구간 트래커</h3>
+          <p>"다음 구간까지 47건 — 달성 시 이번 달 37,500원 절감."<br>요기요의 차등 수수료 구조를 사장님 눈높이로 실시간 가시화.</p>
+        </div>
+        <div class="how-card">
+          <div class="icon">💡</div>
+          <h3>원탭 실행 제안</h3>
+          <p>"배달비 300원 낮추면 주문 +28% 예상."<br>분석으로 끝나지 않고 탭 하나로 즉시 적용. 포스 화면에서 바로.</p>
+        </div>
+        <div class="how-card">
+          <div class="icon">🔔</div>
+          <h3>이상 징후 알림</h3>
+          <p>주문 -20% 감지 시 원인 추정과 함께 즉시 알림.<br>사장님이 먼저 물어볼 필요 없음.</p>
+        </div>
+        <div class="how-card">
+          <div class="icon">📋</div>
+          <h3>정산 투명화</h3>
+          <p>주문 직후 예상 정산액 표시 → 실제 정산 후 차이 피드백.<br>업계 최초. 신뢰가 락인이 됩니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Why now -->
+    <div>
+      <div class="label">Why Now</div>
+      <div class="why-row">
+        <div class="why-card">
+          <strong>배민 쿠폰 깜깜이 논란 (2024)</strong>
+          정산 불투명 이슈로 사장님 신뢰가 흔들린 타이밍. 투명화로 선점 가능.
+        </div>
+        <div class="why-card">
+          <strong>포스 시장 통합 진행 중</strong>
+          오더히어로 등 통합 포스 확산. 포스에 먼저 임베드하면 배민 전용 가게에도 요기요 접점 확보.
+        </div>
+        <div class="why-card">
+          <strong>무료 → 광고 전환 모델</strong>
+          AI 어드바이저 무료 제공 → 신뢰 구축 → 쿠폰·광고 집행으로 수익화. 사장님 저항 없이 진입.
+        </div>
+      </div>
+    </div>
+
+    <!-- Ask -->
+    <div class="ask">
+      <div>
+        <div class="ask-text">요청사항: <span>파일럿 대상 사장님 100명 + 포스사 MOU 협의 시작</span></div>
+        <div class="ask-sub">지방(대구·부산·경남) 먼저 — 월 500건 달성 가능한 밀도 · 8주 MVP · 포스 계약 없이도 사장님센터 단독 실행 가능</div>
+      </div>
+      <div class="ask-badge">세부 제안서 →</div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span class="footer-left">요기요 파트너 AI · Elevator Pitch</span>
+    <span class="footer-right">세부 내용 → proposal-partner-ai</span>
+  </div>
+
+</div>
+</body>
+</html>
