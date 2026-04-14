@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모닝 픽업 — 요기요 제품 제안</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --morning: #f5a623;
+    --morning-25: #fffaf0;
+    --morning-100: #fde8b8;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --gray-100: #e5e5e5;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 32px 40px 28px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '🌅';
+    position: absolute;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 72px;
+    opacity: 0.15;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(245,166,35,0.25);
+    border: 1px solid rgba(245,166,35,0.4);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+    color: #fde8b8;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header h1 span { color: var(--morning); }
+  .header p {
+    font-size: 14px;
+    opacity: 0.75;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  hr.divider { border: none; border-top: 1px solid var(--gray-100); }
+
+  /* Problem */
+  .problem-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .problem-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .problem-card.highlight {
+    background: var(--morning-25);
+    border: 1.5px solid var(--morning-100);
+  }
+  .problem-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .problem-card .value {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+  .problem-card.highlight .value { color: var(--morning); }
+  .problem-card .sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+
+  /* Insight block */
+  .insight-block {
+    background: #1a1a2e;
+    border-radius: var(--r4);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .insight-item .i-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .insight-item .i-from {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 4px;
+    text-decoration: line-through;
+  }
+  .insight-item .i-to {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--morning);
+    line-height: 1.4;
+  }
+
+  /* Solution grid */
+  .solution-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .solution-card {
+    border-radius: var(--r4);
+    padding: 18px 20px;
+    background: var(--bg-subtle);
+  }
+  .solution-card.accent {
+    background: var(--morning-25);
+    border: 1.5px solid var(--morning-100);
+  }
+  .sol-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .sol-icon {
+    width: 34px;
+    height: 34px;
+    background: var(--morning-100);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .sol-header h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .solution-card p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+  .sol-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+    background: var(--morning-100);
+    color: #8a5a00;
+  }
+
+  /* Mockup */
+  .mockup-wrap {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 20px;
+  }
+  .mockup-phone {
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-1);
+    padding: 16px;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  .mockup-time {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pickup-card {
+    background: linear-gradient(135deg, #1a1a2e, #2d2d5e);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+  .pickup-card .pc-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--morning);
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .pickup-card .pc-store {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .pickup-card .pc-item {
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 12px;
+  }
+  .time-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .time-btn {
+    flex: 1;
+    text-align: center;
+    border-radius: 8px;
+    padding: 7px 0;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+  }
+  .time-btn.selected {
+    background: var(--morning);
+    color: #1a1a2e;
+  }
+  .pc-cta {
+    width: 100%;
+    background: var(--morning);
+    color: #1a1a2e;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 9px 0;
+    text-align: center;
+  }
+  .pickup-confirm {
+    background: #f0faf8;
+    border: 1.5px solid #b3e5de;
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pickup-confirm .r-icon { font-size: 20px; }
+  .pickup-confirm .r-val {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--green);
+  }
+  .pickup-confirm .r-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 1px;
+  }
+
+  /* Impact */
+  .impact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .impact-card {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .impact-card .i-num {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .impact-card .i-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .impact-card .i-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .impact-card.c1 { background: var(--morning-25); border: 1.5px solid var(--morning-100); }
+  .impact-card.c1 .i-num { color: var(--morning); }
+  .impact-card.c2 { background: #f0faf8; border: 1.5px solid #b3e5de; }
+  .impact-card.c2 .i-num { color: var(--green); }
+  .impact-card.c3 { background: #f0f6ff; border: 1.5px solid #b3d0f5; }
+  .impact-card.c3 .i-num { color: var(--blue); }
+
+  /* Timeline */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .tl-phase {
+    padding: 16px 18px;
+    border-right: 1px solid var(--gray-100);
+  }
+  .tl-phase:last-child { border-right: none; }
+  .tl-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+    margin-bottom: 8px;
+  }
+  .tl-tag.w1 { background: var(--morning-100); color: #8a5a00; }
+  .tl-tag.w2 { background: #e8f4e8; color: #2e7d32; }
+  .tl-tag.w3 { background: #f0f6ff; color: var(--blue); }
+  .tl-tag.w4 { background: #f5f0ff; color: #6b3fa0; }
+  .tl-phase h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+  .tl-phase ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tl-phase ul li {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding-left: 10px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .tl-phase ul li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--text-tertiary);
+    font-weight: 700;
+  }
+
+  /* KPI */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .kpi-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .kpi-card .k-val {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--morning);
+    margin-bottom: 4px;
+  }
+  .kpi-card.ns .k-val { color: var(--green); font-size: 13px; }
+  .kpi-card .k-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  /* Positioning */
+  .positioning {
+    background: #1a1a2e;
+    border-radius: var(--r4);
+    padding: 16px 22px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 20px;
+    align-items: center;
+  }
+  .pos-divider { width: 1px; background: rgba(255,255,255,0.12); align-self: stretch; }
+  .pos-block .pos-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .pos-block .pos-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.5;
+  }
+  .pos-block .pos-text span { color: var(--morning); }
+
+  /* Footer */
+  .footer {
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-meta { font-size: 11px; color: var(--text-tertiary); }
+  .footer-ask { font-size: 12px; font-weight: 600; color: var(--morning); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-tag">Product Proposal · 요기요 모닝 픽업</div>
+    <h1>출근길 <span>0분 웨이팅</span></h1>
+    <p>카페 아침 줄은 예측 불가입니다. 픽업 사전 주문은 사장님에겐 확정 매출, 고객에겐 확정 시간입니다.<br>
+    요기요가 아침 루틴의 첫 번째 앱이 됩니다.</p>
+  </div>
+
+  <div class="body">
+
+    <!-- Problem -->
+    <div>
+      <div class="section-title">Problem — 지금 아침 시간대의 구조</div>
+      <div class="problem-row">
+        <div class="problem-card">
+          <div class="label">사장님 입장</div>
+          <div class="value">아침은 바쁜데<br>매출은 불확실</div>
+          <div class="sub">워크인이 몰릴지 안 몰릴지 모름. 재료 과잉 준비 or 부족. 아침 전용 메뉴 기획도 어렵고, 알바 편성 기준도 없음.</div>
+        </div>
+        <div class="problem-card">
+          <div class="label">고객 입장</div>
+          <div class="value">줄 서다가<br>지각할 뻔</div>
+          <div class="sub">8시 15분 카페, 내 앞에 5명. 지각 걱정에 그냥 패스. 배달은 너무 느리고 워크인은 불확실. 아침 커피 해결책이 없음.</div>
+        </div>
+        <div class="problem-card highlight">
+          <div class="label">근본 문제</div>
+          <div class="value">아침에 요기요를<br>열 이유가 없음</div>
+          <div class="sub">배달 = 30분 이상. 아침엔 안 씀. 픽업이 되면 출근길에 요기요를 여는 새로운 루틴이 생긴다.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insight -->
+    <div class="insight-block">
+      <div class="insight-item">
+        <div class="i-label">사장님 설득 논리</div>
+        <div class="i-from">불확실한 워크인</div>
+        <div class="i-to">픽업 주문 = 전날 확정된 매출<br>식재료 준비 가능 · 인건비 최적화</div>
+      </div>
+      <div class="insight-item">
+        <div class="i-label">고객 설득 논리</div>
+        <div class="i-from">할인 혜택</div>
+        <div class="i-to">"가면 바로 있다" 시간 보장<br>출근길 0분 웨이팅</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Solution -->
+    <div>
+      <div class="section-title">Solution — 두 가지 핵심 구조</div>
+      <div class="solution-grid">
+        <div class="solution-card accent">
+          <div class="sol-header">
+            <div class="sol-icon">⏰</div>
+            <h3>시간 선택 픽업 주문</h3>
+          </div>
+          <p>7:30 / 8:00 / 8:30 중 픽업 시간 선택. 사장님은 카카오 알림톡으로 사전 주문 수신, "준비 완료" 알림 발송. 고객은 지정 시간에 가면 바로 수령. MVP에서 지도 연동 없이 구현 가능.</p>
+          <span class="sol-tag">Phase 1 — 8주 출시 가능</span>
+        </div>
+        <div class="solution-card accent">
+          <div class="sol-header">
+            <div class="sol-icon">🔔</div>
+            <h3>모닝 픽업 루틴 카드</h3>
+          </div>
+          <p>단골 카페 저장 → 매일 아침 앱 홈에 "오늘 아침 픽업" 카드 1장. 원탭 재주문. 준비 완료 알림 받고 출발. 픽업 완료 후 간단 피드백으로 사장님 준비율 관리.</p>
+          <span class="sol-tag">카테고리 단골형 22.5% 타겟</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mockup -->
+    <div class="mockup-wrap">
+      <div class="section-title" style="margin-bottom:16px;">UI 컨셉 — 모닝 픽업 주문 흐름</div>
+      <div class="mockup-phone">
+        <div class="mockup-time">☀️ 오전 7:42 · 출근 중</div>
+
+        <div class="pickup-card">
+          <div class="pc-label">☕ 모닝 픽업</div>
+          <div class="pc-store">블루보틀 강남점</div>
+          <div class="pc-item">아이스 아메리카노 L · ₩5,500</div>
+          <div class="time-row">
+            <div class="time-btn">7:30</div>
+            <div class="time-btn selected">8:00</div>
+            <div class="time-btn">8:30</div>
+          </div>
+          <div class="pc-cta">8:00 픽업 주문하기</div>
+        </div>
+
+        <div class="pickup-confirm">
+          <div class="r-icon">✅</div>
+          <div>
+            <div class="r-val">준비 완료 — 지금 출발하세요</div>
+            <div class="r-desc">7:52 · 블루보틀 강남점 카운터</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Why -->
+    <div>
+      <div class="section-title">Why Now — 요기요에게 이게 왜 지금인가</div>
+      <div class="impact-grid">
+        <div class="impact-card c1">
+          <div class="i-num">새 루틴</div>
+          <div class="i-label">아침에 요기요를 여는 습관</div>
+          <div class="i-desc">배달 앱은 점심·저녁 루틴. 픽업이 되면 출근 전 7~8시대에 요기요가 열린다. 하루 중 새 접점 1개 추가.</div>
+        </div>
+        <div class="impact-card c2">
+          <div class="i-num">습관성</div>
+          <div class="i-label">커피 픽업은 이탈이 없다</div>
+          <div class="i-desc">스타벅스 사이렌오더처럼 한 번 루틴 잡히면 매일 반복. 단골 카페 + 원탭 재주문 구조로 DAU 직결.</div>
+        </div>
+        <div class="impact-card c3">
+          <div class="i-num">배달 外</div>
+          <div class="i-label">수수료 낮게, 빈도로 수익</div>
+          <div class="i-desc">픽업 수수료 5% 이하로 사장님 부담 낮추되, 매일 반복 주문 빈도로 요기요 수익 구조. 라이더 비용 없음.</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Timeline -->
+    <div>
+      <div class="section-title">실행 로드맵 — 12주</div>
+      <div class="timeline">
+        <div class="tl-phase">
+          <span class="tl-tag w1">Week 1~3</span>
+          <h4>MVP 개발</h4>
+          <ul>
+            <li>시간 선택 픽업 주문 UI</li>
+            <li>사장님 알림톡 연동</li>
+            <li>단골 카페 저장 + 재주문</li>
+            <li>준비 완료 알림 발송</li>
+          </ul>
+        </div>
+        <div class="tl-phase">
+          <span class="tl-tag w2">Week 4~6</span>
+          <h4>파트너 모집 + 베타</h4>
+          <ul>
+            <li>강남·여의도·판교 카페 50개</li>
+            <li>수수료 3개월 면제 + 홈 노출</li>
+            <li>픽업 전용 카운터 가이드</li>
+            <li>첫 픽업 실패율 0% 검증</li>
+          </ul>
+        </div>
+        <div class="tl-phase">
+          <span class="tl-tag w3">Week 7~9</span>
+          <h4>루틴 데이터 수집</h4>
+          <ul>
+            <li>D+7·D+14 재주문율 측정</li>
+            <li>사장님 준비율 리포트</li>
+            <li>홈 카드 노출 최적화</li>
+            <li>카테고리 확장 검토 (샐러드·베이커리)</li>
+          </ul>
+        </div>
+        <div class="tl-phase">
+          <span class="tl-tag w4">Week 10~12</span>
+          <h4>Phase 2 준비</h4>
+          <ul>
+            <li>지도 연동 (지금 출발하세요)</li>
+            <li>픽업 전용 아침 메뉴 지원</li>
+            <li>파트너 300개 → 전국 확장</li>
+            <li>NS 측정 본격화</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">성공 지표</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="k-val">0%</div>
+          <div class="k-label">첫 픽업 실패율<br>(도착 시 미준비)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="k-val">40%+</div>
+          <div class="k-label">D+14<br>픽업 재주문율</div>
+        </div>
+        <div class="kpi-card">
+          <div class="k-val">50개</div>
+          <div class="k-label">베타 파트너<br>(강남·여의도·판교)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="k-val">7~9시</div>
+          <div class="k-label">신규 요기요 앱<br>오픈 시간대 생성</div>
+        </div>
+        <div class="kpi-card ns">
+          <div class="k-val">D+30 재주문율 60%<br>North Star</div>
+          <div class="k-label">루틴화 기준 · 베타 3주차 측정</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Positioning -->
+    <div class="positioning">
+      <div class="pos-block">
+        <div class="pos-label">핵심 원칙</div>
+        <div class="pos-text">첫 픽업 실패 한 번이면<br><span>루틴이 깨집니다.</span><br>준비율 관리가 제품의 생명.</div>
+      </div>
+      <div class="pos-divider"></div>
+      <div class="pos-block">
+        <div class="pos-label">설득 원칙</div>
+        <div class="pos-text">고객에게 할인을 주지 않습니다.<br><span>시간을 돌려줍니다.</span><br>사장님에겐 예측 가능한 매출.</div>
+      </div>
+      <div class="pos-divider"></div>
+      <div class="pos-block">
+        <div class="pos-label">수익 원칙</div>
+        <div class="pos-text">수수료 5% 이하.<br><span>빈도로 수익을 만듭니다.</span><br>라이더 없이 매일 반복.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-meta">요기요 Product Proposal · 2026.04 · 내부 검토용</div>
+    <div class="footer-ask">아침 루틴의 첫 번째 앱이 됩니다.</div>
+  </div>
+
+</div>
+</body>
+</html>
