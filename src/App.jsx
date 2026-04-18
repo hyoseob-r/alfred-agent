@@ -3464,15 +3464,54 @@ function useDocStatuses(papers) {
     try { return JSON.parse(localStorage.getItem("paper-statuses") || "{}"); } catch { return {}; }
   });
   const getStatus = (p) => statuses[p.filename] ?? p.status ?? "in-progress";
-  const cycleStatus = (p, e) => {
-    e.stopPropagation();
-    const cur = getStatus(p);
-    const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length];
+  const setStatus = (p, next) => {
     const updated = { ...statuses, [p.filename]: next };
     setStatuses(updated);
     localStorage.setItem("paper-statuses", JSON.stringify(updated));
   };
-  return { getStatus, cycleStatus };
+  return { getStatus, setStatus };
+}
+
+function StatusPicker({ paper, getStatus, setStatus }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const cur = getStatus(paper);
+  const sm = STATUS_META[cur] || STATUS_META["in-progress"];
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+        title="상태 변경"
+        style={{ fontSize: "9px", fontWeight: 700, padding: "3px 8px", borderRadius: "20px", background: sm.bg, border: `1px solid ${sm.border}`, color: sm.color, cursor: "pointer", whiteSpace: "nowrap" }}>
+        {sm.label} ▾
+      </button>
+      {open && (
+        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e5e5e5", borderRadius: "10px", boxShadow: "0 4px 16px rgba(0,0,0,0.12)", padding: "4px", zIndex: 100, minWidth: "120px" }}>
+          {STATUS_CYCLE.map(s => {
+            const m = STATUS_META[s];
+            return (
+              <button key={s} onClick={e => { e.stopPropagation(); setStatus(paper, s); setOpen(false); }}
+                style={{ display: "flex", alignItems: "center", gap: "7px", width: "100%", padding: "6px 9px", borderRadius: "7px", border: "none", background: cur === s ? m.bg : "transparent", cursor: "pointer", textAlign: "left", transition: "background 0.1s" }}
+                onMouseEnter={e => { if (cur !== s) e.currentTarget.style.background = "#f5f5f5"; }}
+                onMouseLeave={e => { if (cur !== s) e.currentTarget.style.background = "transparent"; }}>
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: m.color, flexShrink: 0 }} />
+                <span style={{ fontSize: "11px", fontWeight: cur === s ? 700 : 500, color: cur === s ? m.color : "#555" }}>{m.label}</span>
+                {cur === s && <span style={{ marginLeft: "auto", fontSize: "10px", color: m.color }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PapersModal({ onClose }) {
@@ -3494,7 +3533,7 @@ function PapersModal({ onClose }) {
     setTimeout(() => inputRef.current?.focus(), 80);
   }, []);
 
-  const { getStatus, cycleStatus } = useDocStatuses(papers);
+  const { getStatus, setStatus } = useDocStatuses(papers);
 
   const filtered = papers
     .filter(p => tab === "history" ? getStatus(p) === "archived" : getStatus(p) !== "archived")
@@ -3534,17 +3573,7 @@ function PapersModal({ onClose }) {
                 {selected.updated && `수정 ${fmtDate(selected.updated)}`}
               </div>
             </div>
-            {(() => {
-              const st = getStatus(selected);
-              const sm = STATUS_META[st] || STATUS_META["in-progress"];
-              return (
-                <button onClick={e => { cycleStatus(selected, e); setSelected(p => ({ ...p })); }}
-                  title="클릭해서 상태 변경"
-                  style={{ flexShrink: 0, fontSize: "10px", fontWeight: 700, padding: "3px 9px", borderRadius: "20px", background: sm.bg, border: `1px solid ${sm.border}`, color: sm.color, cursor: "pointer" }}>
-                  {sm.label}
-                </button>
-              );
-            })()}
+            <StatusPicker paper={selected} getStatus={getStatus} setStatus={setStatus} />
             <a href={selected.path} target="_blank" rel="noreferrer" style={{ padding: "4px 10px", border: "1px solid #e5e5e5", borderRadius: "8px", background: "none", color: "#888", fontSize: "11px", cursor: "pointer", textDecoration: "none" }}>새 탭 ↗</a>
             <button onClick={onClose} style={{ background: "none", border: "none", color: "#aaa", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>✕</button>
           </div>
@@ -3596,8 +3625,6 @@ function PapersModal({ onClose }) {
             ) : (
               filtered.map(p => {
                 const lc = labelColor(p.filename);
-                const st = getStatus(p);
-                const sm = STATUS_META[st] || STATUS_META["in-progress"];
                 return (
                   <button key={p.filename} onClick={() => setSelected(p)}
                     style={{ width: "100%", textAlign: "left", padding: "10px 12px", borderRadius: "10px", border: "1px solid transparent", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", transition: "all 0.15s", marginBottom: "2px" }}
@@ -3615,10 +3642,7 @@ function PapersModal({ onClose }) {
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
                       <span style={{ fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "20px", background: lc.bg, border: `1px solid ${lc.border}`, color: lc.color }}>{typeLabel(p.filename)}</span>
-                      <span onClick={e => cycleStatus(p, e)} title="클릭해서 상태 변경"
-                        style={{ fontSize: "9px", fontWeight: 700, padding: "2px 6px", borderRadius: "20px", background: sm.bg, border: `1px solid ${sm.border}`, color: sm.color, cursor: "pointer" }}>
-                        {sm.label}
-                      </span>
+                      <StatusPicker paper={p} getStatus={getStatus} setStatus={setStatus} />
                     </div>
                   </button>
                 );
