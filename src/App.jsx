@@ -3450,12 +3450,13 @@ function AppMenu({ current }) {
   );
 }
 
-const STATUS_CYCLE = ["in-progress", "hold", "declined", "done"];
+const STATUS_CYCLE = ["in-progress", "hold", "done", "declined", "archived"];
 const STATUS_META = {
   "in-progress": { label: "In Progress", bg: "#e8f4e8", border: "#b3e5de", color: "#2e7d32" },
   "hold":        { label: "Hold",        bg: "#fff8e1", border: "#ffe082", color: "#e65100" },
   "declined":    { label: "Declined",    bg: "#fce4ec", border: "#f48fb1", color: "#c62828" },
   "done":        { label: "Done",        bg: "#f3e5f5", border: "#ce93d8", color: "#7b1fa2" },
+  "archived":    { label: "History",     bg: "#f5f5f5", border: "#e0e0e0", color: "#9e9e9e" },
 };
 
 function useDocStatuses(papers) {
@@ -3479,6 +3480,7 @@ function PapersModal({ onClose }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("active");
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -3494,9 +3496,12 @@ function PapersModal({ onClose }) {
 
   const { getStatus, cycleStatus } = useDocStatuses(papers);
 
-  const filtered = papers.filter(p =>
-    !query || p.title.toLowerCase().includes(query.toLowerCase()) || p.filename.toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = papers
+    .filter(p => tab === "history" ? getStatus(p) === "archived" : getStatus(p) !== "archived")
+    .filter(p => !query || p.title.toLowerCase().includes(query.toLowerCase()) || p.filename.toLowerCase().includes(query.toLowerCase()));
+
+  const activeCount  = papers.filter(p => getStatus(p) !== "archived").length;
+  const historyCount = papers.filter(p => getStatus(p) === "archived").length;
 
   const labelColor = filename => {
     if (filename.startsWith("proposal")) return { bg: "#fff5f8", border: "#feccdc", color: "#fa0050" };
@@ -3554,6 +3559,19 @@ function PapersModal({ onClose }) {
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#333" }}>📄 Papers</div>
               <button onClick={onClose} style={{ background: "none", border: "none", color: "#aaa", fontSize: "18px", cursor: "pointer", lineHeight: 1 }}>✕</button>
             </div>
+            {/* 탭 */}
+            <div style={{ display: "flex", gap: "4px", marginBottom: "10px" }}>
+              {[
+                { id: "active",  label: "Active",  count: activeCount },
+                { id: "history", label: "History", count: historyCount },
+              ].map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  style={{ padding: "5px 12px", borderRadius: "8px", border: "none", background: tab === t.id ? "#111" : "#f0f0f0", color: tab === t.id ? "#fff" : "#888", fontSize: "11px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", transition: "all 0.15s" }}>
+                  {t.label}
+                  <span style={{ fontSize: "10px", background: tab === t.id ? "rgba(255,255,255,0.2)" : "#e0e0e0", color: tab === t.id ? "#fff" : "#999", borderRadius: "10px", padding: "1px 5px" }}>{t.count}</span>
+                </button>
+              ))}
+            </div>
             {/* 검색 인풋 */}
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#bbb", fontSize: "13px", pointerEvents: "none" }}>🔍</span>
@@ -3609,7 +3627,7 @@ function PapersModal({ onClose }) {
           </div>
 
           <div style={{ padding: "10px 16px", borderTop: "1px solid #f0f0f0", fontSize: "10px", color: "#bbb", textAlign: "right" }}>
-            {filtered.length}개 문서 · 상태 배지 클릭해서 변경
+            {filtered.length}개 문서 · 상태 배지 클릭 → "History" 선택 시 History 탭으로 이동
           </div>
         </div>
       )}
