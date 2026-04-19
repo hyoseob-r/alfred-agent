@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-04-11">
+<meta name="doc-updated" content="2026-04-19">
+<meta name="doc-status" content="in-progress">
+<meta name="doc-id" content="p-005">
 <title>모닝 픽업 — 요기요 제품 제안</title>
 <style>
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -436,6 +440,64 @@
     line-height: 1.4;
   }
 
+  /* Market stats */
+  .market-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .market-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .market-card.accent {
+    background: var(--morning-25);
+    border: 1.5px solid var(--morning-100);
+  }
+  .market-card .m-num {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--morning);
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .market-card .m-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .market-card .m-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .market-card.c2 .m-num { color: var(--green); }
+  .market-card.c3 .m-num { color: var(--primary); }
+
+  /* Queue status */
+  .queue-status {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .queue-icon { font-size: 16px; }
+  .queue-val {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--morning);
+  }
+  .queue-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 1px;
+  }
+
   /* Positioning */
   .positioning {
     background: #1a1a2e;
@@ -525,6 +587,28 @@
       </div>
     </div>
 
+    <!-- Market -->
+    <div>
+      <div class="section-title">Market — 파트너 풀 규모 (출처: 통계청·공정위 2024~2025)</div>
+      <div class="market-grid">
+        <div class="market-card accent">
+          <div class="m-num">~70,000개</div>
+          <div class="m-label">전국 개인카페 추산</div>
+          <div class="m-sub">전체 커피전문점 약 10만 개 중 74%가 비프랜차이즈. 프랜차이즈 가맹점 27,974개(공정위 2024 기준).</div>
+        </div>
+        <div class="market-card c2">
+          <div class="m-num">18,210개</div>
+          <div class="m-label">서울 개인카페 (74.5%)</div>
+          <div class="m-sub">서울 전체 카페 24,444개 중 74.5%가 개인카페. 강남·여의도·판교 오피스 상권 집중 타겟.</div>
+        </div>
+        <div class="market-card c3">
+          <div class="m-num">2025 Q1</div>
+          <div class="m-label">사상 첫 전체 감소 국면</div>
+          <div class="m-sub">개업 3,782 vs 폐업 4,542. 저가 프랜차이즈 확장 압박. 개인카페 사장님이 <strong>새 수입원에 가장 열려 있는 시점</strong>.</div>
+        </div>
+      </div>
+    </div>
+
     <hr class="divider">
 
     <!-- Solution -->
@@ -536,7 +620,7 @@
             <div class="sol-icon">⏰</div>
             <h3>시간 선택 픽업 주문</h3>
           </div>
-          <p>7:30 / 8:00 / 8:30 중 픽업 시간 선택. 사장님은 카카오 알림톡으로 사전 주문 수신, "준비 완료" 알림 발송. 고객은 지정 시간에 가면 바로 수령. MVP에서 지도 연동 없이 구현 가능.</p>
+          <p>7:30 / 8:00 / 8:30 중 픽업 시간 선택. 사장님은 카카오 알림톡으로 사전 주문 수신, "준비 완료" 알림 발송. 고객은 <strong>지금 앞에 몇 잔 제조 중인지</strong>를 실시간으로 보고 출발 타이밍을 직접 판단. GPS 없이 구현 가능.</p>
           <span class="sol-tag">Phase 1 — 8주 출시 가능</span>
         </div>
         <div class="solution-card accent">
@@ -566,6 +650,14 @@
             <div class="time-btn">8:30</div>
           </div>
           <div class="pc-cta">8:00 픽업 주문하기</div>
+        </div>
+
+        <div class="queue-status">
+          <div class="queue-icon">☕</div>
+          <div>
+            <div class="queue-val">지금 앞에 2잔 제조 중 · 내 주문 3번째</div>
+            <div class="queue-desc">약 4~6분 후 준비 완료 예상</div>
+          </div>
         </div>
 
         <div class="pickup-confirm">
@@ -628,7 +720,7 @@
             <li>강남·여의도·판교 권역 집중</li>
             <li>수수료 3개월 면제 + 홈 노출</li>
             <li>픽업 전용 동선 가이드 제공</li>
-            <li>첫 픽업 실패율 0% 검증</li>
+            <li>큐 시각화 ("앞에 N잔") 검증</li>
           </ul>
         </div>
         <div class="tl-phase">
@@ -659,8 +751,8 @@
       <div class="section-title">성공 지표</div>
       <div class="kpi-row">
         <div class="kpi-card">
-          <div class="k-val">0%</div>
-          <div class="k-label">첫 픽업 실패율<br>— 선행 지표 1순위</div>
+          <div class="k-val">큐 시각화</div>
+          <div class="k-label">앞에 N잔 제조 중<br>고객이 출발 타이밍 직접 판단</div>
         </div>
         <div class="kpi-card">
           <div class="k-val">40%+</div>
@@ -685,7 +777,7 @@
     <div class="positioning">
       <div class="pos-block">
         <div class="pos-label">핵심 원칙</div>
-        <div class="pos-text">첫 픽업 실패 한 번이면<br><span>루틴이 깨집니다.</span><br>실패 3회 시 자동 비활성화.</div>
+        <div class="pos-text">"언제 나와요?"를 묻지 않게.<br><span>앞에 몇 잔인지 보이면</span><br>고객이 알아서 출발합니다.</div>
       </div>
       <div class="pos-divider"></div>
       <div class="pos-block">
