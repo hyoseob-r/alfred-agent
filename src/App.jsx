@@ -3463,11 +3463,28 @@ function useDocStatuses(papers) {
   const [statuses, setStatuses] = useState(() => {
     try { return JSON.parse(localStorage.getItem("paper-statuses") || "{}"); } catch { return {}; }
   });
+
+  useEffect(() => {
+    getSupabase().then(sb => {
+      sb.from("paper_statuses").select("filename,status").then(({ data }) => {
+        if (data && data.length > 0) {
+          const remote = {};
+          data.forEach(r => { remote[r.filename] = r.status; });
+          setStatuses(remote);
+          localStorage.setItem("paper-statuses", JSON.stringify(remote));
+        }
+      });
+    });
+  }, []);
+
   const getStatus = (p) => statuses[p.filename] ?? p.status ?? "in-progress";
   const setStatus = (p, next) => {
     const updated = { ...statuses, [p.filename]: next };
     setStatuses(updated);
     localStorage.setItem("paper-statuses", JSON.stringify(updated));
+    getSupabase().then(sb => {
+      sb.from("paper_statuses").upsert({ filename: p.filename, status: next, updated_at: new Date().toISOString() });
+    });
   };
   return { getStatus, setStatus };
 }
