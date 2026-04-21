@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
+// ── Claude Token (module-level) ───────────────────────────────────────────────
+let _claudeToken = null;
+async function chatAPI(body) {
+  const headers = { "Content-Type": "application/json" };
+  if (_claudeToken) headers["x-claude-token"] = _claudeToken;
+  const resp = await fetch("/api/chat", { method: "POST", headers, body: JSON.stringify(body) });
+  return resp.json();
+}
+
 const AGENT_SYSTEM_PROMPT = `You are a Problem-to-Product Agent — a UX-first product designer and builder.
 
 ## Your Core Philosophy
@@ -1513,17 +1522,12 @@ function ResearchPanel() {
     setResult("");
     setLoading(true);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001",
-          max_tokens: 4000,
-          system: RESEARCH_PROMPT,
-          messages: [{ role: "user", content: topic }],
-        }),
+      const data = await chatAPI({
+        model: "claude-sonnet-4-5-20251001",
+        max_tokens: 4000,
+        system: RESEARCH_PROMPT,
+        messages: [{ role: "user", content: topic }],
       });
-      const data = await response.json();
       setResult(data.content?.[0]?.text || "결과를 가져오지 못했습니다.");
     } catch {
       setResult("오류가 발생했습니다. 다시 시도해 주십시오.");
@@ -1597,17 +1601,12 @@ function UIPatternPanel() {
     setResult("");
     setLoading(true);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001",
-          max_tokens: 4000,
-          system: UI_PATTERN_PROMPT,
-          messages: [{ role: "user", content: topic }],
-        }),
+      const data = await chatAPI({
+        model: "claude-sonnet-4-5-20251001",
+        max_tokens: 4000,
+        system: UI_PATTERN_PROMPT,
+        messages: [{ role: "user", content: topic }],
       });
-      const data = await response.json();
       setResult(data.content?.[0]?.text || "결과를 가져오지 못했습니다.");
     } catch {
       setResult("오류가 발생했습니다. 다시 시도해 주십시오.");
@@ -1794,17 +1793,12 @@ function TasksPanel() {
     setResult("");
     setLoading(true);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001",
-          max_tokens: 4000,
-          system: PROMPT_MAP[activeTask],
-          messages: [{ role: "user", content: topic }],
-        }),
+      const data = await chatAPI({
+        model: "claude-sonnet-4-5-20251001",
+        max_tokens: 4000,
+        system: PROMPT_MAP[activeTask],
+        messages: [{ role: "user", content: topic }],
       });
-      const data = await response.json();
       setResult(data.content?.[0]?.text || "결과를 가져오지 못했습니다.");
     } catch {
       setResult("오류가 발생했습니다.");
@@ -1896,17 +1890,12 @@ function ReviewPanel({ doc, title, onClose }) {
   const runReview = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001",
-          max_tokens: 16000,
-          system: REVIEW_PROMPT,
-          messages: [{ role: "user", content: `다음 문서를 검토해 주십시오:\n\n${doc}` }],
-        }),
+      const data = await chatAPI({
+        model: "claude-sonnet-4-5-20251001",
+        max_tokens: 16000,
+        system: REVIEW_PROMPT,
+        messages: [{ role: "user", content: `다음 문서를 검토해 주십시오:\n\n${doc}` }],
       });
-      const data = await response.json();
       const text = data.content?.[0]?.text || "";
       setResult(text);
       const match = text.match(/총점[:\s]+(\d+)/);
@@ -1956,20 +1945,15 @@ function ComparePanel({ docA, docB, onClose }) {
   const runCompare = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001",
-          max_tokens: 16000,
-          system: COMPARE_PROMPT,
-          messages: [{
-            role: "user",
-            content: `[Document A — AI 자동 생성본]\n${docA}\n\n[Document B — 업로드된 기존 문서]\n${docB}`,
-          }],
-        }),
+      const data = await chatAPI({
+        model: "claude-sonnet-4-5-20251001",
+        max_tokens: 16000,
+        system: COMPARE_PROMPT,
+        messages: [{
+          role: "user",
+          content: `[Document A — AI 자동 생성본]\n${docA}\n\n[Document B — 업로드된 기존 문서]\n${docB}`,
+        }],
       });
-      const data = await response.json();
       setResult(data.content?.[0]?.text || "");
     } catch {
       setResult("비교 중 오류가 발생했습니다.");
@@ -2093,15 +2077,11 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
             ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
             : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
 
-        const resp = await fetch("/api/chat", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-5-20251001", max_tokens: 4000,
-            system: systemPrompt,
-            messages: [{ role: "user", content: context }],
-          }),
+        const data = await chatAPI({
+          model: "claude-sonnet-4-5-20251001", max_tokens: 4000,
+          system: systemPrompt,
+          messages: [{ role: "user", content: context }],
         });
-        const data = await resp.json();
         const result = data.error
           ? `[오류] ${data.error.message || JSON.stringify(data.error)}`
           : (data.content?.[0]?.text || "응답 없음");
@@ -2150,16 +2130,12 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
   const detectConflicts = async (context) => {
     setDetectingConflicts(true);
     try {
-      const resp = await fetch("/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001", max_tokens: 1000,
-          system: `당신은 회의 퍼실리테이터입니다. 6인 전문가의 의견에서 핵심 충돌 지점을 3개 이내로 추출하십시오.
+      const data = await chatAPI({
+        model: "claude-sonnet-4-5-20251001", max_tokens: 1000,
+        system: `당신은 회의 퍼실리테이터입니다. 6인 전문가의 의견에서 핵심 충돌 지점을 3개 이내로 추출하십시오.
 형식: "충돌 1: [주제] — [A 주장] vs [B 주장]" 형태로 간결하게. 한국어로.`,
-          messages: [{ role: "user", content: context }],
-        }),
+        messages: [{ role: "user", content: context }],
       });
-      const data = await resp.json();
       const result = data.content?.[0]?.text || "";
       setConflicts(result);
       return result;
@@ -2174,21 +2150,17 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     setSaveStatus("worklog_saving");
     try {
       // 1. AI 요약 생성
-      const summaryResp = await fetch("/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001", max_tokens: 600,
-          system: `당신은 회의록 작성자입니다. 다음 멀티라운드 에이전트 토론을 3~5줄로 요약하십시오.
+      const summaryData = await chatAPI({
+        model: "claude-sonnet-4-5-20251001", max_tokens: 600,
+        system: `당신은 회의록 작성자입니다. 다음 멀티라운드 에이전트 토론을 3~5줄로 요약하십시오.
 형식:
 - 주요 합의: [한 줄]
 - 핵심 FACT: [한 줄]
 - 최우선 액션: [한 줄]
 - Dr. Veritas 최종 신뢰도: [평균 점수]
 한국어로. 불릿 포인트만.`,
-          messages: [{ role: "user", content: fullContext }],
-        }),
+        messages: [{ role: "user", content: fullContext }],
       });
-      const summaryData = await summaryResp.json();
       const summary = summaryData.content?.[0]?.text || "";
 
       // 2. Supabase에 요약 업데이트
@@ -2399,11 +2371,7 @@ function UTSimPanel({ solutionContent, onClose }) {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
 
   const callAgent = async (system, userContent, maxTokens = 3000) => {
-    const resp = await fetch("/api/chat", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5-20251001", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] }),
-    });
-    const data = await resp.json();
+    const data = await chatAPI({ model: "claude-sonnet-4-5-20251001", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] });
     return data.content?.[0]?.text || "";
   };
 
@@ -2702,17 +2670,12 @@ function MessageBubble({ msg, onDocReady }) {
   const handleUploadForCompare = async (uploaded) => {
     if (uploaded.type === "image") {
       // For image, run OCR-like extraction via Claude
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20251001",
-          max_tokens: 16000,
-          system: "Extract all text content from this document image. Output only the text, preserving structure.",
-          messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: uploaded.mediaType, data: uploaded.data } }, { type: "text", text: "이 문서의 모든 텍스트를 추출해 주십시오." }] }],
-        }),
+      const data = await chatAPI({
+        model: "claude-sonnet-4-5-20251001",
+        max_tokens: 16000,
+        system: "Extract all text content from this document image. Output only the text, preserving structure.",
+        messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: uploaded.mediaType, data: uploaded.data } }, { type: "text", text: "이 문서의 모든 텍스트를 추출해 주십시오." }] }],
       });
-      const data = await response.json();
       setUploadedDoc({ text: data.content?.[0]?.text || "", name: uploaded.name });
     } else {
       setUploadedDoc({ text: uploaded.data, name: uploaded.name });
@@ -2964,6 +2927,16 @@ async function dbSaveCouncilSession({ id, sessionId, userId, topic, rounds, summ
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+async function dbLoadClaudeToken(userId) {
+  const sb = await getSupabase();
+  const { data } = await sb.from("user_tokens").select("claude_token").eq("user_id", userId).single();
+  return data?.claude_token || null;
+}
+async function dbSaveClaudeToken(userId, token) {
+  const sb = await getSupabase();
+  await sb.from("user_tokens").upsert({ user_id: userId, claude_token: token, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+}
+
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 async function signInWithGitHub() {
   const sb = await getSupabase();
@@ -2979,6 +2952,62 @@ async function getSession() {
   return data?.session || null;
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+function TokenRegistrationScreen({ user, onRegistered, onSkip }) {
+  const [token, setToken] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    const t = token.trim();
+    if (!t.startsWith("sk-ant-oat01-")) {
+      setError("올바른 Claude Code OAuth 토큰을 입력해 주십시오. (sk-ant-oat01- 로 시작)");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await dbSaveClaudeToken(user.id, t);
+      onRegistered(t);
+    } catch (e) {
+      setError("저장 중 오류가 발생했습니다: " + e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", padding: "20px" }}>
+      <div style={{ width: "100%", maxWidth: "440px", background: "#ffffff", borderRadius: "16px", padding: "36px 32px", boxShadow: "0 4px 40px rgba(0,0,0,0.10)" }}>
+        <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", marginBottom: "20px" }}>A</div>
+        <div style={{ fontSize: "18px", fontWeight: "700", color: "#111111", marginBottom: "8px" }}>Claude Code 토큰 등록</div>
+        <div style={{ fontSize: "13px", color: "#888888", lineHeight: "1.7", marginBottom: "24px" }}>
+          본인의 Claude 구독 크레딧을 사용합니다.<br />
+          터미널에서 <code style={{ background: "#f5f5f5", padding: "1px 6px", borderRadius: "4px", fontSize: "12px" }}>claude setup-token</code> 실행 후 발급된 토큰을 입력하세요.
+        </div>
+        <input
+          value={token}
+          onChange={e => setToken(e.target.value)}
+          placeholder="sk-ant-oat01-..."
+          style={{ width: "100%", padding: "12px 14px", border: "1px solid #e5e5e5", borderRadius: "10px", fontSize: "13px", fontFamily: "monospace", color: "#111111", outline: "none", marginBottom: "12px", boxSizing: "border-box" }}
+        />
+        {error && <div style={{ fontSize: "12px", color: "#cc3333", marginBottom: "12px" }}>{error}</div>}
+        <button
+          onClick={handleSave}
+          disabled={saving || !token.trim()}
+          style={{ width: "100%", padding: "13px", background: saving || !token.trim() ? "#cccccc" : "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: saving || !token.trim() ? "default" : "pointer", marginBottom: "10px" }}
+        >
+          {saving ? "저장 중..." : "등록하기"}
+        </button>
+        <button
+          onClick={onSkip}
+          style={{ width: "100%", padding: "10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "12px", cursor: "pointer" }}
+        >
+          나중에 등록 (서버 크레딧 사용)
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
   const AGENTS = [
@@ -3726,8 +3755,9 @@ export default function App() {
     window.location.href = window.location.origin;
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
-  const [user, setUser] = useState(null);         // Supabase user
-  const [authLoading, setAuthLoading] = useState(true); // waiting for session check
+  const [user, setUser] = useState(null);
+  const [claudeTokenRegistered, setClaudeTokenRegistered] = useState(null); // null=unknown, true, false
+  const [authLoading, setAuthLoading] = useState(true);
   const [dbSaving, setDbSaving] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -3764,9 +3794,14 @@ export default function App() {
             const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
             setSessions(s);
             setCouncilSessions(cs);
+            const tok = await dbLoadClaudeToken(u.id);
+            _claudeToken = tok;
+            setClaudeTokenRegistered(!!tok);
           } else {
             setSessions([]);
             setCouncilSessions([]);
+            _claudeToken = null;
+            setClaudeTokenRegistered(null);
           }
         });
         authListener = subscription;
@@ -3779,6 +3814,9 @@ export default function App() {
           const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
           setSessions(s);
           setCouncilSessions(cs);
+          const tok = await dbLoadClaudeToken(u.id);
+          _claudeToken = tok;
+          setClaudeTokenRegistered(!!tok);
         }
       } catch (e) {
         console.error("Supabase init error:", e);
@@ -3868,12 +3906,7 @@ export default function App() {
       ...history.map(m => ({ role: m.role, content: m.files?.length && m.files.some(f => f.base64 || f.text) ? buildContent(m.content, m.files) : (m.content || "") })),
       { role: "user", content: buildContent(userText, files) },
     ];
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs }),
-    });
-    const data = await response.json();
+    const data = await chatAPI({ model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs });
     if (data.error) return `[오류] ${data.error.message || JSON.stringify(data.error)}`;
     return data.content?.[0]?.text || "응답을 받지 못했습니다.";
   };
@@ -3967,6 +4000,10 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  if (user && claudeTokenRegistered === false) {
+    return <TokenRegistrationScreen user={user} onRegistered={(tok) => { _claudeToken = tok; setClaudeTokenRegistered(true); }} onSkip={() => setClaudeTokenRegistered(true)} />;
   }
 
   if (!user) {
