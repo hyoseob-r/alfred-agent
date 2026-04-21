@@ -2045,8 +2045,21 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     { id: "user_selective",  role: "선택적 고객",         icon: "🧐", color: "#7a5a3a" },
   ];
 
+  const ROUND_CONFIG = [
+    { round: 1, label: "사장님 반응",   subtitle: "사장님 7인", color: "#c0783a",
+      agentIds: ["sajang_analyst","sajang_survive","sajang_growth","sajang_distrust","sajang_busy","sajang_review","sajang_resign"],
+      contextIntro: "다음 전략/솔루션에 대한 현장 사장님 반응을 평가해 주십시오:\n\n" },
+    { round: 2, label: "소비자 반응",   subtitle: "고객 5인",   color: "#b03a8a",
+      agentIds: ["user_explore","user_purpose","user_coupon","user_category","user_selective"],
+      contextIntro: "\n위 사장님 반응을 참고하여, 소비자 입장에서 이 전략을 평가해 주십시오.\n" },
+    { round: 3, label: "전문가 재평가", subtitle: "전문가 8인", color: "#6c8ebf",
+      agentIds: ["ux","dev","biz","pm","data","marketing","legal","factchecker"],
+      contextIntro: "\n위 사장님·소비자 반응을 종합하여, 전문가 관점에서 전략의 실현 가능성을 재평가하십시오.\n" },
+  ];
+  const getAgentsForRound = (round) => AGENTS.filter(a => ROUND_CONFIG[round - 1]?.agentIds.includes(a.id));
+
   const [rounds, setRounds] = useState([]);
-  const [currentSteps, setCurrentSteps] = useState(AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
+  const [currentSteps, setCurrentSteps] = useState(getAgentsForRound(1).map(a => ({ ...a, status: "waiting", result: "" })));
   const [currentRound, setCurrentRound] = useState(1);
   const [roundDone, setRoundDone] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -2061,14 +2074,15 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     setCurrentSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
 
   const runRound = async (roundNum, baseContext) => {
+    const roundAgents = getAgentsForRound(roundNum);
     setIsRunning(true);
     setRoundDone(false);
-    setCurrentSteps(AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
+    setCurrentSteps(roundAgents.map(a => ({ ...a, status: "waiting", result: "" })));
 
     let context = baseContext;
     const roundSteps = [];
 
-    for (const agent of AGENTS) {
+    for (const agent of roundAgents) {
       updateStep(agent.id, { status: "running" });
       try {
         const isFactChecker = agent.id === "factchecker";
@@ -2199,25 +2213,25 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     }
   };
 
-  const startNextRound = async () => {
+  const startNextRound = () => {
+    if (currentRound >= 3) return;
     const nextRound = currentRound + 1;
     setCurrentRound(nextRound);
-    // 이전 라운드 접기
     setCollapsedRounds(prev => ({ ...prev, [currentRound]: true }));
 
-    const conflictSummary = await detectConflicts(fullContext);
-    const debateContext = fullContext
+    const config = ROUND_CONFIG[nextRound - 1];
+    const nextContext = fullContext
       + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
-      + `[${nextRound}라운드 심층 토론]\n`
-      + (conflictSummary ? `\n핵심 충돌 지점:\n${conflictSummary}\n` : "")
-      + `\n위 충돌 지점을 중심으로 심층 토론을 진행하십시오.\n`
+      + `[${nextRound}라운드 — ${config.label} (${config.subtitle})]\n`
+      + config.contextIntro
       + `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
-    runRound(nextRound, debateContext);
+    runRound(nextRound, nextContext);
   };
 
   useEffect(() => {
-    const initialContext = `다음 M3 솔루션을 검토해 주십시오:\n\n${solutionContent}`;
+    const config = ROUND_CONFIG[0];
+    const initialContext = config.contextIntro + solutionContent;
     runRound(1, initialContext);
   }, []);
 
@@ -2259,7 +2273,9 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
           <div>
             <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스</span>
             <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>
-              {isRunning ? `${currentRound}라운드 진행 중...` : `${currentRound}라운드 완료`}
+              {isRunning
+                ? `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} (${ROUND_CONFIG[currentRound-1]?.subtitle}) 진행 중...`
+                : `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} 완료`}
             </span>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -2281,8 +2297,8 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
           {rounds.map(r => (
             <div key={r.round}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888888", letterSpacing: "0.15em" }}>
-                  {r.round}라운드 {r.round === 1 ? "초기 검토" : "심층 토론"}
+                <div style={{ fontSize: "11px", fontWeight: 700, color: ROUND_CONFIG[r.round-1]?.color || "#888888", letterSpacing: "0.15em" }}>
+                  {r.round}R — {ROUND_CONFIG[r.round-1]?.label || "심층 토론"} <span style={{ fontWeight: 400, opacity: 0.7 }}>({ROUND_CONFIG[r.round-1]?.subtitle})</span>
                 </div>
                 <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
                 <button onClick={() => setCollapsedRounds(prev => ({ ...prev, [r.round]: !prev[r.round] }))}
@@ -2298,8 +2314,8 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
           {isRunning && (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#6c8ebf", letterSpacing: "0.15em" }}>
-                  {currentRound}라운드 {currentRound === 1 ? "초기 검토" : "심층 토론"} ●
+                <div style={{ fontSize: "11px", fontWeight: 700, color: ROUND_CONFIG[currentRound-1]?.color || "#6c8ebf", letterSpacing: "0.15em" }}>
+                  {currentRound}R — {ROUND_CONFIG[currentRound-1]?.label} ({ROUND_CONFIG[currentRound-1]?.subtitle}) ●
                 </div>
                 <div style={{ flex: 1, height: "1px", background: "#ddeeff" }} />
               </div>
@@ -2342,11 +2358,14 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
             {saveStatus === "worklog_saving" && <span style={{ fontSize: "10px", color: "#aaaaaa" }}>WORKLOG 업데이트 중...</span>}
             {saveStatus === "error" && <span style={{ fontSize: "10px", color: "#cc4444" }}>저장 오류</span>}
           </div>
-          {roundDone && !isRunning && (
+          {roundDone && !isRunning && currentRound < 3 && (
             <button onClick={startNextRound}
               style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
-              {currentRound + 1}라운드 심층 토론 →
+              {ROUND_CONFIG[currentRound]?.label} → ({ROUND_CONFIG[currentRound]?.subtitle})
             </button>
+          )}
+          {roundDone && !isRunning && currentRound >= 3 && (
+            <span style={{ fontSize: "12px", color: "#4a9e5f", fontWeight: 600 }}>✅ 19인 어벤저스 완료</span>
           )}
         </div>
       </div>
