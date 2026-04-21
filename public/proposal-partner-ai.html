@@ -50,6 +50,7 @@
 
   .page {
     width: 900px;
+    max-width: 100%;
     background: var(--bg-primary);
     border-radius: 16px;
     box-shadow: var(--shadow-2);
@@ -824,6 +825,34 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--primary);
+  }
+
+  @media (max-width: 768px) {
+    body { padding: 0; }
+    .page { width: 100%; border-radius: 0; }
+    .header { padding: 24px 20px 20px; }
+    .body { padding: 24px 20px; }
+    .footer { padding: 14px 20px; }
+    .problem-row { grid-template-columns: 1fr !important; }
+    .impact-grid { grid-template-columns: 1fr !important; }
+    .solution-grid { grid-template-columns: 1fr 1fr !important; }
+    .roadmap-grid { grid-template-columns: 1fr 1fr !important; }
+    .principle-row { grid-template-columns: 1fr !important; }
+    .entry-row { grid-template-columns: 1fr !important; }
+    .flow-row { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); align-self: center; }
+    .seq-row { flex-direction: column; }
+    .seq-arrow { transform: rotate(90deg); align-self: center; }
+    .mockup-inner { flex-direction: column; }
+    .mockup-phone { width: 100% !important; }
+    .pos-screen { display: none; }
+    .ns-divider { display: none; }
+    .stat-row { flex-wrap: wrap; }
+  }
+
+  @media (max-width: 480px) {
+    .solution-grid,
+    .roadmap-grid { grid-template-columns: 1fr !important; }
   }
 </style>
 </head>

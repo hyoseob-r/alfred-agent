@@ -49,6 +49,7 @@
 
   .page {
     width: 900px;
+    max-width: 100%;
     background: var(--bg-primary);
     border-radius: 16px;
     box-shadow: var(--shadow-2);
@@ -536,6 +537,29 @@
   }
   .footer-meta { font-size: 11px; color: var(--text-tertiary); }
   .footer-ask { font-size: 12px; font-weight: 600; color: var(--morning); }
+
+  @media (max-width: 768px) {
+    body { padding: 0; }
+    .page { width: 100%; border-radius: 0; }
+    .header { padding: 24px 20px 20px; }
+    .body { padding: 24px 20px; }
+    .footer { padding: 14px 20px; }
+    .problem-row { grid-template-columns: 1fr !important; }
+    .insight-block { flex-direction: column; }
+    .solution-grid { grid-template-columns: 1fr !important; }
+    .impact-grid { grid-template-columns: 1fr !important; }
+    .timeline { grid-template-columns: 1fr 1fr !important; }
+    .kpi-row { grid-template-columns: 1fr 1fr !important; }
+    .positioning { grid-template-columns: 1fr !important; }
+    .pos-divider { display: none !important; }
+    .time-row { flex-direction: column; gap: 8px; }
+    .mockup-phone { width: 100% !important; max-width: 280px; margin: 0 auto; }
+  }
+
+  @media (max-width: 480px) {
+    .timeline,
+    .kpi-row { grid-template-columns: 1fr !important; }
+  }
 </style>
 </head>
 <body>

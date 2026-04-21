@@ -52,6 +52,7 @@
 
   .page {
     width: 900px;
+    max-width: 100%;
     background: var(--bg-primary);
     border-radius: 16px;
     box-shadow: var(--shadow-2);
@@ -482,6 +483,25 @@
   hr.divider {
     border: none;
     border-top: 1px solid var(--gray-100);
+  }
+
+  @media (max-width: 768px) {
+    body { padding: 0; }
+    .page { width: 100%; border-radius: 0; }
+    .header { padding: 24px 20px 20px; }
+    .body { padding: 24px 20px; }
+    .footer { padding: 14px 20px; }
+    .problem-row { grid-template-columns: 1fr !important; }
+    .impact-grid { grid-template-columns: 1fr !important; }
+    .mvp-row { grid-template-columns: 1fr 1fr !important; }
+    .positioning { grid-template-columns: 1fr !important; }
+    .pos-divider { display: none !important; }
+    .compare-table { font-size: 12px; }
+    .chip-row { flex-wrap: wrap; }
+  }
+
+  @media (max-width: 480px) {
+    .mvp-row { grid-template-columns: 1fr !important; }
   }
 </style>
 </head>

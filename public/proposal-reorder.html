@@ -51,6 +51,7 @@
 
   .page {
     width: 900px;
+    max-width: 100%;
     background: var(--bg-primary);
     border-radius: 16px;
     box-shadow: var(--shadow-2);
@@ -435,6 +436,27 @@
   }
   .footer-meta { font-size: 11px; color: var(--text-tertiary); }
   .footer-ask { font-size: 12px; font-weight: 600; color: #1a1a2e; }
+
+  @media (max-width: 768px) {
+    body { padding: 0; }
+    .page { width: 100%; border-radius: 0; }
+    .header { padding: 24px 20px 20px; }
+    .body { padding: 24px 20px; }
+    .footer { padding: 14px 20px; }
+    .diag-row { grid-template-columns: 1fr !important; }
+    .lane-grid { grid-template-columns: 1fr !important; }
+    .engine-row { flex-direction: column; }
+    .diag-arrow { transform: rotate(90deg); align-self: center; }
+    .roadmap-grid { grid-template-columns: 1fr 1fr !important; }
+    .synergy-row { flex-direction: column; }
+    .ref-row { flex-direction: column; gap: 8px; }
+    .mockup-phone { width: 100% !important; max-width: 280px; margin: 0 auto; }
+    .rw-week { flex-wrap: wrap; }
+  }
+
+  @media (max-width: 480px) {
+    .roadmap-grid { grid-template-columns: 1fr !important; }
+  }
 </style>
 </head>
 <body>
