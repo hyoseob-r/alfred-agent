@@ -3478,15 +3478,16 @@ const STATUS_META = {
   "archived":    { label: "History",     bg: "#f5f5f5", border: "#e0e0e0", color: "#9e9e9e" },
 };
 
-function useDocStatuses(papers) {
+function useDocStatuses(papers, user) {
   const [statuses, setStatuses] = useState(() => {
     try { return JSON.parse(localStorage.getItem("paper-statuses") || "{}"); } catch { return {}; }
   });
 
   useEffect(() => {
+    if (!user?.id) return;
     getSupabase().then(sb => {
-      sb.from("paper_statuses").select("filename,status").then(({ data }) => {
-        if (data && data.length > 0) {
+      sb.from("paper_statuses").select("filename,status").eq("user_id", user.id).then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
           const remote = {};
           data.forEach(r => { remote[r.filename] = r.status; });
           setStatuses(remote);
@@ -3494,15 +3495,21 @@ function useDocStatuses(papers) {
         }
       });
     });
-  }, []);
+  }, [user?.id]);
 
   const getStatus = (p) => statuses[p.filename] ?? p.status ?? "in-progress";
   const setStatus = (p, next) => {
     const updated = { ...statuses, [p.filename]: next };
     setStatuses(updated);
     localStorage.setItem("paper-statuses", JSON.stringify(updated));
+    if (!user?.id) return;
     getSupabase().then(sb => {
-      sb.from("paper_statuses").upsert({ filename: p.filename, status: next, updated_at: new Date().toISOString() });
+      sb.from("paper_statuses").upsert(
+        { user_id: user.id, filename: p.filename, status: next, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,filename" }
+      ).then(({ error }) => {
+        if (error) console.error("paper_statuses upsert error:", error);
+      });
     });
   };
   return { getStatus, setStatus };
@@ -3550,7 +3557,7 @@ function StatusPicker({ paper, getStatus, setStatus }) {
   );
 }
 
-function PapersModal({ onClose }) {
+function PapersModal({ onClose, user }) {
   const [papers, setPapers] = useState([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
@@ -3569,7 +3576,7 @@ function PapersModal({ onClose }) {
     setTimeout(() => inputRef.current?.focus(), 80);
   }, []);
 
-  const { getStatus, setStatus } = useDocStatuses(papers);
+  const { getStatus, setStatus } = useDocStatuses(papers, user);
 
   const filtered = papers
     .filter(p => tab === "history" ? getStatus(p) === "archived" : getStatus(p) !== "archived")
@@ -3985,7 +3992,7 @@ export default function App() {
     <>
       <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
-      {showPapers && <PapersModal onClose={() => setShowPapers(false)} />}
+      {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
       <ContextAgentPanel open={showContextAgent} onClose={() => setShowContextAgent(false)} />
       <div
