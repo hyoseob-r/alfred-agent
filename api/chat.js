@@ -12,14 +12,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const apiKey = req.headers['x-claude-token'] || process.env.ANTHROPIC_API_KEY
+    const claudeToken = req.headers['x-claude-token'];
+    const authHeaders = claudeToken
+      ? { 'Authorization': `Bearer ${claudeToken}`, 'anthropic-beta': 'claude-code-20250219' }
+      : { 'x-api-key': process.env.ANTHROPIC_API_KEY };
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        ...authHeaders,
       },
       body: JSON.stringify(req.body),
     })
