@@ -3,6 +3,7 @@ import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, C
 
 // ── Claude Token (module-level) ───────────────────────────────────────────────
 let _claudeToken = null;
+const GUEST_LS_KEY = 'alfred_guest_sessions';
 async function chatAPI(body) {
   const headers = { "Content-Type": "application/json" };
   if (_claudeToken) headers["x-claude-token"] = _claudeToken;
@@ -2937,6 +2938,20 @@ async function dbSaveClaudeToken(userId, token) {
   await sb.from("user_tokens").upsert({ user_id: userId, claude_token: token, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
 }
 
+// ── Guest localStorage helpers ────────────────────────────────────────────────
+function guestGetAllSessions() {
+  try { return JSON.parse(localStorage.getItem(GUEST_LS_KEY) || '[]'); } catch { return []; }
+}
+function guestSaveSession(session) {
+  const all = guestGetAllSessions();
+  const idx = all.findIndex(s => s.id === session.id);
+  if (idx >= 0) all[idx] = session; else all.unshift(session);
+  localStorage.setItem(GUEST_LS_KEY, JSON.stringify(all.slice(0, 30)));
+}
+function guestDeleteSession(id) {
+  localStorage.setItem(GUEST_LS_KEY, JSON.stringify(guestGetAllSessions().filter(s => s.id !== id)));
+}
+
 // ── Auth helpers ─────────────────────────────────────────────────────────────
 async function signInWithGitHub() {
   const sb = await getSupabase();
@@ -2952,6 +2967,44 @@ async function getSession() {
   return data?.session || null;
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+function GuestLoginScreen({ onLogin, onBack }) {
+  const [token, setToken] = useState("");
+  const [error, setError] = useState("");
+  const handleSubmit = () => {
+    const t = token.trim();
+    if (!t.startsWith("sk-ant-oat01-")) {
+      setError("올바른 Claude Code OAuth 토큰을 입력해 주십시오. (sk-ant-oat01- 로 시작)");
+      return;
+    }
+    onLogin(t);
+  };
+  return (
+    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
+      <div style={{ background: "#ffffff", borderRadius: "20px", padding: "40px", maxWidth: "400px", width: "90%", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" }}>
+        <div style={{ fontSize: "22px", fontWeight: "700", color: "#111111", marginBottom: "8px" }}>토큰으로 시작하기</div>
+        <div style={{ fontSize: "13px", color: "#888888", marginBottom: "28px", lineHeight: "1.6" }}>
+          터미널에서 <code style={{ background: "#f5f5f5", padding: "1px 6px", borderRadius: "4px", fontSize: "12px" }}>claude setup-token</code> 실행 후 발급된 토큰을 입력하세요.<br />
+          <span style={{ color: "#aaaaaa", fontSize: "11px" }}>데이터는 서버에 저장되지 않습니다.</span>
+        </div>
+        <input
+          type="password" placeholder="sk-ant-oat01-..." value={token}
+          onChange={e => { setToken(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+          style={{ width: "100%", padding: "13px", border: "1px solid #e5e5e5", borderRadius: "10px", fontSize: "13px", fontFamily: "'Pretendard', sans-serif", outline: "none", boxSizing: "border-box", marginBottom: "8px" }}
+        />
+        {error && <div style={{ fontSize: "12px", color: "#cc3333", marginBottom: "8px" }}>{error}</div>}
+        <button onClick={handleSubmit} disabled={!token.trim()}
+          style={{ width: "100%", padding: "13px", background: !token.trim() ? "#cccccc" : "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: !token.trim() ? "default" : "pointer", marginBottom: "10px" }}>
+          시작하기
+        </button>
+        <button onClick={onBack} style={{ width: "100%", padding: "10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "13px", cursor: "pointer" }}>
+          뒤로
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function TokenRegistrationScreen({ user, onRegistered, onSkip }) {
   const [token, setToken] = useState("");
@@ -3751,10 +3804,22 @@ export default function App() {
   const [selectedCouncil, setSelectedCouncil] = useState(null);
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
   const handleSignOut = () => {
+    if (isGuest) {
+      _claudeToken = null;
+      setIsGuest(false);
+      setSessions([]);
+      setMessages([]);
+      setActiveSessionId(null);
+      setStarted(false);
+      return;
+    }
     localStorage.clear();
     window.location.href = window.location.origin;
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
+  const [isGuest, setIsGuest] = useState(false);
+  const [showGuestLogin, setShowGuestLogin] = useState(false);
+  const [showGuestRestore, setShowGuestRestore] = useState(false);
   const [user, setUser] = useState(null);
   const [claudeTokenRegistered, setClaudeTokenRegistered] = useState(null); // null=unknown, true, false
   const [authLoading, setAuthLoading] = useState(true);
@@ -3828,21 +3893,26 @@ export default function App() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // ── Auto-save to Supabase (debounced 1.5s) ────────────────────────────────
+  // ── Auto-save (debounced 1.5s) ────────────────────────────────────────────
   useEffect(() => {
-    if (!started || !activeSessionId || messages.length === 0 || !user) return;
+    if (!started || !activeSessionId || messages.length === 0) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      setDbSaving(true);
-      const giveUp = setTimeout(() => setDbSaving(false), 10000);
-      try {
-        const title = messages.find(m => m.role === "user")?.content?.slice(0, 40) || "새 대화";
-        await dbUpsertSession({ id: activeSessionId, title, stage: currentStage }, user.id);
-        await dbSaveMessages(activeSessionId, messages, user.id);
-        const s = await dbLoadSessions(user.id);
-        setSessions(s);
-      } catch (e) { console.error("save error:", e); }
-      finally { clearTimeout(giveUp); setDbSaving(false); }
+      const title = messages.find(m => m.role === "user")?.content?.slice(0, 40) || "새 대화";
+      if (isGuest) {
+        guestSaveSession({ id: activeSessionId, title, stage: currentStage, messages, updatedAt: new Date().toISOString() });
+        setSessions(guestGetAllSessions().map(s => ({ id: s.id, title: s.title, stage: s.stage, updated_at: s.updatedAt })));
+      } else if (user) {
+        setDbSaving(true);
+        const giveUp = setTimeout(() => setDbSaving(false), 10000);
+        try {
+          await dbUpsertSession({ id: activeSessionId, title, stage: currentStage }, user.id);
+          await dbSaveMessages(activeSessionId, messages, user.id);
+          const s = await dbLoadSessions(user.id);
+          setSessions(s);
+        } catch (e) { console.error("save error:", e); }
+        finally { clearTimeout(giveUp); setDbSaving(false); }
+      }
     }, 1500);
     return () => clearTimeout(saveTimerRef.current);
   }, [messages]);
@@ -3930,8 +4000,14 @@ export default function App() {
   };
 
   const selectSession = async (id) => {
-    const msgs = await dbLoadMessages(id);
     const s = sessions.find(x => x.id === id);
+    let msgs;
+    if (isGuest) {
+      const gs = guestGetAllSessions().find(x => x.id === id);
+      msgs = gs?.messages || [];
+    } else {
+      msgs = await dbLoadMessages(id);
+    }
     setActiveSessionId(id);
     setMessages(msgs);
     setCurrentStage(s?.stage || STAGES.M1);
@@ -3940,8 +4016,13 @@ export default function App() {
   };
 
   const deleteSession = async (id) => {
-    await dbDeleteSession(id);
-    setSessions(prev => prev.filter(s => s.id !== id));
+    if (isGuest) {
+      guestDeleteSession(id);
+      setSessions(guestGetAllSessions().map(s => ({ id: s.id, title: s.title, stage: s.stage, updated_at: s.updatedAt })));
+    } else {
+      await dbDeleteSession(id);
+      setSessions(prev => prev.filter(s => s.id !== id));
+    }
     if (id === activeSessionId) {
       setStarted(false);
       setMessages([]);
@@ -4006,19 +4087,44 @@ export default function App() {
     return <TokenRegistrationScreen user={user} onRegistered={(tok) => { _claudeToken = tok; setClaudeTokenRegistered(true); }} onSkip={() => setClaudeTokenRegistered(true)} />;
   }
 
-  if (!user) {
+  if (!user && !isGuest) {
+    if (showGuestLogin) {
+      return <GuestLoginScreen
+        onLogin={(tok) => {
+          _claudeToken = tok;
+          setIsGuest(true);
+          setShowGuestLogin(false);
+          const prev = guestGetAllSessions();
+          if (prev.length > 0) {
+            setShowGuestRestore(true);
+          }
+        }}
+        onBack={() => setShowGuestLogin(false)}
+      />;
+    }
     return (
       <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
-        <div style={{ textAlign: "center", maxWidth: "380px" }}>
+        <div style={{ textAlign: "center", maxWidth: "380px", width: "100%", padding: "0 20px" }}>
           <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #cccccc44" }}>A</div>
           <div style={{ fontSize: "22px", fontWeight: "700", color: "#111111", marginBottom: "8px", letterSpacing: "-0.02em" }}>에이전트 어벤저스</div>
-          <div style={{ fontSize: "13px", color: "#bbbbbb", marginBottom: "40px", lineHeight: "1.6" }}>Problem-to-Product · UX-first<br />대화 히스토리는 클라우드에 안전하게 저장됩니다</div>
+          <div style={{ fontSize: "13px", color: "#bbbbbb", marginBottom: "40px", lineHeight: "1.6" }}>Problem-to-Product · UX-first</div>
           <button onClick={signInWithGitHub} style={{ width: "100%", padding: "14px 24px", background: "#111111", border: "1px solid #333333", borderRadius: "12px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "all 0.2s", marginBottom: "12px" }}
             onMouseEnter={e => { e.currentTarget.style.background = "#252545"; e.currentTarget.style.borderColor = "#888888"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#111111"; e.currentTarget.style.borderColor = "#cccccc"; }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
             GitHub로 로그인
           </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "4px 0 12px" }}>
+            <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+            <span style={{ fontSize: "11px", color: "#cccccc" }}>또는</span>
+            <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+          </div>
+          <button onClick={() => setShowGuestLogin(true)} style={{ width: "100%", padding: "14px 24px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "12px", color: "#777777", fontSize: "14px", fontWeight: "500", cursor: "pointer", transition: "all 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#333333"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#777777"; }}>
+            내 Claude 토큰으로 시작하기
+          </button>
+          <div style={{ fontSize: "11px", color: "#cccccc", marginTop: "12px" }}>데이터는 기기에만 저장됩니다</div>
         </div>
       </div>
     );
@@ -4027,7 +4133,24 @@ export default function App() {
 
   return (
     <>
-      <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {showGuestRestore && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "32px", maxWidth: "340px", width: "90%", textAlign: "center" }}>
+            <div style={{ fontSize: "24px", marginBottom: "12px" }}>💾</div>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "#111111", marginBottom: "8px" }}>이전 대화가 있습니다</div>
+            <div style={{ fontSize: "13px", color: "#888888", marginBottom: "28px", lineHeight: "1.6" }}>이 기기에 저장된 대화 {guestGetAllSessions().length}개를 불러올까요?</div>
+            <button onClick={() => { setSessions(guestGetAllSessions().map(s => ({ id: s.id, title: s.title, stage: s.stage, updated_at: s.updatedAt }))); setShowGuestRestore(false); }}
+              style={{ width: "100%", padding: "12px", background: "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", marginBottom: "8px" }}>
+              불러오기
+            </button>
+            <button onClick={() => setShowGuestRestore(false)}
+              style={{ width: "100%", padding: "12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "10px", color: "#888888", fontSize: "14px", cursor: "pointer" }}>
+              새로 시작
+            </button>
+          </div>
+        </div>
+      )}
+      <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={isGuest ? [] : councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
@@ -4060,7 +4183,7 @@ export default function App() {
               ))}
             </div>
             <div style={{ fontSize: "10px", color: "#bbbbbb", letterSpacing: "0.1em" }}>
-              {dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
+              {isGuest ? "Guest" : dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
             </div>
           </div>
           <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
@@ -4081,10 +4204,15 @@ export default function App() {
           <button onClick={newChat} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>＋ 새 대화</button>
-          <AppMenu current="alfred" />
+          {!isGuest && <AppMenu current="alfred" />}
+          {isGuest && started && (
+            <button onClick={() => window.print()} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a9a"; e.currentTarget.style.color = "#4a4a9a"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>PDF 저장</button>
+          )}
           <button onClick={handleSignOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>로그아웃</button>
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>{isGuest ? "종료" : "로그아웃"}</button>
         </div>
 
         {activeTab === "agent" && <StageProgress currentStage={currentStage} />}
