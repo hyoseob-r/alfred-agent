@@ -2968,6 +2968,61 @@ async function getSession() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+function TokenSwitchModal({ user, currentToken, onSaved, onClose }) {
+  const [token, setToken] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    const t = token.trim();
+    if (!t.startsWith("sk-ant-oat01-")) {
+      setError("올바른 Claude Code OAuth 토큰을 입력해 주십시오. (sk-ant-oat01- 로 시작)");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await dbSaveClaudeToken(user.id, t);
+      onSaved(t);
+    } catch (e) {
+      setError("저장 중 오류가 발생했습니다: " + e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
+      <div style={{ background: "#ffffff", borderRadius: "16px", padding: "32px", maxWidth: "400px", width: "90%", boxShadow: "0 8px 40px rgba(0,0,0,0.15)" }}>
+        <div style={{ fontSize: "16px", fontWeight: "700", color: "#111111", marginBottom: "6px" }}>Claude 토큰 변경</div>
+        <div style={{ fontSize: "12px", color: "#888888", marginBottom: "6px", lineHeight: "1.6" }}>
+          터미널에서 <code style={{ background: "#f5f5f5", padding: "1px 5px", borderRadius: "4px" }}>claude setup-token</code> 실행 후 발급된 토큰을 입력하세요.
+        </div>
+        {currentToken && (
+          <div style={{ fontSize: "11px", color: "#aaaaaa", marginBottom: "16px", fontFamily: "monospace" }}>
+            현재: {currentToken.slice(0, 20)}…
+          </div>
+        )}
+        <input
+          type="password" placeholder="sk-ant-oat01-..." value={token}
+          onChange={e => { setToken(e.target.value); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && handleSave()}
+          autoFocus
+          style={{ width: "100%", padding: "12px 14px", border: "1px solid #e5e5e5", borderRadius: "10px", fontSize: "13px", fontFamily: "monospace", outline: "none", boxSizing: "border-box", marginBottom: "8px" }}
+        />
+        {error && <div style={{ fontSize: "12px", color: "#cc3333", marginBottom: "8px" }}>{error}</div>}
+        <button onClick={handleSave} disabled={saving || !token.trim()}
+          style={{ width: "100%", padding: "12px", background: saving || !token.trim() ? "#cccccc" : "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: saving || !token.trim() ? "default" : "pointer", marginBottom: "8px" }}>
+          {saving ? "저장 중..." : "토큰 교체"}
+        </button>
+        <button onClick={onClose}
+          style={{ width: "100%", padding: "10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "13px", cursor: "pointer" }}>
+          취소
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function GuestLoginScreen({ onLogin, onBack }) {
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
@@ -3820,6 +3875,7 @@ export default function App() {
   const [isGuest, setIsGuest] = useState(false);
   const [showGuestLogin, setShowGuestLogin] = useState(false);
   const [showGuestRestore, setShowGuestRestore] = useState(false);
+  const [showTokenSwitch, setShowTokenSwitch] = useState(false);
   const [user, setUser] = useState(null);
   const [claudeTokenRegistered, setClaudeTokenRegistered] = useState(null); // null=unknown, true, false
   const [authLoading, setAuthLoading] = useState(true);
@@ -4133,6 +4189,14 @@ export default function App() {
 
   return (
     <>
+      {showTokenSwitch && (
+        <TokenSwitchModal
+          user={user}
+          currentToken={_claudeToken}
+          onSaved={(tok) => { _claudeToken = tok; setShowTokenSwitch(false); setClaudeTokenRegistered(true); }}
+          onClose={() => setShowTokenSwitch(false)}
+        />
+      )}
       {showGuestRestore && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
           <div style={{ background: "#ffffff", borderRadius: "16px", padding: "32px", maxWidth: "340px", width: "90%", textAlign: "center" }}>
@@ -4182,8 +4246,15 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div style={{ fontSize: "10px", color: "#bbbbbb", letterSpacing: "0.1em" }}>
+            <div style={{ fontSize: "10px", color: "#bbbbbb", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "6px" }}>
               {isGuest ? "Guest" : dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
+              {!isGuest && user && (
+                <button onClick={() => setShowTokenSwitch(true)}
+                  title={_claudeToken ? "토큰 연결됨 — 클릭하여 변경" : "Claude 토큰 연결"}
+                  style={{ padding: "2px 6px", background: _claudeToken ? "#e8f5e9" : "#fff3e0", border: `1px solid ${_claudeToken ? "#a5d6a7" : "#ffcc80"}`, borderRadius: "4px", color: _claudeToken ? "#388e3c" : "#e65100", fontSize: "9px", cursor: "pointer", fontWeight: 600, letterSpacing: 0 }}>
+                  {_claudeToken ? "🔑 토큰" : "⚠ 토큰 없음"}
+                </button>
+              )}
             </div>
           </div>
           <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
