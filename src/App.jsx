@@ -1,15 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
-// ── Claude Token (module-level) ───────────────────────────────────────────────
-let _claudeToken = null;
 const GUEST_LS_KEY = 'alfred_guest_sessions';
-const LS_CLAUDE_TOKEN_KEY = 'alfred_claude_token';
-// 앱 시작 시 localStorage에서 토큰 복원
-try { _claudeToken = localStorage.getItem(LS_CLAUDE_TOKEN_KEY) || null; } catch { /* ignore */ }
 async function chatAPI(body) {
   const headers = { "Content-Type": "application/json" };
-  if (_claudeToken) headers["x-claude-token"] = _claudeToken;
   const resp = await fetch("/api/chat", { method: "POST", headers, body: JSON.stringify(body) });
   return resp.json();
 }
@@ -2931,32 +2925,6 @@ async function dbSaveCouncilSession({ id, sessionId, userId, topic, rounds, summ
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function dbLoadClaudeToken(userId) {
-  try {
-    const resp = await fetch(`/api/get-token?user_id=${encodeURIComponent(userId)}`);
-    if (resp.ok) {
-      const { token } = await resp.json();
-      if (token) {
-        try { localStorage.setItem(LS_CLAUDE_TOKEN_KEY, token); } catch { /* ignore */ }
-        return token;
-      }
-    }
-  } catch { /* Supabase 실패 → localStorage 폴백 */ }
-  try { return localStorage.getItem(LS_CLAUDE_TOKEN_KEY) || null; } catch { return null; }
-}
-async function dbSaveClaudeToken(userId, token) {
-  // localStorage에 즉시 저장 (Supabase 실패해도 유지됨)
-  try { localStorage.setItem(LS_CLAUDE_TOKEN_KEY, token); } catch { /* ignore */ }
-  // Supabase에도 저장 시도 (best-effort)
-  try {
-    await fetch('/api/save-token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, token }),
-    });
-  } catch { /* Supabase 실패해도 localStorage에 저장됨 */ }
-}
-
 // ── Guest localStorage helpers ────────────────────────────────────────────────
 function guestGetAllSessions() {
   try { return JSON.parse(localStorage.getItem(GUEST_LS_KEY) || '[]'); } catch { return []; }
@@ -2986,155 +2954,6 @@ async function getSession() {
   return data?.session || null;
 }
 // ─────────────────────────────────────────────────────────────────────────────
-
-function TokenSwitchModal({ user, currentToken, onSaved, onClose }) {
-  const [token, setToken] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSave = async () => {
-    const t = token.trim();
-    if (!t.startsWith("sk-ant-oat01-")) {
-      setError("올바른 Claude Code OAuth 토큰을 입력해 주십시오. (sk-ant-oat01- 로 시작)");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await dbSaveClaudeToken(user.id, t);
-      onSaved(t);
-    } catch (e) {
-      setError("저장 중 오류가 발생했습니다: " + e.message);
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
-      <div style={{ background: "#ffffff", borderRadius: "16px", padding: "32px", maxWidth: "400px", width: "90%", boxShadow: "0 8px 40px rgba(0,0,0,0.15)" }}>
-        <div style={{ fontSize: "16px", fontWeight: "700", color: "#111111", marginBottom: "6px" }}>Claude 토큰 변경</div>
-        <div style={{ fontSize: "12px", color: "#888888", marginBottom: "6px", lineHeight: "1.6" }}>
-          터미널에서 <code style={{ background: "#f5f5f5", padding: "1px 5px", borderRadius: "4px" }}>claude setup-token</code> 실행 후 발급된 토큰을 입력하세요.
-        </div>
-        {currentToken && (
-          <div style={{ fontSize: "11px", color: "#aaaaaa", marginBottom: "16px", fontFamily: "monospace" }}>
-            현재: {currentToken.slice(0, 20)}…
-          </div>
-        )}
-        <input
-          type="password" placeholder="sk-ant-oat01-..." value={token}
-          onChange={e => { setToken(e.target.value); setError(""); }}
-          onKeyDown={e => e.key === "Enter" && handleSave()}
-          autoFocus
-          style={{ width: "100%", padding: "12px 14px", border: "1px solid #e5e5e5", borderRadius: "10px", fontSize: "13px", fontFamily: "monospace", outline: "none", boxSizing: "border-box", marginBottom: "8px" }}
-        />
-        {error && <div style={{ fontSize: "12px", color: "#cc3333", marginBottom: "8px" }}>{error}</div>}
-        <button onClick={handleSave} disabled={saving || !token.trim()}
-          style={{ width: "100%", padding: "12px", background: saving || !token.trim() ? "#cccccc" : "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: saving || !token.trim() ? "default" : "pointer", marginBottom: "8px" }}>
-          {saving ? "저장 중..." : "토큰 교체"}
-        </button>
-        <button onClick={onClose}
-          style={{ width: "100%", padding: "10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "13px", cursor: "pointer" }}>
-          취소
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function GuestLoginScreen({ onLogin, onBack }) {
-  const [token, setToken] = useState("");
-  const [error, setError] = useState("");
-  const handleSubmit = () => {
-    const t = token.trim();
-    if (!t.startsWith("sk-ant-oat01-")) {
-      setError("올바른 Claude Code OAuth 토큰을 입력해 주십시오. (sk-ant-oat01- 로 시작)");
-      return;
-    }
-    onLogin(t);
-  };
-  return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
-      <div style={{ background: "#ffffff", borderRadius: "20px", padding: "40px", maxWidth: "400px", width: "90%", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" }}>
-        <div style={{ fontSize: "22px", fontWeight: "700", color: "#111111", marginBottom: "8px" }}>토큰으로 시작하기</div>
-        <div style={{ fontSize: "13px", color: "#888888", marginBottom: "28px", lineHeight: "1.6" }}>
-          터미널에서 <code style={{ background: "#f5f5f5", padding: "1px 6px", borderRadius: "4px", fontSize: "12px" }}>claude setup-token</code> 실행 후 발급된 토큰을 입력하세요.<br />
-          <span style={{ color: "#aaaaaa", fontSize: "11px" }}>데이터는 서버에 저장되지 않습니다.</span>
-        </div>
-        <input
-          type="password" placeholder="sk-ant-oat01-..." value={token}
-          onChange={e => { setToken(e.target.value); setError(""); }}
-          onKeyDown={e => e.key === "Enter" && handleSubmit()}
-          style={{ width: "100%", padding: "13px", border: "1px solid #e5e5e5", borderRadius: "10px", fontSize: "13px", fontFamily: "'Pretendard', sans-serif", outline: "none", boxSizing: "border-box", marginBottom: "8px" }}
-        />
-        {error && <div style={{ fontSize: "12px", color: "#cc3333", marginBottom: "8px" }}>{error}</div>}
-        <button onClick={handleSubmit} disabled={!token.trim()}
-          style={{ width: "100%", padding: "13px", background: !token.trim() ? "#cccccc" : "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: !token.trim() ? "default" : "pointer", marginBottom: "10px" }}>
-          시작하기
-        </button>
-        <button onClick={onBack} style={{ width: "100%", padding: "10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "13px", cursor: "pointer" }}>
-          뒤로
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TokenRegistrationScreen({ user, onRegistered, onSkip }) {
-  const [token, setToken] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSave = async () => {
-    const t = token.trim();
-    if (!t.startsWith("sk-ant-oat01-")) {
-      setError("올바른 Claude Code OAuth 토큰을 입력해 주십시오. (sk-ant-oat01- 로 시작)");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await dbSaveClaudeToken(user.id, t);
-      onRegistered(t);
-    } catch (e) {
-      setError("저장 중 오류가 발생했습니다: " + e.message);
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif", padding: "20px" }}>
-      <div style={{ width: "100%", maxWidth: "440px", background: "#ffffff", borderRadius: "16px", padding: "36px 32px", boxShadow: "0 4px 40px rgba(0,0,0,0.10)" }}>
-        <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", marginBottom: "20px" }}>A</div>
-        <div style={{ fontSize: "18px", fontWeight: "700", color: "#111111", marginBottom: "8px" }}>Claude Code 토큰 등록</div>
-        <div style={{ fontSize: "13px", color: "#888888", lineHeight: "1.7", marginBottom: "24px" }}>
-          본인의 Claude 구독 크레딧을 사용합니다.<br />
-          터미널에서 <code style={{ background: "#f5f5f5", padding: "1px 6px", borderRadius: "4px", fontSize: "12px" }}>claude setup-token</code> 실행 후 발급된 토큰을 입력하세요.
-        </div>
-        <input
-          value={token}
-          onChange={e => setToken(e.target.value)}
-          placeholder="sk-ant-oat01-..."
-          style={{ width: "100%", padding: "12px 14px", border: "1px solid #e5e5e5", borderRadius: "10px", fontSize: "13px", fontFamily: "monospace", color: "#111111", outline: "none", marginBottom: "12px", boxSizing: "border-box" }}
-        />
-        {error && <div style={{ fontSize: "12px", color: "#cc3333", marginBottom: "12px" }}>{error}</div>}
-        <button
-          onClick={handleSave}
-          disabled={saving || !token.trim()}
-          style={{ width: "100%", padding: "13px", background: saving || !token.trim() ? "#cccccc" : "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: saving || !token.trim() ? "default" : "pointer", marginBottom: "10px" }}
-        >
-          {saving ? "저장 중..." : "등록하기"}
-        </button>
-        <button
-          onClick={onSkip}
-          style={{ width: "100%", padding: "10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "12px", cursor: "pointer" }}
-        >
-          나중에 등록 (서버 크레딧 사용)
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
   const AGENTS = [
@@ -3877,25 +3696,11 @@ export default function App() {
   const [selectedCouncil, setSelectedCouncil] = useState(null);
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
   const handleSignOut = () => {
-    if (isGuest) {
-      _claudeToken = null;
-      setIsGuest(false);
-      setSessions([]);
-      setMessages([]);
-      setActiveSessionId(null);
-      setStarted(false);
-      return;
-    }
     localStorage.clear();
     window.location.href = window.location.origin;
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
-  const [isGuest, setIsGuest] = useState(false);
-  const [showGuestLogin, setShowGuestLogin] = useState(false);
-  const [showGuestRestore, setShowGuestRestore] = useState(false);
-  const [showTokenSwitch, setShowTokenSwitch] = useState(false);
   const [user, setUser] = useState(null);
-  const [claudeTokenRegistered, setClaudeTokenRegistered] = useState(null); // null=unknown, true, false
   const [authLoading, setAuthLoading] = useState(true);
   const [dbSaving, setDbSaving] = useState(false);
   const bottomRef = useRef(null);
@@ -3934,14 +3739,9 @@ export default function App() {
             const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
             setSessions(s);
             setCouncilSessions(cs);
-            const tok = await dbLoadClaudeToken(u.id);
-            _claudeToken = tok;
-            setClaudeTokenRegistered(!!tok);
           } else {
             setSessions([]);
             setCouncilSessions([]);
-            _claudeToken = null;
-            setClaudeTokenRegistered(null);
           }
         });
         authListener = subscription;
@@ -3954,9 +3754,6 @@ export default function App() {
           const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
           setSessions(s);
           setCouncilSessions(cs);
-          const tok = await dbLoadClaudeToken(u.id);
-          _claudeToken = tok;
-          setClaudeTokenRegistered(!!tok);
         }
       } catch (e) {
         console.error("Supabase init error:", e);
@@ -3974,10 +3771,7 @@ export default function App() {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       const title = messages.find(m => m.role === "user")?.content?.slice(0, 40) || "새 대화";
-      if (isGuest) {
-        guestSaveSession({ id: activeSessionId, title, stage: currentStage, messages, updatedAt: new Date().toISOString() });
-        setSessions(guestGetAllSessions().map(s => ({ id: s.id, title: s.title, stage: s.stage, updated_at: s.updatedAt })));
-      } else if (user) {
+      if (user) {
         setDbSaving(true);
         const giveUp = setTimeout(() => setDbSaving(false), 10000);
         try {
@@ -4076,13 +3870,7 @@ export default function App() {
 
   const selectSession = async (id) => {
     const s = sessions.find(x => x.id === id);
-    let msgs;
-    if (isGuest) {
-      const gs = guestGetAllSessions().find(x => x.id === id);
-      msgs = gs?.messages || [];
-    } else {
-      msgs = await dbLoadMessages(id);
-    }
+    const msgs = await dbLoadMessages(id);
     setActiveSessionId(id);
     setMessages(msgs);
     setCurrentStage(s?.stage || STAGES.M1);
@@ -4091,13 +3879,8 @@ export default function App() {
   };
 
   const deleteSession = async (id) => {
-    if (isGuest) {
-      guestDeleteSession(id);
-      setSessions(guestGetAllSessions().map(s => ({ id: s.id, title: s.title, stage: s.stage, updated_at: s.updatedAt })));
-    } else {
-      await dbDeleteSession(id);
-      setSessions(prev => prev.filter(s => s.id !== id));
-    }
+    await dbDeleteSession(id);
+    setSessions(prev => prev.filter(s => s.id !== id));
     if (id === activeSessionId) {
       setStarted(false);
       setMessages([]);
@@ -4158,37 +3941,11 @@ export default function App() {
     );
   }
 
-  if (user && claudeTokenRegistered === false) {
-    return <TokenRegistrationScreen user={user} onRegistered={(tok) => { _claudeToken = tok; setClaudeTokenRegistered(true); }} onSkip={() => setClaudeTokenRegistered(true)} />;
-  }
-
-  if (!user && !isGuest) {
-    if (showGuestLogin) {
-      return <GuestLoginScreen
-        onLogin={(tok) => {
-          _claudeToken = tok;
-          try { localStorage.setItem(LS_CLAUDE_TOKEN_KEY, tok); } catch { /* ignore */ }
-          setIsGuest(true);
-          setShowGuestLogin(false);
-          const prev = guestGetAllSessions();
-          if (prev.length > 0) {
-            setShowGuestRestore(true);
-          }
-        }}
-        onBack={() => setShowGuestLogin(false)}
-      />;
-    }
+  if (!user) {
     return (
       <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
         <div style={{ textAlign: "center", maxWidth: "380px", width: "100%", padding: "0 20px" }}>
           <div style={{ fontSize: "80px", fontWeight: "800", color: "#111111", lineHeight: 1, marginBottom: "40px", letterSpacing: "-0.04em", fontFamily: "'Pretendard', sans-serif" }}>A</div>
-          <button onClick={() => setShowGuestLogin(true)}
-            style={{ width: "100%", padding: "16px 24px", background: "#111111", border: "none", borderRadius: "14px", color: "#ffffff", fontSize: "15px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s", marginBottom: "16px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#333333"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(0,0,0,0.2)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#111111"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)"; }}>
-            내 Claude 토큰으로 시작하기
-          </button>
-          <div style={{ fontSize: "11px", color: "#cccccc", marginBottom: "24px" }}>데이터는 기기에만 저장됩니다</div>
           <button onClick={signInWithGitHub}
             style={{ background: "transparent", border: "none", color: "#bbbbbb", fontSize: "12px", cursor: "pointer", padding: "4px 8px", transition: "color 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.color = "#777777"; }}
@@ -4203,32 +3960,7 @@ export default function App() {
 
   return (
     <>
-      {showTokenSwitch && (
-        <TokenSwitchModal
-          user={user}
-          currentToken={_claudeToken}
-          onSaved={(tok) => { _claudeToken = tok; setShowTokenSwitch(false); setClaudeTokenRegistered(true); }}
-          onClose={() => setShowTokenSwitch(false)}
-        />
-      )}
-      {showGuestRestore && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "32px", maxWidth: "340px", width: "90%", textAlign: "center" }}>
-            <div style={{ fontSize: "24px", marginBottom: "12px" }}>💾</div>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: "#111111", marginBottom: "8px" }}>이전 대화가 있습니다</div>
-            <div style={{ fontSize: "13px", color: "#888888", marginBottom: "28px", lineHeight: "1.6" }}>이 기기에 저장된 대화 {guestGetAllSessions().length}개를 불러올까요?</div>
-            <button onClick={() => { setSessions(guestGetAllSessions().map(s => ({ id: s.id, title: s.title, stage: s.stage, updated_at: s.updatedAt }))); setShowGuestRestore(false); }}
-              style={{ width: "100%", padding: "12px", background: "#111111", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", marginBottom: "8px" }}>
-              불러오기
-            </button>
-            <button onClick={() => setShowGuestRestore(false)}
-              style={{ width: "100%", padding: "12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "10px", color: "#888888", fontSize: "14px", cursor: "pointer" }}>
-              새로 시작
-            </button>
-          </div>
-        </div>
-      )}
-      <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={isGuest ? [] : councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
@@ -4253,14 +3985,7 @@ export default function App() {
           <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>A</div>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
             <div style={{ fontSize: "10px", color: "#bbbbbb", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "6px" }}>
-              {isGuest ? "Guest" : dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
-              {!isGuest && user && (
-                <button onClick={() => setShowTokenSwitch(true)}
-                  title={_claudeToken ? "토큰 연결됨 — 클릭하여 변경" : "Claude 토큰 연결"}
-                  style={{ padding: "2px 6px", background: _claudeToken ? "#e8f5e9" : "#fff3e0", border: `1px solid ${_claudeToken ? "#a5d6a7" : "#ffcc80"}`, borderRadius: "4px", color: _claudeToken ? "#388e3c" : "#e65100", fontSize: "9px", cursor: "pointer", fontWeight: 600, letterSpacing: 0 }}>
-                  {_claudeToken ? "🔑 토큰" : "⚠ 토큰 없음"}
-                </button>
-              )}
+              {dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
             </div>
           </div>
           <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
@@ -4268,28 +3993,23 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>🤖</span> Agents
           </button>
-          {!isGuest && <button onClick={() => setShowContextAgent(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+          <button onClick={() => setShowContextAgent(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#059669"; e.currentTarget.style.color = "#059669"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>🧠</span> Context Agent
-          </button>}
-          {!isGuest && <button onClick={() => setShowPapers(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+          </button>
+          <button onClick={() => setShowPapers(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#fa0050"; e.currentTarget.style.color = "#fa0050"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>📄</span> Papers
-          </button>}
+          </button>
           <button onClick={newChat} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>＋ 새 대화</button>
-          {!isGuest && <AppMenu current="alfred" />}
-          {isGuest && started && (
-            <button onClick={() => window.print()} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a9a"; e.currentTarget.style.color = "#4a4a9a"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>PDF 저장</button>
-          )}
+          <AppMenu current="alfred" />
           <button onClick={handleSignOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>{isGuest ? "종료" : "로그아웃"}</button>
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>로그아웃</button>
         </div>
 
         <>
