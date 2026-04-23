@@ -4237,9 +4237,9 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>로그아웃</button>
         </div>
 
-        <>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* 탭 */}
-            <div style={{ display: "flex", borderBottom: "1px solid #e5e5e5", background: "#ffffff", padding: "0 20px" }}>
+            <div style={{ display: "flex", borderBottom: "1px solid #e5e5e5", background: "#ffffff", padding: "0 20px", flexShrink: 0 }}>
               {[{ id: "chat", label: "Chat" }, { id: "agent", label: "Agent" }].map(tab => (
                 <button key={tab.id} onClick={() => setChatMode(tab.id)}
                   style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: chatMode === tab.id ? "2px solid #111" : "2px solid transparent", color: chatMode === tab.id ? "#111" : "#aaa", fontSize: "12px", fontWeight: chatMode === tab.id ? "700" : "400", cursor: "pointer", transition: "all 0.15s", marginBottom: "-1px" }}>
@@ -4285,7 +4285,7 @@ export default function App() {
                   style={{ width: "40px", height: "40px", borderRadius: "50%", background: canSend ? "#111111" : "#e5e5e5", border: "1px solid", borderColor: canSend ? "#333333" : "#cccccc", color: canSend ? "#ffffff" : "#aaaaaa", cursor: canSend ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, transition: "all 0.2s" }}>↑</button>
               </div>
             </div>
-          </>
+          </div>
 
         <style>{`
           @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
