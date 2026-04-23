@@ -3854,7 +3854,11 @@ function PapersModal({ onClose, user }) {
 }
 
 export default function App() {
-  const [messages, setMessages] = useState([]);
+  const [chatMode, setChatMode] = useState("chat"); // "chat" | "agent"
+  const [agentMessages, setAgentMessages] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const messages = chatMode === "agent" ? agentMessages : chatMessages;
+  const setMessages = chatMode === "agent" ? setAgentMessages : setChatMessages;
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState(STAGES.IDLE);
@@ -4093,11 +4097,24 @@ export default function App() {
     setMessages(newMessages);
     setLoading(true);
     try {
-      const reply = await callClaude(userText, files, messages);
-      const detectedStage = detectStage(reply);
-      if (detectedStage) setCurrentStage(detectedStage);
-      const stageInfo = detectedStage ? STAGE_INFO[detectedStage] : null;
-      setMessages(prev => [...prev, { role: "assistant", content: reply, stageLabel: stageInfo?.label, stageColor: stageInfo?.color, stageIcon: stageInfo?.icon }]);
+      if (chatMode === "agent") {
+        const reply = await callClaude(userText, files, messages);
+        const detectedStage = detectStage(reply);
+        if (detectedStage) setCurrentStage(detectedStage);
+        const stageInfo = detectedStage ? STAGE_INFO[detectedStage] : null;
+        setMessages(prev => [...prev, { role: "assistant", content: reply, stageLabel: stageInfo?.label, stageColor: stageInfo?.color, stageIcon: stageInfo?.icon }]);
+      } else {
+        // Chat 모드: 심플 직접 대화
+        const history = messages.map(m => ({ role: m.role, content: m.content }));
+        const data = await chatAPI({
+          model: "claude-sonnet-4-6",
+          max_tokens: 8000,
+          system: "당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, Council 진행, 질문 답변 등 무엇이든 도와드립니다.",
+          messages: [...history, { role: "user", content: userText }],
+        });
+        const reply = data.content?.[0]?.text || data.error?.message || "오류가 발생했습니다.";
+        setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "오류가 발생했습니다. 다시 시도해 주십시오." }]);
     } finally {
@@ -4208,6 +4225,15 @@ export default function App() {
         </div>
 
         <>
+            {/* 탭 */}
+            <div style={{ display: "flex", borderBottom: "1px solid #e5e5e5", background: "#ffffff", padding: "0 20px" }}>
+              {[{ id: "chat", label: "Chat" }, { id: "agent", label: "Agent" }].map(tab => (
+                <button key={tab.id} onClick={() => setChatMode(tab.id)}
+                  style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: chatMode === tab.id ? "2px solid #111" : "2px solid transparent", color: chatMode === tab.id ? "#111" : "#aaa", fontSize: "12px", fontWeight: chatMode === tab.id ? "700" : "400", cursor: "pointer", transition: "all 0.15s", marginBottom: "-1px" }}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             {!isOwner && (
               <div style={{ padding: "8px 20px", background: "#fffbeb", borderBottom: "1px solid #fde68a", display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "13px" }}>⚠️</span>
@@ -4238,7 +4264,7 @@ export default function App() {
                 <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} onPaste={onPaste}
                   onCompositionStart={() => { isComposingRef.current = true; }}
                   onCompositionEnd={() => { isComposingRef.current = false; }}
-                  placeholder="문제나 불편함을 말씀해 주십시오..."
+                  placeholder={chatMode === "agent" ? "문제나 불편함을 말씀해 주십시오..." : "메시지를 입력하세요..."}
                   rows={1}
                   style={{ flex: 1, background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "12px", padding: "10px 14px", color: "#111111", fontSize: "13.5px", resize: "none", outline: "none", lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", transition: "border-color 0.2s" }}
                   onFocus={e => e.target.style.borderColor = "#aaaaaa"} onBlur={e => e.target.style.borderColor = "#cccccc"} />
