@@ -22,6 +22,43 @@ async function chatAPI(body) {
   return resp.json();
 }
 
+async function streamChatAPI(body, onChunk) {
+  const proxyUrl = getProxyUrl();
+  const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : "/api/chat";
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6).trim();
+      if (data === "[DONE]") return;
+      try {
+        const json = JSON.parse(data);
+        if (json.type === "content_block_delta" && json.delta?.type === "text_delta") {
+          onChunk(json.delta.text);
+        } else if (json.type === "message_stop") {
+          return;
+        }
+      } catch {}
+    }
+  }
+}
+
 // 프록시 연결 테스트
 async function testProxyConnection(url) {
   try {
@@ -2197,7 +2234,7 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     const roundSteps = [];
 
     for (const agent of roundAgents) {
-      updateStep(agent.id, { status: "running" });
+      updateStep(agent.id, { status: "running", result: "" });
       try {
         const isFactChecker = agent.id === "factchecker";
         const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
@@ -2207,17 +2244,17 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
             ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
             : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
 
-        const data = await chatAPI({
-          model: "claude-sonnet-4-5-20251001", max_tokens: 4000,
-          system: systemPrompt,
-          messages: [{ role: "user", content: context }],
-        });
-        const result = data.error
-          ? `[오류] ${data.error.message || JSON.stringify(data.error)}`
-          : (data.content?.[0]?.text || "응답 없음");
-        updateStep(agent.id, { status: data.error ? "error" : "done", result });
+        let result = "";
+        await streamChatAPI(
+          { model: "claude-sonnet-4-5-20251001", max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
+          (chunk) => {
+            result += chunk;
+            updateStep(agent.id, { status: "running", result });
+          }
+        );
+        updateStep(agent.id, { status: "done", result });
         context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
-        roundSteps.push({ ...agent, result, status: data.error ? "error" : "done" });
+        roundSteps.push({ ...agent, result, status: "done" });
       } catch (e) {
         const errMsg = `오류가 발생했습니다: ${e.message}`;
         updateStep(agent.id, { status: "error", result: errMsg });
@@ -4049,9 +4086,22 @@ export default function App() {
       ...history.map(m => ({ role: m.role, content: m.files?.length && m.files.some(f => f.base64 || f.text) ? buildContent(m.content, m.files) : (m.content || "") })),
       { role: "user", content: buildContent(userText, files) },
     ];
-    const data = await chatAPI({ model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs });
-    if (data.error) return `[오류] ${data.error.message || JSON.stringify(data.error)}`;
-    return data.content?.[0]?.text || "응답을 받지 못했습니다.";
+    let reply = "";
+    await streamChatAPI(
+      { model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs },
+      (chunk) => {
+        reply += chunk;
+        setMessages(prev => {
+          const updated = [...prev];
+          const lastIdx = updated.length - 1;
+          if (lastIdx >= 0 && updated[lastIdx].role === "assistant") {
+            updated[lastIdx] = { ...updated[lastIdx], content: reply };
+          }
+          return updated;
+        });
+      }
+    );
+    return reply || "응답을 받지 못했습니다.";
   };
 
   const startAgent = (restoredMessages = null, restoredStage = null) => {
@@ -4110,26 +4160,53 @@ export default function App() {
     setMessages(newMessages);
     setLoading(true);
     try {
+      // 빈 assistant 메시지 미리 추가 (스트리밍 타이핑 효과)
+      setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
       if (chatMode === "agent") {
         const reply = await callClaude(userText, files, messages);
         const detectedStage = detectStage(reply);
         if (detectedStage) setCurrentStage(detectedStage);
         const stageInfo = detectedStage ? STAGE_INFO[detectedStage] : null;
-        setMessages(prev => [...prev, { role: "assistant", content: reply, stageLabel: stageInfo?.label, stageColor: stageInfo?.color, stageIcon: stageInfo?.icon }]);
-      } else {
-        // Chat 모드: 심플 직접 대화
-        const history = messages.map(m => ({ role: m.role, content: m.content }));
-        const data = await chatAPI({
-          model: "claude-sonnet-4-6",
-          max_tokens: 8000,
-          system: "당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, Council 진행, 질문 답변 등 무엇이든 도와드립니다.",
-          messages: [...history, { role: "user", content: userText }],
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: reply, stageLabel: stageInfo?.label, stageColor: stageInfo?.color, stageIcon: stageInfo?.icon };
+          return updated;
         });
-        const reply = data.content?.[0]?.text || data.error?.message || "오류가 발생했습니다.";
-        setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      } else {
+        // Chat 모드: 스트리밍 직접 대화
+        const history = messages.map(m => ({ role: m.role, content: m.content }));
+        let reply = "";
+        await streamChatAPI(
+          {
+            model: "claude-sonnet-4-6",
+            max_tokens: 8000,
+            system: "당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, Council 진행, 질문 답변 등 무엇이든 도와드립니다.",
+            messages: [...history, { role: "user", content: userText }],
+          },
+          (chunk) => {
+            reply += chunk;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { role: "assistant", content: reply };
+              return updated;
+            });
+          }
+        );
+        if (!reply) {
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { role: "assistant", content: "오류가 발생했습니다." };
+            return updated;
+          });
+        }
       }
     } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "오류가 발생했습니다. 다시 시도해 주십시오." }]);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", content: "오류가 발생했습니다. 다시 시도해 주십시오." };
+        return updated;
+      });
     } finally {
       setLoading(false);
       inputRef.current?.focus();

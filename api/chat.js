@@ -17,6 +17,8 @@ export default async function handler(req, res) {
       ? { 'Authorization': `Bearer ${claudeToken}` }
       : { 'x-api-key': process.env.ANTHROPIC_API_KEY };
 
+    const isStream = req.body.stream === true;
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -27,11 +29,32 @@ export default async function handler(req, res) {
       body: JSON.stringify(req.body),
     })
 
-    const data = await response.json()
     if (!response.ok) {
+      const data = await response.json()
       console.error('Anthropic API error:', response.status, JSON.stringify(data))
+      return res.status(response.status).json(data)
     }
-    return res.status(response.status).json(data)
+
+    if (isStream) {
+      res.setHeader('Content-Type', 'text/event-stream')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('Connection', 'keep-alive')
+
+      const reader = response.body.getReader()
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          res.write(Buffer.from(value))
+        }
+      } finally {
+        res.end()
+      }
+      return
+    }
+
+    const data = await response.json()
+    return res.status(200).json(data)
   } catch (error) {
     console.error('API error:', error)
     return res.status(500).json({ error: error.message || 'Internal server error' })
