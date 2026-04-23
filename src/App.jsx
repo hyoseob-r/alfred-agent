@@ -3893,11 +3893,12 @@ export default function App() {
       try {
         const sb = await getSupabase();
         // Listen for auth changes (OAuth redirect callback lands here)
-        const ALLOWED_GITHUB = "hyoseob-r";
+        const ALLOWED_EMAIL = "hyoseob.r@gmail.com";
         const checkUser = (u) => {
           if (!u) return null;
+          const email = u.email || "";
           const login = u.user_metadata?.user_name || u.user_metadata?.preferred_username || "";
-          return login === ALLOWED_GITHUB ? u : null;
+          return (email === ALLOWED_EMAIL || login === "hyoseob-r") ? u : null;
         };
 
         const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
@@ -4161,26 +4162,20 @@ export default function App() {
     return (
       <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
         <div style={{ textAlign: "center", maxWidth: "380px", width: "100%", padding: "0 20px" }}>
-          <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 28px", boxShadow: "0 0 40px #cccccc44" }}>A</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#111111", marginBottom: "8px", letterSpacing: "-0.02em" }}>에이전트 어벤저스</div>
-          <div style={{ fontSize: "13px", color: "#bbbbbb", marginBottom: "40px", lineHeight: "1.6" }}>Problem-to-Product · UX-first</div>
-          <button onClick={signInWithGitHub} style={{ width: "100%", padding: "14px 24px", background: "#111111", border: "1px solid #333333", borderRadius: "12px", color: "#ffffff", fontSize: "14px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "all 0.2s", marginBottom: "12px" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#252545"; e.currentTarget.style.borderColor = "#888888"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#111111"; e.currentTarget.style.borderColor = "#cccccc"; }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            GitHub로 로그인
-          </button>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "4px 0 12px" }}>
-            <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
-            <span style={{ fontSize: "11px", color: "#cccccc" }}>또는</span>
-            <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
-          </div>
-          <button onClick={() => setShowGuestLogin(true)} style={{ width: "100%", padding: "14px 24px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "12px", color: "#777777", fontSize: "14px", fontWeight: "500", cursor: "pointer", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#333333"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#777777"; }}>
+          <div style={{ fontSize: "80px", fontWeight: "800", color: "#111111", lineHeight: 1, marginBottom: "40px", letterSpacing: "-0.04em", fontFamily: "'Pretendard', sans-serif" }}>A</div>
+          <button onClick={() => setShowGuestLogin(true)}
+            style={{ width: "100%", padding: "16px 24px", background: "#111111", border: "none", borderRadius: "14px", color: "#ffffff", fontSize: "15px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s", marginBottom: "16px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#333333"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(0,0,0,0.2)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#111111"; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)"; }}>
             내 Claude 토큰으로 시작하기
           </button>
-          <div style={{ fontSize: "11px", color: "#cccccc", marginTop: "12px" }}>데이터는 기기에만 저장됩니다</div>
+          <div style={{ fontSize: "11px", color: "#cccccc", marginBottom: "24px" }}>데이터는 기기에만 저장됩니다</div>
+          <button onClick={signInWithGitHub}
+            style={{ background: "transparent", border: "none", color: "#bbbbbb", fontSize: "12px", cursor: "pointer", padding: "4px 8px", transition: "color 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.color = "#777777"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "#bbbbbb"; }}>
+            owner 로그인 (github)
+          </button>
         </div>
       </div>
     );
