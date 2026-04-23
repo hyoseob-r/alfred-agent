@@ -4,8 +4,14 @@ import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, C
 const GUEST_LS_KEY = 'alfred_guest_sessions';
 const PROXY_URL_KEY = 'alfred_proxy_url';
 
-function getProxyUrl() {
-  return localStorage.getItem(PROXY_URL_KEY) || null;
+// 전역 프록시 URL (자동 감지 또는 수동 설정)
+let _activeProxyUrl = localStorage.getItem(PROXY_URL_KEY) || null;
+
+function getProxyUrl() { return _activeProxyUrl; }
+function setActiveProxyUrl(url) {
+  _activeProxyUrl = url;
+  if (url) localStorage.setItem(PROXY_URL_KEY, url);
+  else localStorage.removeItem(PROXY_URL_KEY);
 }
 
 async function chatAPI(body) {
@@ -16,92 +22,117 @@ async function chatAPI(body) {
   return resp.json();
 }
 
-// 프록시 설정 모달
-function ProxySettingsModal({ onClose }) {
-  const [url, setUrl] = useState(getProxyUrl() || '');
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null);
+// 프록시 연결 테스트
+async function testProxyConnection(url) {
+  try {
+    const resp = await fetch(url.replace(/\/$/, ''), { signal: AbortSignal.timeout(4000) });
+    const data = await resp.json();
+    return data.ok === true;
+  } catch { return false; }
+}
 
-  const testProxy = async () => {
-    const trimmed = url.trim().replace(/\/$/, '');
-    if (!trimmed) return;
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const resp = await fetch(`${trimmed}/api/chat`, {
-        method: 'OPTIONS',
-        signal: AbortSignal.timeout(5000),
-      });
-      setTestResult(resp.ok ? 'ok' : `HTTP ${resp.status}`);
-    } catch (e) {
-      // OPTIONS 실패해도 CORS 때문일 수 있으니 GET 시도
-      try {
-        const resp2 = await fetch(trimmed, { signal: AbortSignal.timeout(5000) });
-        const data = await resp2.json();
-        setTestResult(data.ok ? 'ok' : 'fail');
-      } catch {
-        setTestResult('fail');
+// Supabase에서 프록시 URL 자동 조회
+async function fetchProxyUrlFromServer(githubLogin) {
+  try {
+    const resp = await fetch(`/api/get-proxy?github_login=${encodeURIComponent(githubLogin)}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    const data = await resp.json();
+    return data.proxy_url || null;
+  } catch { return null; }
+}
+
+// 프록시 상태 모달
+function ProxyStatusModal({ onClose, githubLogin, proxyUrl, onDetected }) {
+  const [status, setStatus] = useState('idle'); // idle | checking | ok | fail | installing
+  const [detectedUrl, setDetectedUrl] = useState(proxyUrl || '');
+
+  const check = async () => {
+    setStatus('checking');
+    // 1. Supabase에서 URL 조회
+    const serverUrl = await fetchProxyUrlFromServer(githubLogin);
+    if (serverUrl) {
+      const alive = await testProxyConnection(serverUrl);
+      if (alive) {
+        setDetectedUrl(serverUrl);
+        setActiveProxyUrl(serverUrl);
+        onDetected(serverUrl);
+        setStatus('ok');
+        return;
       }
     }
-    setTesting(false);
+    // 2. localStorage에 저장된 URL 시도
+    const cached = localStorage.getItem(PROXY_URL_KEY);
+    if (cached) {
+      const alive = await testProxyConnection(cached);
+      if (alive) {
+        setDetectedUrl(cached);
+        setActiveProxyUrl(cached);
+        onDetected(cached);
+        setStatus('ok');
+        return;
+      }
+    }
+    setStatus('fail');
   };
 
-  const save = () => {
-    const trimmed = url.trim().replace(/\/$/, '');
-    if (trimmed) {
-      localStorage.setItem(PROXY_URL_KEY, trimmed);
-    } else {
-      localStorage.removeItem(PROXY_URL_KEY);
-    }
+  const disconnect = () => {
+    setActiveProxyUrl(null);
+    setDetectedUrl('');
+    onDetected(null);
     onClose();
   };
 
+  const installCmd = `curl -fsSL https://alfred-agent-nine.vercel.app/install.sh | bash`;
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#fff', borderRadius: '16px', padding: '28px', width: '480px', maxWidth: '92vw', fontFamily: "'Pretendard', sans-serif" }}>
-        <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>로컬 프록시 설정</div>
-        <div style={{ fontSize: '12px', color: '#888', marginBottom: '20px', lineHeight: 1.5 }}>
-          Mac에서 <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: '3px' }}>bash ~/alfred-proxy/start.sh</code> 실행 후<br />
-          생성된 <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: '3px' }}>https://xxxx.trycloudflare.com</code> URL을 입력하세요.<br />
-          Claude.ai 구독으로 동작합니다 (별도 API 크레딧 불필요).
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '28px', width: '500px', maxWidth: '94vw', fontFamily: "'Pretendard', sans-serif" }}>
+        <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '6px' }}>프록시 연결</div>
+        <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '20px' }}>
+          Claude.ai 구독으로 웹앱 사용 — 별도 API 크레딧 불필요
         </div>
-        <input
-          type="text"
-          value={url}
-          onChange={e => { setUrl(e.target.value); setTestResult(null); }}
-          placeholder="https://xxxx.trycloudflare.com"
-          style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'monospace', marginBottom: '12px' }}
-        />
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          <button onClick={testProxy} disabled={testing || !url.trim()}
-            style={{ padding: '8px 16px', background: '#f5f5f5', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '12px', cursor: url.trim() ? 'pointer' : 'not-allowed', color: '#555' }}>
-            {testing ? '테스트 중...' : '연결 테스트'}
-          </button>
-          {testResult && (
-            <span style={{ fontSize: '12px', alignSelf: 'center', color: testResult === 'ok' ? '#059669' : '#dc2626' }}>
-              {testResult === 'ok' ? '✓ 연결 성공' : '✗ 연결 실패 — URL 확인'}
-            </span>
-          )}
-        </div>
-        {getProxyUrl() && (
-          <div style={{ fontSize: '11px', color: '#059669', marginBottom: '12px' }}>
-            ✓ 현재 설정: {getProxyUrl()}
+
+        {/* 현재 상태 */}
+        {proxyUrl ? (
+          <div style={{ background: 'rgba(5,150,105,0.06)', border: '1px solid #059669', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: '12px', color: '#059669', fontWeight: '600', marginBottom: '2px' }}>⚡ 연결됨</div>
+              <div style={{ fontSize: '11px', color: '#888', fontFamily: 'monospace', wordBreak: 'break-all' }}>{proxyUrl}</div>
+            </div>
+            <button onClick={disconnect} style={{ marginLeft: '12px', padding: '4px 10px', background: '#fff', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', color: '#dc2626', whiteSpace: 'nowrap' }}>해제</button>
+          </div>
+        ) : (
+          <div style={{ background: '#f9f9f9', border: '1px solid #e5e5e5', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
+              {status === 'checking' ? '🔍 감지 중...' : status === 'fail' ? '⚠ 프록시 실행 중이 아닙니다.' : '프록시가 연결되지 않았습니다.'}
+            </div>
+            <button onClick={check} disabled={status === 'checking'}
+              style={{ padding: '6px 14px', background: '#111', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: status === 'checking' ? 'not-allowed' : 'pointer', color: '#fff' }}>
+              {status === 'checking' ? '감지 중...' : '자동 감지'}
+            </button>
           </div>
         )}
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-          {getProxyUrl() && (
-            <button onClick={() => { localStorage.removeItem(PROXY_URL_KEY); setUrl(''); setTestResult(null); }}
-              style={{ padding: '8px 16px', background: '#fff', border: '1px solid #fca5a5', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: '#dc2626' }}>
-              프록시 제거
-            </button>
-          )}
+
+        {/* 설치 안내 */}
+        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px' }}>
+          <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '10px' }}>처음 설치하는 경우</div>
+          <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>터미널에서 아래 명령어를 실행하세요 (한 번만):</div>
+          <div style={{ background: '#111', borderRadius: '8px', padding: '10px 14px', fontFamily: 'monospace', fontSize: '11px', color: '#88ff88', wordBreak: 'break-all', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ flex: 1 }}>{installCmd}</span>
+            <button onClick={() => navigator.clipboard.writeText(installCmd)}
+              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '4px', padding: '3px 8px', color: '#ccc', fontSize: '10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>복사</button>
+          </div>
+          <div style={{ fontSize: '11px', color: '#aaa', lineHeight: 1.5 }}>
+            설치 후 자동으로 Mac 시작 시 실행됩니다.<br />
+            이 화면에서 <b>자동 감지</b> 버튼을 누르면 바로 연결됩니다.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
           <button onClick={onClose}
-            style={{ padding: '8px 16px', background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: '#555' }}>
-            취소
-          </button>
-          <button onClick={save}
-            style={{ padding: '8px 16px', background: '#111', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: '#fff' }}>
-            저장
+            style={{ padding: '8px 20px', background: '#f5f5f5', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#555' }}>
+            닫기
           </button>
         </div>
       </div>
@@ -3793,6 +3824,7 @@ export default function App() {
   const [showContextAgent, setShowContextAgent] = useState(false);
   const [showProxySettings, setShowProxySettings] = useState(false);
   const [hasProxy, setHasProxy] = useState(!!getProxyUrl());
+  const [proxyUrl, setProxyUrl] = useState(getProxyUrl());
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [councilSessions, setCouncilSessions] = useState([]);
@@ -3842,6 +3874,21 @@ export default function App() {
             const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
             setSessions(s);
             setCouncilSessions(cs);
+            // 프록시 자동 감지
+            const githubLogin = u.user_metadata?.user_name || u.user_metadata?.preferred_username || "";
+            if (githubLogin) {
+              fetchProxyUrlFromServer(githubLogin).then(async (serverUrl) => {
+                const urlToTest = serverUrl || localStorage.getItem(PROXY_URL_KEY);
+                if (urlToTest) {
+                  const alive = await testProxyConnection(urlToTest);
+                  if (alive) {
+                    setActiveProxyUrl(urlToTest);
+                    setProxyUrl(urlToTest);
+                    setHasProxy(true);
+                  }
+                }
+              });
+            }
           } else {
             setSessions([]);
             setCouncilSessions([]);
@@ -4066,7 +4113,7 @@ export default function App() {
       <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
-      {showProxySettings && <ProxySettingsModal onClose={() => { setShowProxySettings(false); setHasProxy(!!getProxyUrl()); }} />}
+      {showProxySettings && <ProxyStatusModal onClose={() => setShowProxySettings(false)} githubLogin={user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || ""} proxyUrl={proxyUrl} onDetected={(url) => { setProxyUrl(url); setHasProxy(!!url); }} />}
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
       <ContextAgentPanel open={showContextAgent} onClose={() => setShowContextAgent(false)} />
       <div
