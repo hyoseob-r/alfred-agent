@@ -3855,10 +3855,9 @@ function PapersModal({ onClose, user }) {
 
 export default function App() {
   const [chatMode, setChatMode] = useState("chat"); // "chat" | "agent"
-  const [agentMessages, setAgentMessages] = useState([]);
-  const [chatMessages, setChatMessages] = useState([]);
-  const messages = chatMode === "agent" ? agentMessages : chatMessages;
-  const setMessages = chatMode === "agent" ? setAgentMessages : setChatMessages;
+  const [messages, setMessages] = useState([]);
+  const [agentHistory, setAgentHistory] = useState([]); // agent 탭 히스토리 백업
+  const [chatHistory, setChatHistory] = useState([]);   // chat 탭 히스토리 백업
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState(STAGES.IDLE);
@@ -3955,6 +3954,20 @@ export default function App() {
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // 탭 전환 시 히스토리 swap
+  const prevChatMode = useRef(chatMode);
+  useEffect(() => {
+    if (prevChatMode.current === chatMode) return;
+    if (prevChatMode.current === "agent") {
+      setAgentHistory(messages);
+      setMessages(chatHistory);
+    } else {
+      setChatHistory(messages);
+      setMessages(agentHistory);
+    }
+    prevChatMode.current = chatMode;
+  }, [chatMode]);
 
   // ── Auto-save (debounced 1.5s) ────────────────────────────────────────────
   useEffect(() => {
