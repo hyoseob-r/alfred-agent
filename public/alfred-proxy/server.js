@@ -180,6 +180,7 @@ const server = http.createServer((req, res) => {
       const child = spawn(CLAUDE_BIN, streamArgs, {
         cwd: INSTALL_DIR,
         env: { ...process.env, HOME: os.homedir() },
+        stdio: ['ignore', 'pipe', 'pipe'],  // stdin 즉시 닫기 (3초 대기 방지)
       });
 
       child.stdout.on('data', (chunk) => {
@@ -188,7 +189,8 @@ const server = http.createServer((req, res) => {
         res.write(`data: ${event}\n\n`);
       });
 
-      child.on('close', () => {
+      child.on('close', (code) => {
+        console.log(`[${new Date().toISOString()}] stream done (code=${code})`);
         res.write('data: {"type":"message_stop"}\n\n');
         res.end();
       });
@@ -199,7 +201,7 @@ const server = http.createServer((req, res) => {
         res.end();
       });
 
-      req.on('close', () => child.kill());
+      res.on('close', () => child.kill());
       return;
     }
 
