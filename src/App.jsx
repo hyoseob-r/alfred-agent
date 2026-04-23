@@ -2,10 +2,111 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const GUEST_LS_KEY = 'alfred_guest_sessions';
+const PROXY_URL_KEY = 'alfred_proxy_url';
+
+function getProxyUrl() {
+  return localStorage.getItem(PROXY_URL_KEY) || null;
+}
+
 async function chatAPI(body) {
+  const proxyUrl = getProxyUrl();
+  const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : "/api/chat";
   const headers = { "Content-Type": "application/json" };
-  const resp = await fetch("/api/chat", { method: "POST", headers, body: JSON.stringify(body) });
+  const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
   return resp.json();
+}
+
+// 프록시 설정 모달
+function ProxySettingsModal({ onClose }) {
+  const [url, setUrl] = useState(getProxyUrl() || '');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const testProxy = async () => {
+    const trimmed = url.trim().replace(/\/$/, '');
+    if (!trimmed) return;
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const resp = await fetch(`${trimmed}/api/chat`, {
+        method: 'OPTIONS',
+        signal: AbortSignal.timeout(5000),
+      });
+      setTestResult(resp.ok ? 'ok' : `HTTP ${resp.status}`);
+    } catch (e) {
+      // OPTIONS 실패해도 CORS 때문일 수 있으니 GET 시도
+      try {
+        const resp2 = await fetch(trimmed, { signal: AbortSignal.timeout(5000) });
+        const data = await resp2.json();
+        setTestResult(data.ok ? 'ok' : 'fail');
+      } catch {
+        setTestResult('fail');
+      }
+    }
+    setTesting(false);
+  };
+
+  const save = () => {
+    const trimmed = url.trim().replace(/\/$/, '');
+    if (trimmed) {
+      localStorage.setItem(PROXY_URL_KEY, trimmed);
+    } else {
+      localStorage.removeItem(PROXY_URL_KEY);
+    }
+    onClose();
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '28px', width: '480px', maxWidth: '92vw', fontFamily: "'Pretendard', sans-serif" }}>
+        <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>로컬 프록시 설정</div>
+        <div style={{ fontSize: '12px', color: '#888', marginBottom: '20px', lineHeight: 1.5 }}>
+          Mac에서 <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: '3px' }}>bash ~/alfred-proxy/start.sh</code> 실행 후<br />
+          생성된 <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: '3px' }}>https://xxxx.trycloudflare.com</code> URL을 입력하세요.<br />
+          Claude.ai 구독으로 동작합니다 (별도 API 크레딧 불필요).
+        </div>
+        <input
+          type="text"
+          value={url}
+          onChange={e => { setUrl(e.target.value); setTestResult(null); }}
+          placeholder="https://xxxx.trycloudflare.com"
+          style={{ width: '100%', padding: '10px 12px', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'monospace', marginBottom: '12px' }}
+        />
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button onClick={testProxy} disabled={testing || !url.trim()}
+            style={{ padding: '8px 16px', background: '#f5f5f5', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '12px', cursor: url.trim() ? 'pointer' : 'not-allowed', color: '#555' }}>
+            {testing ? '테스트 중...' : '연결 테스트'}
+          </button>
+          {testResult && (
+            <span style={{ fontSize: '12px', alignSelf: 'center', color: testResult === 'ok' ? '#059669' : '#dc2626' }}>
+              {testResult === 'ok' ? '✓ 연결 성공' : '✗ 연결 실패 — URL 확인'}
+            </span>
+          )}
+        </div>
+        {getProxyUrl() && (
+          <div style={{ fontSize: '11px', color: '#059669', marginBottom: '12px' }}>
+            ✓ 현재 설정: {getProxyUrl()}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          {getProxyUrl() && (
+            <button onClick={() => { localStorage.removeItem(PROXY_URL_KEY); setUrl(''); setTestResult(null); }}
+              style={{ padding: '8px 16px', background: '#fff', border: '1px solid #fca5a5', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: '#dc2626' }}>
+              프록시 제거
+            </button>
+          )}
+          <button onClick={onClose}
+            style={{ padding: '8px 16px', background: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: '#555' }}>
+            취소
+          </button>
+          <button onClick={save}
+            style={{ padding: '8px 16px', background: '#111', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', color: '#fff' }}>
+            저장
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const AGENT_SYSTEM_PROMPT = `You are a Problem-to-Product Agent — a UX-first product designer and builder.
@@ -3690,6 +3791,8 @@ export default function App() {
   const [showPapers, setShowPapers] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
   const [showContextAgent, setShowContextAgent] = useState(false);
+  const [showProxySettings, setShowProxySettings] = useState(false);
+  const [hasProxy, setHasProxy] = useState(!!getProxyUrl());
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [councilSessions, setCouncilSessions] = useState([]);
@@ -3963,6 +4066,7 @@ export default function App() {
       <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
+      {showProxySettings && <ProxySettingsModal onClose={() => { setShowProxySettings(false); setHasProxy(!!getProxyUrl()); }} />}
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
       <ContextAgentPanel open={showContextAgent} onClose={() => setShowContextAgent(false)} />
       <div
@@ -4006,6 +4110,13 @@ export default function App() {
           <button onClick={newChat} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>＋ 새 대화</button>
+          <button onClick={() => setShowProxySettings(true)}
+            title={hasProxy ? "로컬 프록시 연결됨" : "로컬 프록시 설정"}
+            style={{ padding: "5px 10px", background: hasProxy ? "rgba(5,150,105,0.08)" : "transparent", border: `1px solid ${hasProxy ? "#059669" : "#e5e5e5"}`, borderRadius: "8px", color: hasProxy ? "#059669" : "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#059669"; e.currentTarget.style.color = "#059669"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = hasProxy ? "#059669" : "#e5e5e5"; e.currentTarget.style.color = hasProxy ? "#059669" : "#aaaaaa"; }}>
+            {hasProxy ? "⚡ 프록시" : "⚙ 프록시"}
+          </button>
           <AppMenu current="alfred" />
           <button onClick={handleSignOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
