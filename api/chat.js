@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     const claudeToken = req.headers['x-claude-token'];
     const authHeaders = claudeToken
-      ? { 'Authorization': `Bearer ${claudeToken}` }
+      ? { 'Authorization': `Bearer ${claudeToken}`, 'anthropic-beta': 'claude-code-20250219' }
       : { 'x-api-key': process.env.ANTHROPIC_API_KEY };
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
