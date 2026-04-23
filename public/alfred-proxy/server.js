@@ -153,7 +153,7 @@ const server = http.createServer((req, res) => {
       return res.end(JSON.stringify({ error: 'Invalid JSON' }));
     }
 
-    const { model, system, messages, max_tokens } = parsed;
+    const { model, system, messages, max_tokens, stream } = parsed;
     if (!messages?.length) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'messages required' }));
@@ -162,11 +162,51 @@ const server = http.createServer((req, res) => {
     const promptText = buildPrompt(messages);
     const targetModel = model || 'claude-sonnet-4-6';
 
+    console.log(`[${new Date().toISOString()}] → model=${targetModel} stream=${!!stream} len=${promptText.length}`);
+
+    // ── 스트리밍 모드 ────────────────────────────────────────────────────────
+    if (stream) {
+      const streamArgs = ['-p', '--model', targetModel, '--no-session-persistence'];
+      if (system) streamArgs.push('--append-system-prompt', system);
+      streamArgs.push(promptText);
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      const child = spawn(CLAUDE_BIN, streamArgs, {
+        cwd: INSTALL_DIR,
+        env: { ...process.env, HOME: os.homedir() },
+      });
+
+      child.stdout.on('data', (chunk) => {
+        const text = chunk.toString();
+        const event = JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } });
+        res.write(`data: ${event}\n\n`);
+      });
+
+      child.on('close', () => {
+        res.write('data: {"type":"message_stop"}\n\n');
+        res.end();
+      });
+
+      child.on('error', (err) => {
+        console.error('[stream error]', err.message);
+        res.write(`data: {"type":"error","message":${JSON.stringify(err.message)}}\n\n`);
+        res.end();
+      });
+
+      req.on('close', () => child.kill());
+      return;
+    }
+
+    // ── 일반 모드 (JSON 응답) ─────────────────────────────────────────────────
     const args = ['-p', '--output-format', 'json', '--model', targetModel, '--no-session-persistence'];
     if (system) args.push('--append-system-prompt', system);
     args.push(promptText);
-
-    console.log(`[${new Date().toISOString()}] → model=${targetModel} len=${promptText.length}`);
 
     execFile(CLAUDE_BIN, args, {
       timeout: 180000,
