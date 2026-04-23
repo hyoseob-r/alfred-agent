@@ -4137,13 +4137,7 @@ export default function App() {
             style={{ width: "100%", padding: "16px 24px", background: "#111111", border: "none", borderRadius: "14px", color: "#ffffff", fontSize: "15px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", marginBottom: "12px" }}
             onMouseEnter={e => { e.currentTarget.style.background = "#333333"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#111111"; }}>
-            github 로그인
-          </button>
-          <button onClick={signInWithGitHub}
-            style={{ width: "100%", padding: "12px 24px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "13px", cursor: "pointer", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.color = "#555555"; }}
-            onMouseLeave={e => { e.currentTarget.style.color = "#aaaaaa"; }}>
-            owner
+            GitHub 로그인
           </button>
         </div>
       </div>
