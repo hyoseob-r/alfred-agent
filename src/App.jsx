@@ -4,6 +4,9 @@ import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, PieChart, Pie, C
 // ── Claude Token (module-level) ───────────────────────────────────────────────
 let _claudeToken = null;
 const GUEST_LS_KEY = 'alfred_guest_sessions';
+const LS_CLAUDE_TOKEN_KEY = 'alfred_claude_token';
+// 앱 시작 시 localStorage에서 토큰 복원
+try { _claudeToken = localStorage.getItem(LS_CLAUDE_TOKEN_KEY) || null; } catch { /* ignore */ }
 async function chatAPI(body) {
   const headers = { "Content-Type": "application/json" };
   if (_claudeToken) headers["x-claude-token"] = _claudeToken;
@@ -2929,18 +2932,29 @@ async function dbSaveCouncilSession({ id, sessionId, userId, topic, rounds, summ
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function dbLoadClaudeToken(userId) {
-  const resp = await fetch(`/api/get-token?user_id=${encodeURIComponent(userId)}`);
-  if (!resp.ok) return null;
-  const { token } = await resp.json();
-  return token || null;
+  try {
+    const resp = await fetch(`/api/get-token?user_id=${encodeURIComponent(userId)}`);
+    if (resp.ok) {
+      const { token } = await resp.json();
+      if (token) {
+        try { localStorage.setItem(LS_CLAUDE_TOKEN_KEY, token); } catch { /* ignore */ }
+        return token;
+      }
+    }
+  } catch { /* Supabase 실패 → localStorage 폴백 */ }
+  try { return localStorage.getItem(LS_CLAUDE_TOKEN_KEY) || null; } catch { return null; }
 }
 async function dbSaveClaudeToken(userId, token) {
-  // 서버사이드 API 경유 (service role key 사용, 클라이언트 RLS 우회)
-  await fetch('/api/save-token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: userId, token }),
-  });
+  // localStorage에 즉시 저장 (Supabase 실패해도 유지됨)
+  try { localStorage.setItem(LS_CLAUDE_TOKEN_KEY, token); } catch { /* ignore */ }
+  // Supabase에도 저장 시도 (best-effort)
+  try {
+    await fetch('/api/save-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, token }),
+    });
+  } catch { /* Supabase 실패해도 localStorage에 저장됨 */ }
 }
 
 // ── Guest localStorage helpers ────────────────────────────────────────────────
@@ -4154,6 +4168,7 @@ export default function App() {
       return <GuestLoginScreen
         onLogin={(tok) => {
           _claudeToken = tok;
+          try { localStorage.setItem(LS_CLAUDE_TOKEN_KEY, tok); } catch { /* ignore */ }
           setIsGuest(true);
           setShowGuestLogin(false);
           const prev = guestGetAllSessions();
