@@ -3866,7 +3866,6 @@ export default function App() {
   const [started, setStarted] = useState(true);
   const [pendingImages, setPendingImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [activeTab, setActiveTab] = useState("agent");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const openSidebar = () => { setSidebarOpen(true); if (user?.id) dbLoadCouncilSessions(user.id).then(setCouncilSessions); };
   const [showPapers, setShowPapers] = useState(false);
@@ -4253,14 +4252,6 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>☰</button>
           <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>A</div>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={{ display: "flex", gap: "4px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "10px", padding: "3px" }}>
-              {[{ id: "agent", label: "Agent" }, { id: "research", label: "Research" }, { id: "patterns", label: "Patterns" }, { id: "tasks", label: "Tasks" }].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  style={{ padding: "4px 12px", borderRadius: "7px", background: activeTab === tab.id ? "#e5e5e5" : "transparent", border: activeTab === tab.id ? "1px solid #cccccc" : "1px solid transparent", color: activeTab === tab.id ? "#555555" : "#aaaaaa", fontSize: "11px", cursor: "pointer", transition: "all 0.2s", fontWeight: activeTab === tab.id ? 600 : 400 }}>
-                  {tab.label}
-                </button>
-              ))}
-            </div>
             <div style={{ fontSize: "10px", color: "#bbbbbb", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "6px" }}>
               {isGuest ? "Guest" : dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
               {!isGuest && user && (
@@ -4301,16 +4292,7 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>{isGuest ? "종료" : "로그아웃"}</button>
         </div>
 
-        {activeTab === "agent" && <StageProgress currentStage={currentStage} />}
-
-        {activeTab === "research" ? (
-          <ResearchPanel />
-        ) : activeTab === "patterns" ? (
-          <UIPatternPanel />
-        ) : activeTab === "tasks" ? (
-          <TasksPanel />
-        ) : (
-          <>
+        <>
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
               {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
               {loading && (
@@ -4344,7 +4326,6 @@ export default function App() {
               </div>
             </div>
           </>
-        )}
 
         <style>{`
           @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
