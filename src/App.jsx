@@ -2232,7 +2232,7 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
     setIsRunning(false);
 
     // Supabase 자동 저장
-    if (user?.id) {
+    if (user?.id && isOwner) {
       setSaveStatus("saving");
       try {
         let cId = councilId;
@@ -2293,8 +2293,8 @@ function AgentCouncilPanel({ solutionContent, onClose, user, sessionId }) {
       });
       const summary = summaryData.content?.[0]?.text || "";
 
-      // 2. Supabase에 요약 업데이트
-      if (user?.id) {
+      // 2. Supabase에 요약 업데이트 (오너만)
+      if (user?.id && isOwner) {
         await dbSaveCouncilSession({
           id: councilId, sessionId, userId: user.id,
           topic: solutionContent.slice(0, 200),
@@ -3087,7 +3087,45 @@ async function getSession() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
+function downloadCouncilAsPdf(council) {
+  const date = new Date(council.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const roundsHtml = (council.rounds || []).map((round, ri) => {
+    const label = round.round ? `${round.round}라운드` : `${ri + 1}라운드`;
+    const steps = (round.steps || []).map(step => `
+      <div class="step">
+        <div class="step-role">${step.role || step.id || ''}</div>
+        <div class="step-result">${(step.result || '').replace(/\n/g, '<br>')}</div>
+      </div>`).join('');
+    return `<div class="round"><div class="round-label">${label}</div>${steps}</div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${council.topic || 'Council'}</title>
+<style>
+  body { font-family: 'Pretendard', -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 32px 24px; color: #111; font-size: 13px; line-height: 1.7; }
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .meta { font-size: 11px; color: #888; margin-bottom: 24px; }
+  .summary { background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 8px; padding: 14px; margin-bottom: 24px; white-space: pre-wrap; }
+  .round { margin-bottom: 24px; }
+  .round-label { font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.1em; padding: 6px 10px; background: #f5f5f5; border-radius: 6px; margin-bottom: 12px; }
+  .step { margin-bottom: 14px; padding-left: 12px; border-left: 2px solid #e5e5e5; }
+  .step-role { font-size: 11px; font-weight: 700; color: #7b68b5; margin-bottom: 4px; }
+  .step-result { font-size: 12px; color: #333; white-space: pre-wrap; }
+  @media print { body { padding: 0; } }
+</style></head><body>
+<h1>${council.topic || 'Council'}</h1>
+<div class="meta">${council.id || ''} · ${date} · Alfred Agent</div>
+${council.summary ? `<div class="summary"><b>요약</b><br>${council.summary}</div>` : ''}
+${roundsHtml}
+<script>window.onload = () => window.print();<\/script>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+}
+
+function CouncilDetailPanel({ council, onClose, user, isOwner, onDeleted, onUpdated }) {
   const AGENTS = [
     { id: "ux", role: "Ms. Designer", icon: "🎨", color: "#6c8ebf" },
     { id: "dev", role: "Mr. Engineer", icon: "💻", color: "#5a9e8f" },
@@ -3133,7 +3171,13 @@ function CouncilDetailPanel({ council, onClose, user, onDeleted, onUpdated }) {
               {data.topic}
             </div>
           </div>
-          {/* Close only */}
+          {/* PDF 다운로드 (비오너) */}
+          {!isOwner && (
+            <button onClick={() => downloadCouncilAsPdf(council)}
+              style={{ padding: "5px 12px", background: "#111", border: "none", borderRadius: "6px", color: "#fff", fontSize: "11px", cursor: "pointer", fontWeight: "600", flexShrink: 0 }}>
+              PDF 저장
+            </button>
+          )}
           <button onClick={onClose}
             style={{ width: "28px", height: "28px", background: "none", border: "1px solid #e5e5e5", borderRadius: "6px", color: "#aaaaaa", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", flexShrink: 0 }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#555555"; }}
@@ -3836,6 +3880,7 @@ export default function App() {
   };
   const handleCouncilUpdated = (updated) => { setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c)); setSelectedCouncil(updated); };
   const [user, setUser] = useState(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [dbSaving, setDbSaving] = useState(false);
   const bottomRef = useRef(null);
@@ -3850,61 +3895,53 @@ export default function App() {
     (async () => {
       try {
         const sb = await getSupabase();
-        // Listen for auth changes (OAuth redirect callback lands here)
-        const ALLOWED_EMAIL = "hyoseob.r@gmail.com";
-        const checkUser = (u) => {
-          if (!u) return null;
+        // 오너 여부 판단 (저장 권한)
+        const checkIsOwner = (u) => {
+          if (!u) return false;
           const email = u.email || "";
           const login = u.user_metadata?.user_name || u.user_metadata?.preferred_username || "";
-          return (email === ALLOWED_EMAIL || login === "hyoseob-r") ? u : null;
+          return email === "hyoseob.r@gmail.com" || login === "hyoseob-r";
         };
 
-        const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
-          const u = checkUser(session?.user || null);
-          if (session?.user && !u) {
-            await sb.auth.signOut();
-            setUser(null);
-            setAuthLoading(false);
-            alert("접근 권한이 없는 계정입니다.");
-            return;
-          }
+        const onLogin = async (u) => {
+          const owner = checkIsOwner(u);
           setUser(u);
+          setIsOwner(owner);
           setAuthLoading(false);
-          if (u) {
+          if (owner && u?.id) {
+            // 오너만 Supabase 로드
             const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
             setSessions(s);
             setCouncilSessions(cs);
-            // 프록시 자동 감지
+          } else {
+            setSessions([]);
+            setCouncilSessions([]);
+          }
+          // 프록시 자동 감지 (오너 전용)
+          if (owner) {
             const githubLogin = u.user_metadata?.user_name || u.user_metadata?.preferred_username || "";
             if (githubLogin) {
               fetchProxyUrlFromServer(githubLogin).then(async (serverUrl) => {
                 const urlToTest = serverUrl || localStorage.getItem(PROXY_URL_KEY);
                 if (urlToTest) {
                   const alive = await testProxyConnection(urlToTest);
-                  if (alive) {
-                    setActiveProxyUrl(urlToTest);
-                    setProxyUrl(urlToTest);
-                    setHasProxy(true);
-                  }
+                  if (alive) { setActiveProxyUrl(urlToTest); setProxyUrl(urlToTest); setHasProxy(true); }
                 }
               });
             }
-          } else {
-            setSessions([]);
-            setCouncilSessions([]);
           }
+        };
+
+        const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+          const u = session?.user || null;
+          if (u) await onLogin(u);
+          else { setUser(null); setIsOwner(false); setAuthLoading(false); setSessions([]); setCouncilSessions([]); }
         });
         authListener = subscription;
         // Initial session check
         const sess = await getSession();
-        const u = checkUser(sess?.user || null);
-        setUser(u);
-        setAuthLoading(false);
-        if (u) {
-          const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
-          setSessions(s);
-          setCouncilSessions(cs);
-        }
+        if (sess?.user) await onLogin(sess.user);
+        else { setUser(null); setIsOwner(false); setAuthLoading(false); }
       } catch (e) {
         console.error("Supabase init error:", e);
         setAuthLoading(false);
@@ -4111,7 +4148,7 @@ export default function App() {
   return (
     <>
       <HistorySidebar sessions={sessions} activeId={activeSessionId} onSelect={selectSession} onNew={newChat} onDelete={deleteSession} councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil} onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
+      {selectedCouncil && <CouncilDetailPanel council={selectedCouncil} onClose={() => setSelectedCouncil(null)} user={user} isOwner={isOwner} onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated} />}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
       {showProxySettings && <ProxyStatusModal onClose={() => setShowProxySettings(false)} githubLogin={user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || ""} proxyUrl={proxyUrl} onDetected={(url) => { setProxyUrl(url); setHasProxy(!!url); }} />}
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
@@ -4171,6 +4208,12 @@ export default function App() {
         </div>
 
         <>
+            {!isOwner && (
+              <div style={{ padding: "8px 20px", background: "#fffbeb", borderBottom: "1px solid #fde68a", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "13px" }}>⚠️</span>
+                <span style={{ fontSize: "11px", color: "#92400e" }}>저장하지 않으면 모든 대화는 사라집니다. Council은 PDF로 저장하세요.</span>
+              </div>
+            )}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
               {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
               {loading && (
