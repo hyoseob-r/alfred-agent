@@ -2929,13 +2929,18 @@ async function dbSaveCouncilSession({ id, sessionId, userId, topic, rounds, summ
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function dbLoadClaudeToken(userId) {
-  const sb = await getSupabase();
-  const { data } = await sb.from("user_tokens").select("claude_token").eq("user_id", userId).single();
-  return data?.claude_token || null;
+  const resp = await fetch(`/api/get-token?user_id=${encodeURIComponent(userId)}`);
+  if (!resp.ok) return null;
+  const { token } = await resp.json();
+  return token || null;
 }
 async function dbSaveClaudeToken(userId, token) {
-  const sb = await getSupabase();
-  await sb.from("user_tokens").upsert({ user_id: userId, claude_token: token, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  // 서버사이드 API 경유 (service role key 사용, 클라이언트 RLS 우회)
+  await fetch('/api/save-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, token }),
+  });
 }
 
 // ── Guest localStorage helpers ────────────────────────────────────────────────
