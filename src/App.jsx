@@ -4134,10 +4134,16 @@ export default function App() {
         <div style={{ textAlign: "center", maxWidth: "380px", width: "100%", padding: "0 20px" }}>
           <div style={{ fontSize: "80px", fontWeight: "800", color: "#111111", lineHeight: 1, marginBottom: "40px", letterSpacing: "-0.04em", fontFamily: "'Pretendard', sans-serif" }}>A</div>
           <button onClick={signInWithGitHub}
-            style={{ width: "100%", padding: "16px 24px", background: "#111111", border: "none", borderRadius: "14px", color: "#ffffff", fontSize: "15px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}
+            style={{ width: "100%", padding: "16px 24px", background: "#111111", border: "none", borderRadius: "14px", color: "#ffffff", fontSize: "15px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", marginBottom: "12px" }}
             onMouseEnter={e => { e.currentTarget.style.background = "#333333"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#111111"; }}>
-            owner 로그인 (github)
+            github 로그인
+          </button>
+          <button onClick={signInWithGitHub}
+            style={{ width: "100%", padding: "12px 24px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "13px", cursor: "pointer", transition: "all 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.color = "#555555"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "#aaaaaa"; }}>
+            owner
           </button>
         </div>
       </div>
