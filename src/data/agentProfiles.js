@@ -57,6 +57,21 @@ export const AGENT_PROFILES = [
     ]
   },
   {
+    group: "Special Panel",
+    desc: "전설적 리더 3인 — 스티브 잡스, 일론 머스크, 워렌 버핏. 비전·퍼스트 프린시플·비즈니스 해자 렌즈로 검토.",
+    agents: [
+      { id: "steve_jobs",     role: "Steve Jobs",     icon: "🍎", color: "#555555",
+        tagline: "비전 & 단순함",
+        traits: ["인문학 × 기술 교차점", "단순함 테스트 — 한 문장으로 설명 불가 = 아직 덜 생각한 것", "10배 대담한 비전 없으면 의미 없음", "Real artists ship"] },
+      { id: "elon_musk",      role: "Elon Musk",      icon: "🚀", color: "#cc4444",
+        tagline: "퍼스트 프린시플 & 10x",
+        traits: ["기존 가정 전부 의심 → 물리 법칙부터 재설계", "10x 아니면 시도 불필요", "알고리즘: 삭제 → 단순화 → 가속 → 자동화", "MVP를 내일 당장 만들 수 없다면 그게 문제"] },
+      { id: "warren_buffett", role: "Warren Buffett", icon: "💰", color: "#2a6e3f",
+        tagline: "경제적 해자 & 장기 가치",
+        traits: ["Moat 분류: Wide / Narrow / None", "현금흐름이 왕, 이익은 의견", "10년 후에도 작동하는 비즈니스인가", "내가 이해할 수 없는 비즈니스엔 투자 안 함"] },
+    ]
+  },
+  {
     group: "고객 퍼소나",
     desc: "요기요 내부 User Profiling 데이터(2021) 기반 5개 세그먼트",
     agents: [

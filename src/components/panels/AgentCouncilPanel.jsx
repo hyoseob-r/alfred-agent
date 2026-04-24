@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { chatAPI, streamChatAPI } from "../../api/proxy";
-import { AGENT_COUNCIL_PROMPTS } from "../../prompts/council";
+import { AGENT_COUNCIL_PROMPTS, SPECIAL_PANEL_AGENTS, SPECIAL_PANEL_PROMPTS } from "../../prompts/council";
 import { FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "../../prompts/council";
 import { dbNextCouncilId, dbSaveCouncilSession } from "../../api/supabase";
 import { MarkdownRenderer, openFullView } from "../../utils/markdown";
@@ -54,6 +54,8 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const [collapsedRounds, setCollapsedRounds] = useState({});
   const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
+  const [specialSteps, setSpecialSteps] = useState([]);
+  const [specialDone, setSpecialDone] = useState(false);
 
   const updateStep = (id, updates) =>
     setCurrentSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
@@ -120,6 +122,41 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
         console.error("council save error:", e);
         setSaveStatus("error");
       }
+    }
+  };
+
+  const runSpecialPanel = async () => {
+    setIsRunning(true);
+    setSpecialDone(false);
+    setSpecialSteps(SPECIAL_PANEL_AGENTS.map(a => ({ ...a, status: "waiting", result: "" })));
+    const contextIntro = `\n\n---\n\n## Special Panel 요청\n위 Council 3라운드 전체 토론을 검토하고, 각자의 렌즈로 평가하십시오.\n\n[토론 전문]\n${fullContext}`;
+    const newSteps = [];
+    for (const agent of SPECIAL_PANEL_AGENTS) {
+      setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, status: "running" } : s));
+      let result = "";
+      try {
+        await streamChatAPI(
+          { model: "claude-sonnet-4-6", max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id], messages: [{ role: "user", content: contextIntro }] },
+          (chunk) => {
+            result += chunk;
+            setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, result } : s));
+          }
+        );
+        setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, status: "done", result } : s));
+      } catch (e) {
+        result = `오류: ${e.message}`;
+        setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, status: "error", result } : s));
+      }
+      newSteps.push({ ...agent, result, status: "done" });
+    }
+    const newRounds = [...rounds, { round: "special", steps: newSteps }];
+    setRounds(newRounds);
+    setSpecialDone(true);
+    setIsRunning(false);
+    if (user?.id && isOwner && councilId) {
+      try {
+        await dbSaveCouncilSession({ id: councilId, sessionId, userId: user.id, topic: solutionContent.slice(0, 200), rounds: newRounds, summary: null });
+      } catch (e) { console.error("special panel save error:", e); }
     }
   };
 
@@ -237,9 +274,12 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
           <div>
             <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스</span>
             <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>
-              {isRunning
-                ? `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} (${ROUND_CONFIG[currentRound-1]?.subtitle}) 진행 중...`
-                : `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} 완료`}
+              {isRunning && specialSteps.some(s => s.status === "running")
+                ? "✦ Special Panel 진행 중..."
+                : isRunning
+                  ? `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} (${ROUND_CONFIG[currentRound-1]?.subtitle}) 진행 중...`
+                  : specialDone ? "✦ Special Panel 완료"
+                  : `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} 완료`}
             </span>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -295,6 +335,19 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
               <MarkdownRenderer content={conflicts} />
             </div>
           )}
+
+          {/* Special Panel 결과 */}
+          {specialSteps.length > 0 && (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888800", letterSpacing: "0.15em" }}>
+                  ✦ SPECIAL PANEL — Jobs · Musk · Buffett
+                </div>
+                <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+              </div>
+              <AgentStepView steps={specialSteps} />
+            </div>
+          )}
         </div>
 
         <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -320,8 +373,17 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
               {ROUND_CONFIG[currentRound]?.label} → ({ROUND_CONFIG[currentRound]?.subtitle})
             </button>
           )}
-          {roundDone && !isRunning && currentRound >= 3 && (
-            <span style={{ fontSize: "12px", color: "#4a9e5f", fontWeight: 600 }}>✅ 19인 어벤저스 완료</span>
+          {roundDone && !isRunning && currentRound >= 3 && !specialDone && specialSteps.length === 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "12px", color: "#4a9e5f", fontWeight: 600 }}>✅ 19인 완료</span>
+              <button onClick={runSpecialPanel}
+                style={{ padding: "8px 18px", background: "linear-gradient(135deg, #111 0%, #333 100%)", border: "1px solid #555", borderRadius: "20px", color: "#fff", fontSize: "12px", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>🍎🚀💰</span> Special Panel 소집
+              </button>
+            </div>
+          )}
+          {specialDone && (
+            <span style={{ fontSize: "12px", color: "#888800", fontWeight: 600 }}>✦ Special Panel 완료</span>
           )}
         </div>
       </div>
