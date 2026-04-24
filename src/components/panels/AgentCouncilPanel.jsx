@@ -3,6 +3,7 @@ import { chatAPI, streamChatAPI } from "../../api/proxy";
 import { AGENT_COUNCIL_PROMPTS, SPECIAL_PANEL_AGENTS, SPECIAL_PANEL_PROMPTS } from "../../prompts/council";
 import { FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "../../prompts/council";
 import { dbNextCouncilId, dbSaveCouncilSession } from "../../api/supabase";
+import { getSelectedModel } from "../../utils/model";
 import { MarkdownRenderer, openFullView } from "../../utils/markdown";
 
 const AGENTS = [
@@ -82,7 +83,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
         let result = "";
         await streamChatAPI(
-          { model: "claude-sonnet-4-6", max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
+          { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
           (chunk) => {
             result += chunk;
             updateStep(agent.id, { status: "running", result });
@@ -136,7 +137,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       let result = "";
       try {
         await streamChatAPI(
-          { model: "claude-sonnet-4-6", max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id], messages: [{ role: "user", content: contextIntro }] },
+          { model: getSelectedModel(), max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id], messages: [{ role: "user", content: contextIntro }] },
           (chunk) => {
             result += chunk;
             setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, result } : s));
@@ -164,7 +165,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setDetectingConflicts(true);
     try {
       const data = await chatAPI({
-        model: "claude-sonnet-4-6", max_tokens: 1000,
+        model: getSelectedModel(), max_tokens: 1000,
         system: `당신은 회의 퍼실리테이터입니다. 6인 전문가의 의견에서 핵심 충돌 지점을 3개 이내로 추출하십시오.
 형식: "충돌 1: [주제] — [A 주장] vs [B 주장]" 형태로 간결하게. 한국어로.`,
         messages: [{ role: "user", content: context }],
@@ -183,7 +184,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setSaveStatus("worklog_saving");
     try {
       const summaryData = await chatAPI({
-        model: "claude-sonnet-4-6", max_tokens: 600,
+        model: getSelectedModel(), max_tokens: 600,
         system: `당신은 회의록 작성자입니다. 다음 멀티라운드 에이전트 토론을 3~5줄로 요약하십시오.
 형식:
 - 주요 합의: [한 줄]

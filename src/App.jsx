@@ -11,11 +11,13 @@ import {
 
 // Prompts
 import { buildSystemPrompt, STAGES, STAGE_INFO, detectStage } from "./prompts/agent";
+import { getSelectedModel } from "./utils/model";
 
 // Utils
 import { fileToBase64, fileToText, isPdf, parseCSV, computeStats } from "./utils/file";
 
 // Components
+import ModelSelector from "./components/ModelSelector";
 import ProxyStatusModal from "./components/ProxyStatusModal";
 import FilePreview from "./components/FilePreview";
 import StageProgress from "./components/StageProgress";
@@ -64,6 +66,7 @@ export default function App() {
   const [isOwner, setIsOwner] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [contextBriefing, setContextBriefing] = useState(null);
+  const [selectedModel, setSelectedModelState] = useState(getSelectedModel());
   const [dbSaving, setDbSaving] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -228,7 +231,7 @@ export default function App() {
     ];
     let reply = "";
     await streamChatAPI(
-      { model: "claude-sonnet-4-6", max_tokens: 16000, system: buildSystemPrompt(contextBriefing), messages: msgs },
+      { model: selectedModel, max_tokens: 16000, system: buildSystemPrompt(contextBriefing), messages: msgs },
       (chunk) => {
         reply += chunk;
         setMessages(prev => {
@@ -370,7 +373,7 @@ export default function App() {
           let reply = "";
           await streamChatAPI(
             {
-              model: "claude-sonnet-4-6",
+              model: selectedModel,
               max_tokens: 8000,
               system: `당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, 아이디어 검토, 질문 답변 등 무엇이든 도와드립니다. 사용자가 'assemble' 또는 '어셈블'이라고 하면 Council 19인 토론을 소집할 수 있다고 안내하십시오.${contextBriefing ? `\n\n---\n\n## 현재 진행 상황 (백로그 / 컨텍스트)\n\n${contextBriefing}` : ""}`,
               messages: [...history, { role: "user", content: userText }],
@@ -518,6 +521,7 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = hasProxy ? "#059669" : "#e5e5e5"; e.currentTarget.style.color = hasProxy ? "#059669" : "#aaaaaa"; }}>
             {hasProxy ? "⚡ 프록시" : "⚙ 프록시"}
           </button>
+          <ModelSelector onChange={setSelectedModelState} />
           <AppMenu current="alfred" />
           <button onClick={handleSignOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
