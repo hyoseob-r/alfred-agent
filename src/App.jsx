@@ -26,11 +26,12 @@ import ContextAgentPanel from "./components/ContextAgentPanel";
 import HistorySidebar from "./components/HistorySidebar";
 import CouncilDetailPanel from "./components/CouncilDetailPanel";
 import PapersModal from "./components/PapersModal";
+import AssemblePanel from "./components/AssemblePanel";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
 
 export default function App() {
-  const [chatMode, setChatMode] = useState("chat"); // "chat" | "agent"
+  const [chatMode, setChatMode] = useState("chat"); // "chat" | "agent" | "assemble"
   const [messages, setMessages] = useState([]);
   const [agentHistory, setAgentHistory] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
@@ -466,20 +467,23 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* 탭 */}
           <div style={{ display: "flex", borderBottom: "1px solid #e5e5e5", background: "#ffffff", padding: "0 20px", flexShrink: 0 }}>
-            {[{ id: "chat", label: "Chat" }, { id: "agent", label: "Agent" }].map(tab => (
+            {[{ id: "chat", label: "Chat" }, { id: "agent", label: "Agent" }, { id: "assemble", label: "Assemble" }].map(tab => (
               <button key={tab.id} onClick={() => setChatMode(tab.id)}
                 style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: chatMode === tab.id ? "2px solid #111" : "2px solid transparent", color: chatMode === tab.id ? "#111" : "#aaa", fontSize: "12px", fontWeight: chatMode === tab.id ? "700" : "400", cursor: "pointer", transition: "all 0.15s", marginBottom: "-1px" }}>
                 {tab.label}
               </button>
             ))}
           </div>
-          {!isOwner && (
+          {!isOwner && chatMode !== "assemble" && (
             <div style={{ padding: "8px 20px", background: "#fffbeb", borderBottom: "1px solid #fde68a", display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "13px" }}>⚠️</span>
               <span style={{ fontSize: "11px", color: "#92400e" }}>저장하지 않으면 모든 대화는 사라집니다. Council은 PDF로 저장하세요.</span>
             </div>
           )}
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
+          {chatMode === "assemble" ? (
+            <AssemblePanel user={user} sessionId={activeSessionId} isOwner={isOwner} />
+          ) : null}
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent", display: chatMode === "assemble" ? "none" : undefined }}>
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner} />
             ))}
@@ -494,7 +498,7 @@ export default function App() {
             <div ref={bottomRef} />
           </div>
 
-          <div style={{ background: "#ffffff", borderTop: "1px solid #e5e5e5" }}>
+          {chatMode !== "assemble" && <div style={{ background: "#ffffff", borderTop: "1px solid #e5e5e5" }}>
             <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
             {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
             <div style={{ padding: "10px 16px 14px", display: "flex", gap: "8px", alignItems: "flex-end" }}>
@@ -512,7 +516,7 @@ export default function App() {
               <button onClick={sendMessage} disabled={!canSend}
                 style={{ width: "40px", height: "40px", borderRadius: "50%", background: canSend ? "#111111" : "#e5e5e5", border: "1px solid", borderColor: canSend ? "#333333" : "#cccccc", color: canSend ? "#ffffff" : "#aaaaaa", cursor: canSend ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, transition: "all 0.2s" }}>↑</button>
             </div>
-          </div>
+          </div>}
         </div>
 
         <style>{`
