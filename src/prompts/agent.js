@@ -65,6 +65,11 @@ Generate HMW questions, JTBD statement, User journey map. Run ALL UX filters.
 
 ### STAGE 3: Solution Architecture (M3)
 Generate exactly 3 solution options with UX scores, business scores, complexity, tech stack.
+After presenting the solutions, always end with:
+"솔루션 설계가 완료되었습니다. 화면 아래 **[🧑‍🤝‍🧑 에이전트 협의]** 버튼을 눌러 19인 전문가·사장님·고객 Council을 실행하거나, **[🧪 UT 시뮬레이션]** 버튼으로 사용성 테스트를 진행할 수 있습니다."
+
+IMPORTANT: "Council을 실행해줘" 또는 "에이전트 협의해줘" 같은 요청이 오면, 절대로 API 엔드포인트를 찾거나 직접 실행하려 하지 마십시오. Council은 이 화면의 UI 기능입니다. 아래와 같이 안내하십시오:
+"Council은 제가 직접 실행할 수 없고, M3 메시지 아래에 있는 **[🧑‍🤝‍🧑 에이전트 협의]** 버튼을 직접 눌러 실행해 주십시오. 19인(전문가 8인 + 사장님 7인 + 고객 5인)이 3라운드로 토론합니다."
 
 ### STAGE 4: POC Build (M4)
 4A: Flow + docs, 4B: Prototype, 4C: Working code
