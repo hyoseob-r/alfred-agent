@@ -4,11 +4,15 @@ import { extractChartSpec, FullViewButton, MarkdownRenderer } from "../utils/mar
 import { ChartRenderer, DataSummaryCard } from "./ChartRenderer";
 import { DocActionBar, M3ActionBar } from "./ActionBars";
 import ComparePanel from "./panels/ComparePanel";
+import AgentCouncilPanel from "./panels/AgentCouncilPanel";
+import UTSimPanel from "./panels/UTSimPanel";
 
 export default function MessageBubble({ msg, user, sessionId, isOwner }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
+  const [showAssembleCouncil, setShowAssembleCouncil] = useState(false);
+  const [showAssembleUT, setShowAssembleUT] = useState(false);
 
   const has2pager = !isUser && msg.content && (
     msg.content.includes("문제 정의서") || msg.content.includes("Problem Definition")
@@ -106,6 +110,44 @@ export default function MessageBubble({ msg, user, sessionId, isOwner }) {
             isOwner={isOwner}
           />
         </div>
+      )}
+
+      {/* Assemble — Chat에서 알프가 브리핑 후 Council 소집 버튼 */}
+      {msg.isAssemble && !isUser && (
+        <div style={{ marginBottom: "16px", marginLeft: "42px", display: "flex", gap: "8px" }}>
+          <button
+            onClick={() => setShowAssembleCouncil(true)}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 18px", background: "#111111", border: "1px solid #333333", borderRadius: "20px", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", letterSpacing: "0.04em" }}
+            onMouseEnter={e => e.currentTarget.style.background = "#333333"}
+            onMouseLeave={e => e.currentTarget.style.background = "#111111"}
+          >
+            ⚖️ Council 19인 토론 시작
+          </button>
+          <button
+            onClick={() => setShowAssembleUT(true)}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#f0fff4", border: "1px solid #aaeecc", borderRadius: "20px", color: "#447755", fontSize: "12px", cursor: "pointer", transition: "all 0.2s" }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = "#77ccaa"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "#aaeecc"}
+          >
+            🧪 UT 시뮬레이션
+          </button>
+        </div>
+      )}
+
+      {showAssembleCouncil && msg.assembleContext && (
+        <AgentCouncilPanel
+          solutionContent={msg.assembleContext}
+          onClose={() => setShowAssembleCouncil(false)}
+          user={user}
+          sessionId={sessionId}
+          isOwner={isOwner}
+        />
+      )}
+      {showAssembleUT && msg.assembleContext && (
+        <UTSimPanel
+          solutionContent={msg.assembleContext}
+          onClose={() => setShowAssembleUT(false)}
+        />
       )}
 
       {showCompare && uploadedDoc && (
