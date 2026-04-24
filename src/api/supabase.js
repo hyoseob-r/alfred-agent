@@ -149,6 +149,10 @@ export async function signInWithGitHub() {
   const sb = await getSupabase();
   await sb.auth.signInWithOAuth({ provider: "github", options: { redirectTo: window.location.href } });
 }
+export async function signInWithGoogle() {
+  const sb = await getSupabase();
+  await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.href } });
+}
 export async function signOut() {
   const sb = await getSupabase();
   await sb.auth.signOut();
