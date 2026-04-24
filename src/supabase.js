@@ -103,6 +103,10 @@ export async function signInWithGitHub() {
   await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: window.location.href } })
 }
 
+export async function signInWithGoogle() {
+  await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } })
+}
+
 export async function signOut() {
   await sb.auth.signOut()
 }
