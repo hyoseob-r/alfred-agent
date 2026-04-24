@@ -539,24 +539,21 @@ export default function App() {
               {dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
             </div>
           </div>
-          <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+          {isOwner && <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#7b68b5"; e.currentTarget.style.color = "#7b68b5"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>🤖</span> Agents
-          </button>
-          <button onClick={() => setShowContextAgent(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+          </button>}
+          {isOwner && <button onClick={() => setShowContextAgent(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#059669"; e.currentTarget.style.color = "#059669"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>🧠</span> Context Agent
-          </button>
-          <button onClick={() => setShowPapers(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+          </button>}
+          {isOwner && <button onClick={() => setShowPapers(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#fa0050"; e.currentTarget.style.color = "#fa0050"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>📄</span> Papers
-          </button>
-          <button onClick={newChat} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>＋ 새 대화</button>
+          </button>}
           <button onClick={() => setShowProxySettings(true)}
             title={hasProxy ? "로컬 프록시 연결됨" : "로컬 프록시 설정"}
             style={{ padding: "5px 10px", background: hasProxy ? "rgba(5,150,105,0.08)" : "transparent", border: `1px solid ${hasProxy ? "#059669" : "#e5e5e5"}`, borderRadius: "8px", color: hasProxy ? "#059669" : "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
@@ -581,16 +578,16 @@ export default function App() {
               </button>
             ))}
           </div>
-          {!isOwner && (
-            <div style={{ padding: "8px 20px", background: "#fffbeb", borderBottom: "1px solid #fde68a", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "13px" }}>⚠️</span>
-              <span style={{ fontSize: "11px", color: "#92400e", flex: 1 }}>탭을 닫으면 모든 대화가 사라집니다.</span>
+          {!user && (
+            <div style={{ padding: "8px 20px", background: "#fef2f2", borderBottom: "1px solid #fecaca", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "13px" }}>🔒</span>
+              <span style={{ fontSize: "11px", color: "#991b1b", flex: 1 }}>비로그인 상태 — 백로그·히스토리 이용 권한이 없습니다. 대화 내역은 저장되지 않습니다.</span>
               <button onClick={exportSession} disabled={!messages.length}
-                style={{ padding: "4px 12px", background: messages.length ? "#92400e" : "#d4a57a", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: messages.length ? "pointer" : "default", fontWeight: 600, flexShrink: 0 }}>
+                style={{ padding: "4px 12px", background: messages.length ? "#991b1b" : "#d4a5a5", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: messages.length ? "pointer" : "default", fontWeight: 600, flexShrink: 0 }}>
                 💾 세션 저장
               </button>
               <button onClick={() => importSessionRef.current?.click()}
-                style={{ padding: "4px 12px", background: "transparent", border: "1px solid #92400e", borderRadius: "20px", color: "#92400e", fontSize: "11px", cursor: "pointer", fontWeight: 600, flexShrink: 0 }}>
+                style={{ padding: "4px 12px", background: "transparent", border: "1px solid #991b1b", borderRadius: "20px", color: "#991b1b", fontSize: "11px", cursor: "pointer", fontWeight: 600, flexShrink: 0 }}>
                 📂 이어가기
               </button>
               <input ref={importSessionRef} type="file" accept=".json" style={{ display: "none" }}
@@ -598,6 +595,23 @@ export default function App() {
             </div>
           )}
           <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
+            {!messages.length && !user && (
+              <div style={{ margin: "40px auto", maxWidth: "440px", background: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "16px", padding: "28px 28px", color: "#555555", lineHeight: 1.7 }}>
+                <div style={{ fontSize: "15px", fontWeight: 700, color: "#111111", marginBottom: "16px" }}>🔒 비로그인 상태</div>
+                <div style={{ fontSize: "13px", marginBottom: "20px", color: "#666666" }}>
+                  백로그, 히스토리, 세션 자동 저장 기능은 로그인 후 이용 가능합니다.<br />
+                  지금은 <strong>채팅만 가능</strong>하며, 탭을 닫으면 대화가 모두 사라집니다.
+                </div>
+                <div style={{ fontSize: "13px", background: "#f8f8f8", borderRadius: "10px", padding: "14px 16px", marginBottom: "16px" }}>
+                  <div style={{ fontWeight: 600, marginBottom: "6px", color: "#111111" }}>⚙ 프록시 설정 필요</div>
+                  <div style={{ color: "#666666" }}>우측 상단 <strong>프록시</strong> 버튼을 눌러 로컬 프록시를 연결해야 Claude API를 사용할 수 있습니다.</div>
+                </div>
+                <div style={{ fontSize: "13px", background: "#f8f8f8", borderRadius: "10px", padding: "14px 16px" }}>
+                  <div style={{ fontWeight: 600, marginBottom: "6px", color: "#111111" }}>💾 세션 저장 / 이어가기</div>
+                  <div style={{ color: "#666666" }}>대화가 끝난 후 상단 <strong>세션 저장</strong>으로 JSON 파일을 다운로드하고, 다음에 <strong>이어가기</strong>로 불러오면 대화를 이어갈 수 있습니다.</div>
+                </div>
+              </div>
+            )}
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner} />
             ))}
