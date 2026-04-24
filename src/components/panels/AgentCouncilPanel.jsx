@@ -245,14 +245,50 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     }
   };
 
-  const startNextRound = () => {
+  const [isSummarizing, setIsSummarizing] = useState(false);
+
+  const startNextRound = async () => {
     if (currentRound >= 3) return;
     const nextRound = currentRound + 1;
     setCurrentRound(nextRound);
     setCollapsedRounds(prev => ({ ...prev, [currentRound]: true }));
+    setIsSummarizing(true);
 
     const config = ROUND_CONFIG[nextRound - 1];
-    const nextContext = fullContext
+
+    // 이전 라운드 발언을 요약해서 컨텍스트 압축
+    let compressedContext = solutionContent;
+    try {
+      const completedRounds = rounds;
+      const allPrevText = completedRounds.map(r =>
+        `[${r.round}라운드]\n` + r.steps.map(s => `${s.role}: ${s.result}`).join("\n\n")
+      ).join("\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+
+      let summary = "";
+      await streamChatAPI(
+        {
+          model: getSelectedModel(),
+          max_tokens: 1200,
+          system: `당신은 회의 요약 전문가입니다. 멀티라운드 에이전트 토론을 다음 라운드 참가자들이 맥락을 이해할 수 있도록 압축하세요.
+
+규칙:
+- 각 에이전트의 핵심 주장 1~2줄씩 보존
+- 주요 합의점과 충돌 지점 명시
+- 원본 발언의 핵심 논지는 반드시 유지
+- 한국어로. 절대 중요한 인사이트를 누락하지 말 것.`,
+          messages: [{ role: "user", content: `다음 에이전트 토론을 요약해주세요:\n\n${allPrevText}` }]
+        },
+        (chunk) => { summary += chunk; }
+      );
+      compressedContext = `[원래 주제]\n${solutionContent}\n\n[이전 라운드 요약]\n${summary}`;
+    } catch {
+      // 요약 실패 시 원본 그대로 사용
+      compressedContext = fullContext;
+    } finally {
+      setIsSummarizing(false);
+    }
+
+    const nextContext = compressedContext
       + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
       + `[${nextRound}라운드 — ${config.label} (${config.subtitle})]\n`
       + config.contextIntro
@@ -406,7 +442,10 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             {saveStatus === "worklog_saving" && <span style={{ fontSize: "10px", color: "#aaaaaa" }}>WORKLOG 업데이트 중...</span>}
             {saveStatus === "error" && <span style={{ fontSize: "10px", color: "#cc4444" }}>저장 오류</span>}
           </div>
-          {roundDone && !isRunning && currentRound < 3 && (
+          {isSummarizing && (
+            <span style={{ fontSize: "11px", color: "#aaaaaa" }}>✦ 이전 라운드 압축 중...</span>
+          )}
+          {roundDone && !isRunning && !isSummarizing && currentRound < 3 && (
             <button onClick={startNextRound}
               style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
               {ROUND_CONFIG[currentRound]?.label} → ({ROUND_CONFIG[currentRound]?.subtitle})
