@@ -61,6 +61,35 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const updateStep = (id, updates) =>
     setCurrentSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
 
+  const retryAgent = async (agent, roundNum) => {
+    const isFactChecker = agent.id === "factchecker";
+    const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+    const systemPrompt = isFactChecker
+      ? basePrompt
+      : roundNum === 1
+        ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
+        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+
+    const updateRoundStep = (updates) =>
+      setRounds(prev => prev.map(r => r.round === roundNum
+        ? { ...r, steps: r.steps.map(s => s.id === agent.id ? { ...s, ...updates } : s) }
+        : r
+      ));
+
+    updateRoundStep({ status: "running", result: "" });
+    let result = "";
+    try {
+      await streamChatAPI(
+        { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: fullContext }] },
+        (chunk) => { result += chunk; updateRoundStep({ status: "running", result }); }
+      );
+      updateRoundStep({ status: "done", result });
+      setFullContext(prev => prev + `\n\n[${agent.role} ${roundNum}라운드 의견 (재시도)]\n${result}`);
+    } catch (e) {
+      updateRoundStep({ status: "error", result: `오류가 발생했습니다: ${e.message}` });
+    }
+  };
+
   const runRound = async (roundNum, baseContext) => {
     const roundAgents = getAgentsForRound(roundNum);
     setIsRunning(true);
@@ -238,7 +267,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     runRound(1, initialContext);
   }, []);
 
-  const AgentStepView = ({ steps }) => (
+  const AgentStepView = ({ steps, onRetry }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {steps.map((step) => (
         <div key={step.id} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
@@ -258,7 +287,16 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             )}
             {(step.status === "done" || step.status === "error") && (
               <div style={{ padding: "12px 14px", background: step.status === "error" ? "#fff0f0" : "#ffffff", border: `1px solid ${step.status === "error" ? "#f0aaaa" : step.color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
-                <MarkdownRenderer content={step.result} />
+                {step.status === "error" && onRetry && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "11px", color: "#cc4444" }}>{step.result}</span>
+                    <button onClick={() => onRetry(step)}
+                      style={{ padding: "4px 12px", background: "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: "pointer", flexShrink: 0, marginLeft: "10px" }}>
+                      ↺ 재시도
+                    </button>
+                  </div>
+                )}
+                {step.status !== "error" && <MarkdownRenderer content={step.result} />}
               </div>
             )}
           </div>
@@ -308,7 +346,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                   {collapsedRounds[r.round] ? "펼치기 ↓" : "접기 ↑"}
                 </button>
               </div>
-              {!collapsedRounds[r.round] && <AgentStepView steps={r.steps} />}
+              {!collapsedRounds[r.round] && <AgentStepView steps={r.steps} onRetry={(agent) => retryAgent(agent, r.round)} />}
             </div>
           ))}
 

@@ -71,6 +71,43 @@ export default function App() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const importSessionRef = useRef(null);
+
+  const exportSession = () => {
+    if (!messages.length) return;
+    const data = { version: 1, exported_at: new Date().toISOString(), messages };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alfred-session-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importSession = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.version === 1 && Array.isArray(data.messages)) {
+          setMessages(data.messages);
+        }
+      } catch {}
+    };
+    reader.readAsText(file);
+  };
+
+  useEffect(() => {
+    if (isOwner || !messages.length) return;
+    const onBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '세션이 저장되지 않습니다. 저장 후 나가시겠어요?';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isOwner, messages.length]);
   const dragCounter = useRef(0);
   const saveTimerRef = useRef(null);
 
@@ -546,9 +583,19 @@ export default function App() {
             ))}
           </div>
           {!isOwner && (
-            <div style={{ padding: "8px 20px", background: "#fffbeb", borderBottom: "1px solid #fde68a", display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ padding: "8px 20px", background: "#fffbeb", borderBottom: "1px solid #fde68a", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span style={{ fontSize: "13px" }}>⚠️</span>
-              <span style={{ fontSize: "11px", color: "#92400e" }}>저장하지 않으면 모든 대화는 사라집니다. Council은 PDF로 저장하세요.</span>
+              <span style={{ fontSize: "11px", color: "#92400e", flex: 1 }}>탭을 닫으면 모든 대화가 사라집니다.</span>
+              <button onClick={exportSession} disabled={!messages.length}
+                style={{ padding: "4px 12px", background: messages.length ? "#92400e" : "#d4a57a", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: messages.length ? "pointer" : "default", fontWeight: 600, flexShrink: 0 }}>
+                💾 세션 저장
+              </button>
+              <button onClick={() => importSessionRef.current?.click()}
+                style={{ padding: "4px 12px", background: "transparent", border: "1px solid #92400e", borderRadius: "20px", color: "#92400e", fontSize: "11px", cursor: "pointer", fontWeight: 600, flexShrink: 0 }}>
+                📂 이어가기
+              </button>
+              <input ref={importSessionRef} type="file" accept=".json" style={{ display: "none" }}
+                onChange={e => { importSession(e.target.files?.[0]); e.target.value = ""; }} />
             </div>
           )}
           <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
