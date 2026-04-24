@@ -10,7 +10,7 @@ import {
 } from "./api/supabase";
 
 // Prompts
-import { AGENT_SYSTEM_PROMPT, STAGES, STAGE_INFO, detectStage } from "./prompts/agent";
+import { buildSystemPrompt, STAGES, STAGE_INFO, detectStage } from "./prompts/agent";
 
 // Utils
 import { fileToBase64, fileToText, isPdf, parseCSV, computeStats } from "./utils/file";
@@ -63,6 +63,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [contextBriefing, setContextBriefing] = useState(null);
   const [dbSaving, setDbSaving] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -97,6 +98,10 @@ export default function App() {
             setCouncilSessions([]);
           }
           if (owner) {
+            fetch("https://alfred-agent-nine.vercel.app/api/get-context")
+              .then(r => r.json())
+              .then(data => { if (data.briefing) setContextBriefing(data.briefing); })
+              .catch(() => {});
             const githubLogin = u.user_metadata?.user_name || u.user_metadata?.preferred_username || "";
             if (githubLogin) {
               fetchProxyUrlFromServer(githubLogin).then(async (serverUrl) => {
@@ -223,7 +228,7 @@ export default function App() {
     ];
     let reply = "";
     await streamChatAPI(
-      { model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: AGENT_SYSTEM_PROMPT, messages: msgs },
+      { model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: buildSystemPrompt(contextBriefing), messages: msgs },
       (chunk) => {
         reply += chunk;
         setMessages(prev => {
@@ -367,7 +372,7 @@ export default function App() {
             {
               model: "claude-sonnet-4-6",
               max_tokens: 8000,
-              system: "당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, 아이디어 검토, 질문 답변 등 무엇이든 도와드립니다. 사용자가 'assemble' 또는 '어셈블'이라고 하면 Council 19인 토론을 소집할 수 있다고 안내하십시오.",
+              system: `당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, 아이디어 검토, 질문 답변 등 무엇이든 도와드립니다. 사용자가 'assemble' 또는 '어셈블'이라고 하면 Council 19인 토론을 소집할 수 있다고 안내하십시오.${contextBriefing ? `\n\n---\n\n## 현재 진행 상황 (백로그 / 컨텍스트)\n\n${contextBriefing}` : ""}`,
               messages: [...history, { role: "user", content: userText }],
             },
             (chunk) => {

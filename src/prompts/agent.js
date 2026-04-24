@@ -159,6 +159,19 @@ export const STAGE_INFO = {
   m5_validation: { label: "M5 검증", color: "#7a9e5a", icon: "✅" },
 };
 
+export function buildSystemPrompt(briefing) {
+  if (!briefing) return AGENT_SYSTEM_PROMPT;
+  return `${AGENT_SYSTEM_PROMPT}
+
+---
+
+## 현재 진행 상황 (백로그 / 컨텍스트)
+
+아래는 최신 인수인계 브리핑입니다. 사용자가 백로그, 진행 중인 작업, 이전 결정 사항을 물어보면 이 내용을 바탕으로 답하세요.
+
+${briefing}`;
+}
+
 export function detectStage(content) {
   const lower = content.toLowerCase();
   if (lower.includes("stage 1") || lower.includes("m1") || lower.includes("문제 발견") || lower.includes("5why")) return STAGES.M1;
