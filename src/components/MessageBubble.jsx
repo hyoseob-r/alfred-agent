@@ -22,7 +22,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner }) {
   const handleUploadForCompare = async (uploaded) => {
     if (uploaded.type === "image") {
       const data = await chatAPI({
-        model: "claude-sonnet-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 16000,
         system: "Extract all text content from this document image. Output only the text, preserving structure.",
         messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: uploaded.mediaType, data: uploaded.data } }, { type: "text", text: "이 문서의 모든 텍스트를 추출해 주십시오." }] }],

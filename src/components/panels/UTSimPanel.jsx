@@ -28,7 +28,7 @@ export default function UTSimPanel({ solutionContent, onClose }) {
     setSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
 
   const callAgent = async (system, userContent, maxTokens = 3000) => {
-    const data = await chatAPI({ model: "claude-sonnet-4-5-20251001", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] });
+    const data = await chatAPI({ model: "claude-sonnet-4-6", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] });
     return data.content?.[0]?.text || "";
   };
 

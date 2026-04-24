@@ -228,7 +228,7 @@ export default function App() {
     ];
     let reply = "";
     await streamChatAPI(
-      { model: "claude-sonnet-4-5-20251001", max_tokens: 16000, system: buildSystemPrompt(contextBriefing), messages: msgs },
+      { model: "claude-sonnet-4-6", max_tokens: 16000, system: buildSystemPrompt(contextBriefing), messages: msgs },
       (chunk) => {
         reply += chunk;
         setMessages(prev => {

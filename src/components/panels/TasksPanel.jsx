@@ -124,7 +124,7 @@ export default function TasksPanel() {
     setLoading(true);
     try {
       const data = await chatAPI({
-        model: "claude-sonnet-4-5-20251001",
+        model: "claude-sonnet-4-6",
         max_tokens: 4000,
         system: PROMPT_MAP[activeTask],
         messages: [{ role: "user", content: topic }],

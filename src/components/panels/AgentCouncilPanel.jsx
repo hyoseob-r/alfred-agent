@@ -82,7 +82,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
         let result = "";
         await streamChatAPI(
-          { model: "claude-sonnet-4-5-20251001", max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
+          { model: "claude-sonnet-4-6", max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
           (chunk) => {
             result += chunk;
             updateStep(agent.id, { status: "running", result });
@@ -164,7 +164,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setDetectingConflicts(true);
     try {
       const data = await chatAPI({
-        model: "claude-sonnet-4-5-20251001", max_tokens: 1000,
+        model: "claude-sonnet-4-6", max_tokens: 1000,
         system: `당신은 회의 퍼실리테이터입니다. 6인 전문가의 의견에서 핵심 충돌 지점을 3개 이내로 추출하십시오.
 형식: "충돌 1: [주제] — [A 주장] vs [B 주장]" 형태로 간결하게. 한국어로.`,
         messages: [{ role: "user", content: context }],
@@ -183,7 +183,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setSaveStatus("worklog_saving");
     try {
       const summaryData = await chatAPI({
-        model: "claude-sonnet-4-5-20251001", max_tokens: 600,
+        model: "claude-sonnet-4-6", max_tokens: 600,
         system: `당신은 회의록 작성자입니다. 다음 멀티라운드 에이전트 토론을 3~5줄로 요약하십시오.
 형식:
 - 주요 합의: [한 줄]
