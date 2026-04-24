@@ -483,7 +483,7 @@ export default function App() {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner} />
             ))}
-            {loading && (
+            {loading && messages[messages.length - 1]?.content === "" && (
               <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "16px" }}>
                 <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #f0f0f5 0%, #e8e8f0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>A</div>
                 <div style={{ padding: "12px 16px", background: "linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)", border: "1px solid #cccccc", borderRadius: "4px 16px 16px 16px", display: "flex", gap: "6px", alignItems: "center" }}>

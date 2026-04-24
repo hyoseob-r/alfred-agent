@@ -1,23 +1,28 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-claude-token')
+export const config = { runtime: 'edge' };
+
+export default async function handler(req) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, x-claude-token',
+  };
 
   if (req.method === 'OPTIONS') {
-    return res.status(200).end()
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
   }
 
   try {
-    const claudeToken = req.headers['x-claude-token'];
+    const body = await req.json();
+    const claudeToken = req.headers.get('x-claude-token');
     const authHeaders = claudeToken
       ? { 'Authorization': `Bearer ${claudeToken}` }
       : { 'x-api-key': process.env.ANTHROPIC_API_KEY };
 
-    const isStream = req.body.stream === true;
+    const isStream = body.stream === true;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -26,37 +31,36 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
         ...authHeaders,
       },
-      body: JSON.stringify(req.body),
-    })
+      body: JSON.stringify(body),
+    });
 
     if (!response.ok) {
-      const data = await response.json()
-      console.error('Anthropic API error:', response.status, JSON.stringify(data))
-      return res.status(response.status).json(data)
+      const data = await response.json();
+      return new Response(JSON.stringify(data), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     if (isStream) {
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
-
-      const reader = response.body.getReader()
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          res.write(Buffer.from(value))
-        }
-      } finally {
-        res.end()
-      }
-      return
+      return new Response(response.body, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          ...corsHeaders,
+        },
+      });
     }
 
-    const data = await response.json()
-    return res.status(200).json(data)
+    const data = await response.json();
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   } catch (error) {
-    console.error('API error:', error)
-    return res.status(500).json({ error: error.message || 'Internal server error' })
+    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 }
