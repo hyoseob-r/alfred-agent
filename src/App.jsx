@@ -433,10 +433,10 @@ export default function App() {
           }
         }
       }
-    } catch {
+    } catch (e) {
       setMessages(prev => {
         const updated = [...prev];
-        updated[updated.length - 1] = { role: "assistant", content: "오류가 발생했습니다. 다시 시도해 주십시오." };
+        updated[updated.length - 1] = { role: "assistant", content: `오류: ${e.message}` };
         return updated;
       });
     } finally {
