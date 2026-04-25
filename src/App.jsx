@@ -218,7 +218,13 @@ export default function App() {
     if (!started || !activeSessionId || messages.length === 0) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      const title = messages.find(m => m.role === "user")?.content?.slice(0, 40) || "새 대화";
+      // 세션 생성 시각을 ID에서 추출 (s_{timestamp})
+      const createdAt = new Date(parseInt(activeSessionId.split('_')[1]) || Date.now());
+      const pad = (n) => String(n).padStart(2, '0');
+      const dateStr = `${createdAt.getFullYear()}${pad(createdAt.getMonth() + 1)}${pad(createdAt.getDate())}`;
+      const timeStr = `${pad(createdAt.getHours())}${pad(createdAt.getMinutes())}${pad(createdAt.getSeconds())}`;
+      const seq = pad((sessions.length || 0) + 1);
+      const title = `alfred_chat_${seq}_${dateStr}_${timeStr}`;
       if (user) {
         setDbSaving(true);
         const giveUp = setTimeout(() => setDbSaving(false), 10000);
@@ -467,6 +473,8 @@ export default function App() {
     const userText = input.trim();
     const files = [...pendingImages];
     setInput(""); setPendingImages([]);
+    // 채팅 모드에서도 첫 메시지 발송 시 세션 ID 생성 (auto-save 활성화)
+    if (!activeSessionId && user) setActiveSessionId(newSessionId());
     const newMessages = [...messages, { role: "user", content: userText, files }];
     setMessages(newMessages);
     setLoading(true);
