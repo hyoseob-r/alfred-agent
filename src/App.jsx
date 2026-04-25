@@ -636,18 +636,15 @@ export default function App() {
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
                 onCouncilUpdate={(rounds, fullContext) => { councilDataRef.current = { rounds, fullContext }; }} />
             ))}
-            {loading && messages[messages.length - 1]?.content === "" && (
-              <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "16px" }}>
-                <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #f0f0f5 0%, #e8e8f0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>A</div>
-                <div style={{ padding: "12px 16px", background: "linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)", border: "1px solid #cccccc", borderRadius: "4px 16px 16px 16px", display: "flex", gap: "6px", alignItems: "center" }}>
-                  {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#aaaaaa", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
-                  {loadingElapsed > 0 && <span style={{ fontSize: "11px", color: "#bbbbbb", marginLeft: "6px", fontVariantNumeric: "tabular-nums" }}>{loadingElapsed}s</span>}
-                </div>
-              </div>
-            )}
             <div ref={bottomRef} />
           </div>
 
+          {loading && (
+            <div style={{ padding: "5px 20px", background: "#fafafa", borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: "8px" }}>
+              {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#bbbbbb", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+              <span style={{ fontSize: "11px", color: "#bbbbbb", fontVariantNumeric: "tabular-nums" }}>응답 생성 중 {loadingElapsed}s</span>
+            </div>
+          )}
           <div style={{ background: "#ffffff", borderTop: "1px solid #e5e5e5" }}>
             <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
             {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
