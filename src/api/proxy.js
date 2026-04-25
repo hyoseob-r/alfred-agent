@@ -11,7 +11,8 @@ export function setActiveProxyUrl(url) {
 
 export async function chatAPI(body) {
   const proxyUrl = getProxyUrl();
-  const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : "/api/chat";
+  if (!proxyUrl) throw new Error("프록시 미연결 — 우측 상단 프록시 버튼에서 로컬 프록시를 연결해 주세요.");
+  const url = `${proxyUrl.replace(/\/$/, '')}/api/chat`;
   const headers = { "Content-Type": "application/json" };
   const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
   return resp.json();
@@ -19,7 +20,8 @@ export async function chatAPI(body) {
 
 export async function streamChatAPI(body, onChunk) {
   const proxyUrl = getProxyUrl();
-  const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : "/api/chat";
+  if (!proxyUrl) throw new Error("프록시 미연결 — 우측 상단 프록시 버튼에서 로컬 프록시를 연결해 주세요.");
+  const url = `${proxyUrl.replace(/\/$/, '')}/api/chat`;
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
