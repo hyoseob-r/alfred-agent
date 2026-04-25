@@ -68,6 +68,8 @@ export default function App() {
   const [contextBriefing, setContextBriefing] = useState(null);
   const [selectedModel, setSelectedModelState] = useState(getSelectedModel());
   const [dbSaving, setDbSaving] = useState(false);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
+  const loadingStartRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -180,6 +182,14 @@ export default function App() {
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    if (!loading) { setLoadingElapsed(0); return; }
+    const t = setInterval(() => {
+      if (loadingStartRef.current) setLoadingElapsed(Math.floor((Date.now() - loadingStartRef.current) / 1000));
+    }, 500);
+    return () => clearInterval(t);
+  }, [loading]);
 
   // 탭 전환 시 히스토리 swap
   const prevChatMode = useRef(chatMode);
@@ -346,6 +356,8 @@ export default function App() {
     const newMessages = [...messages, { role: "user", content: userText, files }];
     setMessages(newMessages);
     setLoading(true);
+    loadingStartRef.current = Date.now();
+    setLoadingElapsed(0);
     try {
       setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
@@ -448,6 +460,7 @@ export default function App() {
       });
     } finally {
       setLoading(false);
+      loadingStartRef.current = null;
       inputRef.current?.focus();
     }
   };
@@ -628,6 +641,7 @@ export default function App() {
                 <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #f0f0f5 0%, #e8e8f0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>A</div>
                 <div style={{ padding: "12px 16px", background: "linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%)", border: "1px solid #cccccc", borderRadius: "4px 16px 16px 16px", display: "flex", gap: "6px", alignItems: "center" }}>
                   {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#aaaaaa", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                  {loadingElapsed > 0 && <span style={{ fontSize: "11px", color: "#bbbbbb", marginLeft: "6px", fontVariantNumeric: "tabular-nums" }}>{loadingElapsed}s</span>}
                 </div>
               </div>
             )}
