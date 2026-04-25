@@ -11,6 +11,8 @@ import {
 
 // Prompts
 import { buildSystemPrompt, STAGES, STAGE_INFO, detectStage } from "./prompts/agent";
+import { AGENT_COUNCIL_PROMPTS, FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "./prompts/council";
+import { ROUND_CONFIG, getAgentsForRound } from "./components/panels/AgentCouncilPanel";
 import { getSelectedModel } from "./utils/model";
 
 // Utils
@@ -76,6 +78,8 @@ export default function App() {
   const importSessionRef = useRef(null);
   const councilDataRef = useRef(null); // { rounds, fullContext }
   const chatTimingsRef = useRef([]); // completed chat response durations (seconds)
+  const councilAbortRef = useRef(null);
+  const [councilRunning, setCouncilRunning] = useState(false);
 
   const exportSession = () => {
     if (!messages.length) return;
@@ -350,6 +354,112 @@ export default function App() {
     setMessages([]);
     setActiveSessionId(null);
     setCurrentStage(STAGES.IDLE);
+  };
+
+  const runCouncilInChat = async (solutionContent) => {
+    if (councilRunning) return;
+    setCouncilRunning(true);
+    const ac = new AbortController();
+    councilAbortRef.current = ac;
+    let cumulativeContext = "";
+    const agentTimings = [];
+    const getEstimate = () => agentTimings.length > 0
+      ? Math.round(agentTimings.reduce((a, b) => a + b, 0) / agentTimings.length) : 45;
+
+    for (let roundNum = 1; roundNum <= 3; roundNum++) {
+      if (ac.signal.aborted) break;
+      const roundConfig = ROUND_CONFIG[roundNum - 1];
+      const roundAgents = getAgentsForRound(roundNum);
+
+      // 라운드 헤더 메시지
+      setMessages(prev => [...prev, {
+        role: "assistant", content: "",
+        isCouncilRoundHeader: true, councilRound: roundNum,
+        councilLabel: roundConfig.label, councilSubtitle: roundConfig.subtitle, councilColor: roundConfig.color,
+      }]);
+
+      // 컨텍스트 구성 (Round 2~3: 이전 라운드 요약 압축)
+      if (roundNum === 1) {
+        cumulativeContext = roundConfig.contextIntro + solutionContent;
+      } else {
+        let summary = "";
+        try {
+          await streamChatAPI(
+            { model: getSelectedModel(), max_tokens: 1200,
+              system: "당신은 회의 요약 전문가입니다. 멀티라운드 에이전트 토론을 다음 라운드 참가자들이 맥락을 이해할 수 있도록 압축하세요.\n규칙:\n- 각 에이전트의 핵심 주장 1~2줄씩 보존\n- 주요 합의점과 충돌 지점 명시\n- 원본 발언의 핵심 논지는 반드시 유지\n- 한국어로. 절대 중요한 인사이트를 누락하지 말 것.",
+              messages: [{ role: "user", content: `다음 에이전트 토론을 요약해주세요:\n\n${cumulativeContext}` }] },
+            (chunk) => { summary += chunk; }, ac.signal
+          );
+        } catch {}
+        cumulativeContext = `[원래 주제]\n${solutionContent}\n\n[이전 라운드 요약]\n${summary || cumulativeContext.slice(0, 2000)}`;
+      }
+
+      const roundContext = cumulativeContext
+        + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n[${roundNum}라운드 — ${roundConfig.label} (${roundConfig.subtitle})]\n${roundConfig.contextIntro}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+      for (const agent of roundAgents) {
+        if (ac.signal.aborted) break;
+        const isFactChecker = agent.id === "factchecker";
+        const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+        const systemPrompt = isFactChecker ? basePrompt
+          : roundNum === 1 ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
+          : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+
+        const startedAt = Date.now();
+        const estimatedTime = getEstimate();
+        setMessages(prev => [...prev, {
+          role: "assistant", content: "",
+          isCouncilAgent: true, agentId: agent.id, agentRole: agent.role,
+          agentIcon: agent.icon, agentColor: agent.color,
+          councilRound: roundNum, councilStatus: "running",
+          startedAt, estimatedTime,
+        }]);
+
+        let result = "";
+        const updateAgentMsg = (updates) => setMessages(prev => {
+          const updated = [...prev];
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].isCouncilAgent && updated[i].agentId === agent.id && updated[i].councilRound === roundNum) {
+              updated[i] = { ...updated[i], ...updates }; break;
+            }
+          }
+          return updated;
+        });
+
+        try {
+          await streamChatAPI(
+            { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: roundContext }] },
+            (chunk) => { result += chunk; updateAgentMsg({ content: result }); },
+            ac.signal
+          );
+          const dur = Math.floor((Date.now() - startedAt) / 1000);
+          if (dur > 2) agentTimings.push(dur);
+          updateAgentMsg({ councilStatus: "done" });
+          cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
+        } catch (e) {
+          if (e.name === "AbortError" || e.message === "STREAM_TRUNCATED") {
+            if (result) {
+              updateAgentMsg({ councilStatus: "stopped" });
+              cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
+            } else {
+              updateAgentMsg({ councilStatus: "stopped" });
+            }
+            break;
+          }
+          updateAgentMsg({ content: `오류: ${e.message}`, councilStatus: "error" });
+        }
+      }
+      if (ac.signal.aborted) break;
+    }
+
+    if (!ac.signal.aborted) {
+      setMessages(prev => [...prev, {
+        role: "assistant", content: "✅ 19인 토론이 완료됐습니다.",
+        isCouncilComplete: true,
+      }]);
+    }
+    setCouncilRunning(false);
+    councilAbortRef.current = null;
   };
 
   const sendMessage = async () => {
@@ -642,9 +752,9 @@ export default function App() {
             )}
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
+                onCouncilStart={runCouncilInChat}
                 onCouncilUpdate={(rounds, fullContext) => {
                   councilDataRef.current = { rounds, fullContext };
-                  // assemble 메시지에 council 데이터 직접 반영 → auto-save로 세션에 포함됨
                   setMessages(prev => {
                     const updated = [...prev];
                     updated[i] = { ...updated[i], councilRounds: rounds, councilContext: fullContext };
@@ -655,6 +765,16 @@ export default function App() {
             <div ref={bottomRef} />
           </div>
 
+          {councilRunning && (
+            <div style={{ padding: "5px 20px", background: "#fff8f0", borderTop: "1px solid #f0e0cc", display: "flex", alignItems: "center", gap: "10px" }}>
+              {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#c0783a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+              <span style={{ fontSize: "11px", color: "#c0783a", flex: 1 }}>⚡ Council 19인 토론 진행 중...</span>
+              <button onClick={() => councilAbortRef.current?.abort()}
+                style={{ padding: "3px 12px", background: "#fff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
+                ⏹ 중지
+              </button>
+            </div>
+          )}
           {loading && (() => {
             const timings = chatTimingsRef.current;
             const chatEstimate = timings.length > 0

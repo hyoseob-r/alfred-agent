@@ -1,20 +1,73 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { chatAPI } from "../api/proxy";
 import { extractChartSpec, FullViewButton, MarkdownRenderer } from "../utils/markdown";
 import { ChartRenderer, DataSummaryCard } from "./ChartRenderer";
 import { DocActionBar, M3ActionBar } from "./ActionBars";
 import ComparePanel from "./panels/ComparePanel";
-import AgentCouncilPanel from "./panels/AgentCouncilPanel";
 import UTSimPanel from "./panels/UTSimPanel";
 
-export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate }) {
+// Council 라운드 헤더 (인라인)
+function CouncilRoundHeader({ msg }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "20px 0 12px 0" }}>
+      <div style={{ width: "3px", height: "20px", background: msg.councilColor || "#6c8ebf", borderRadius: "2px", flexShrink: 0 }} />
+      <div style={{ fontSize: "11px", fontWeight: 700, color: msg.councilColor || "#6c8ebf", letterSpacing: "0.15em" }}>
+        {msg.councilRound}R — {msg.councilLabel}
+        <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: "6px" }}>({msg.councilSubtitle})</span>
+      </div>
+      <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+    </div>
+  );
+}
+
+// Council 에이전트 응답 (인라인 스트리밍)
+function CouncilAgentBubble({ msg }) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (msg.councilStatus !== "running") return;
+    const start = msg.startedAt || Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 500);
+    return () => clearInterval(t);
+  }, [msg.councilStatus, msg.startedAt]);
+
+  const color = msg.agentColor || "#888888";
+  return (
+    <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "flex-start" }}>
+      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: color + "22", border: `1px solid ${color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px" }}>
+        {msg.agentIcon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, color, marginBottom: "6px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          {msg.agentRole}
+        </div>
+        <div style={{ padding: "12px 14px", background: msg.councilStatus === "stopped" ? "#fffbea" : "#ffffff", border: `1px solid ${msg.councilStatus === "stopped" ? "#f0c040" : color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
+          {msg.councilStatus === "running" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: msg.content ? "8px" : 0 }}>
+              {[0,1,2].map(j => <div key={j} style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
+              <span style={{ fontSize: "11px", color, marginLeft: "4px" }}>검토 중...</span>
+              <span style={{ fontSize: "11px", color: color + "99", marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
+                {elapsed}s <span style={{ color: color + "55" }}>/ ~{msg.estimatedTime || 45}s</span>
+              </span>
+            </div>
+          )}
+          {msg.councilStatus === "stopped" && !msg.content && (
+            <div style={{ fontSize: "10px", color: "#b07800" }}>⏹ 중단됨</div>
+          )}
+          {msg.councilStatus === "stopped" && msg.content && (
+            <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 부분 응답</div>
+          )}
+          {msg.content && <MarkdownRenderer content={msg.content} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
-  const [showAssembleCouncil, setShowAssembleCouncil] = useState(false);
   const [showAssembleUT, setShowAssembleUT] = useState(false);
-  const [councilRounds, setCouncilRounds] = useState(msg.councilRounds || []);
-  const [councilContext, setCouncilContext] = useState(msg.councilContext || "");
 
   const has2pager = !isUser && msg.content && (
     msg.content.includes("문제 정의서") || msg.content.includes("Problem Definition")
@@ -35,6 +88,17 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
     }
     setShowCompare(true);
   };
+
+  // Council 특수 메시지 — 인라인 렌더링
+  if (msg.isCouncilRoundHeader) return <CouncilRoundHeader msg={msg} />;
+  if (msg.isCouncilAgent) return <CouncilAgentBubble msg={msg} />;
+  if (msg.isCouncilComplete) {
+    return (
+      <div style={{ margin: "12px 0 20px 48px", padding: "10px 16px", background: "#f0fff4", border: "1px solid #88cc88", borderRadius: "12px", fontSize: "12px", color: "#336633", fontWeight: 600 }}>
+        {msg.content}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -110,20 +174,21 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
             user={user}
             sessionId={sessionId}
             isOwner={isOwner}
+            onCouncilStart={onCouncilStart}
           />
         </div>
       )}
 
-      {/* Assemble — Chat에서 알프가 브리핑 후 Council 소집 버튼 */}
+      {/* Assemble — Council 소집 버튼 (인라인 실행) */}
       {msg.isAssemble && !isUser && (
         <div style={{ marginBottom: "16px", marginLeft: "42px", display: "flex", gap: "8px" }}>
           <button
-            onClick={() => setShowAssembleCouncil(true)}
+            onClick={() => onCouncilStart?.(msg.assembleContext)}
             style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 18px", background: "#111111", border: "1px solid #333333", borderRadius: "20px", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", letterSpacing: "0.04em" }}
             onMouseEnter={e => e.currentTarget.style.background = "#333333"}
             onMouseLeave={e => e.currentTarget.style.background = "#111111"}
           >
-            ⚖️ Council 19인 토론 시작
+            ⚡ Council 19인 토론 시작
           </button>
           <button
             onClick={() => setShowAssembleUT(true)}
@@ -136,22 +201,6 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
         </div>
       )}
 
-      {showAssembleCouncil && msg.assembleContext && (
-        <AgentCouncilPanel
-          solutionContent={msg.assembleContext}
-          onClose={() => setShowAssembleCouncil(false)}
-          user={user}
-          sessionId={sessionId}
-          isOwner={isOwner}
-          initialRounds={councilRounds}
-          initialContext={councilContext}
-          onRoundsUpdate={(rounds, ctx) => {
-            setCouncilRounds(rounds);
-            if (ctx) setCouncilContext(ctx);
-            onCouncilUpdate?.(rounds, ctx);
-          }}
-        />
-      )}
       {showAssembleUT && msg.assembleContext && (
         <UTSimPanel
           solutionContent={msg.assembleContext}

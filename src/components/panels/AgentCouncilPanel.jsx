@@ -6,7 +6,7 @@ import { dbNextCouncilId, dbSaveCouncilSession } from "../../api/supabase";
 import { getSelectedModel } from "../../utils/model";
 import { MarkdownRenderer, openFullView } from "../../utils/markdown";
 
-const AGENTS = [
+export const AGENTS = [
   { id: "ux",              role: "Ms. Designer",     icon: "🎨", color: "#6c8ebf" },
   { id: "dev",             role: "Mr. Engineer",     icon: "💻", color: "#5a9e8f" },
   { id: "biz",             role: "Ms. Strategist",   icon: "📊", color: "#c97b3a" },
@@ -29,7 +29,7 @@ const AGENTS = [
   { id: "user_selective",  role: "선택적 고객",         icon: "🧐", color: "#7a5a3a" },
 ];
 
-const ROUND_CONFIG = [
+export const ROUND_CONFIG = [
   { round: 1, label: "사장님 반응",   subtitle: "사장님 7인", color: "#c0783a",
     agentIds: ["sajang_analyst","sajang_survive","sajang_growth","sajang_distrust","sajang_busy","sajang_review","sajang_resign"],
     contextIntro: "다음 전략/솔루션에 대한 현장 사장님 반응을 평가해 주십시오:\n\n" },
@@ -49,7 +49,7 @@ const isRateLimitError = (msg) => {
     || m.includes("529") || m === "stream_truncated";
 };
 
-const getAgentsForRound = (round) => AGENTS.filter(a => ROUND_CONFIG[round - 1]?.agentIds.includes(a.id));
+export const getAgentsForRound = (round) => AGENTS.filter(a => ROUND_CONFIG[round - 1]?.agentIds.includes(a.id));
 
 export default function AgentCouncilPanel({ solutionContent, onClose, user, sessionId, isOwner, onRoundsUpdate, initialRounds, initialContext }) {
   const [rounds, setRounds] = useState(initialRounds && initialRounds.length > 0 ? initialRounds : []);
