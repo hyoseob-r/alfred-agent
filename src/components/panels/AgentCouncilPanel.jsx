@@ -49,6 +49,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const [currentRound, setCurrentRound] = useState(1);
   const [roundDone, setRoundDone] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausedRoundState, setPausedRoundState] = useState(null);
+  const stopFlagRef = useState(() => ({ current: false }))[0];
   const [fullContext, setFullContext] = useState("");
   const [conflicts, setConflicts] = useState("");
   const [detectingConflicts, setDetectingConflicts] = useState(false);
@@ -90,16 +93,38 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     }
   };
 
-  const runRound = async (roundNum, baseContext) => {
+  const runRound = async (roundNum, baseContext, startFromIndex = 0, existingSteps = []) => {
     const roundAgents = getAgentsForRound(roundNum);
+    stopFlagRef.current = false;
     setIsRunning(true);
+    setIsPaused(false);
+    setPausedRoundState(null);
     setRoundDone(false);
-    setCurrentSteps(roundAgents.map(a => ({ ...a, status: "waiting", result: "" })));
+
+    const initSteps = roundAgents.map((a, i) => {
+      if (i < startFromIndex) {
+        const done = existingSteps.find(s => s.id === a.id);
+        return done ? { ...a, ...done } : { ...a, status: "done", result: "" };
+      }
+      return { ...a, status: "waiting", result: "" };
+    });
+    setCurrentSteps(initSteps);
 
     let context = baseContext;
-    const roundSteps = [];
+    const roundSteps = [...existingSteps];
 
-    for (const agent of roundAgents) {
+    for (let i = startFromIndex; i < roundAgents.length; i++) {
+      const agent = roundAgents[i];
+
+      if (stopFlagRef.current) {
+        // 멈춤 — 현재까지 진행 상황 보존
+        setCurrentSteps(prev => prev.map(s => s.status === "waiting" ? { ...s, status: "waiting" } : s));
+        setPausedRoundState({ roundNum, context, agentIndex: i, existingSteps: roundSteps });
+        setIsPaused(true);
+        setIsRunning(false);
+        return;
+      }
+
       updateStep(agent.id, { status: "running", result: "" });
       try {
         const isFactChecker = agent.id === "factchecker";
@@ -114,10 +139,22 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
         await streamChatAPI(
           { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
           (chunk) => {
+            if (stopFlagRef.current) return;
             result += chunk;
             updateStep(agent.id, { status: "running", result });
           }
         );
+
+        if (stopFlagRef.current) {
+          updateStep(agent.id, { status: "done", result });
+          context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
+          roundSteps.push({ ...agent, result, status: "done" });
+          setPausedRoundState({ roundNum, context, agentIndex: i + 1, existingSteps: roundSteps });
+          setIsPaused(true);
+          setIsRunning(false);
+          return;
+        }
+
         updateStep(agent.id, { status: "done", result });
         context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
         roundSteps.push({ ...agent, result, status: "done" });
@@ -153,6 +190,14 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
         setSaveStatus("error");
       }
     }
+  };
+
+  const stopCouncil = () => { stopFlagRef.current = true; };
+
+  const resumeCouncil = () => {
+    if (!pausedRoundState) return;
+    const { roundNum, context, agentIndex, existingSteps } = pausedRoundState;
+    runRound(roundNum, context, agentIndex, existingSteps);
   };
 
   const runSpecialPanel = async () => {
@@ -442,10 +487,22 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             {saveStatus === "worklog_saving" && <span style={{ fontSize: "10px", color: "#aaaaaa" }}>WORKLOG 업데이트 중...</span>}
             {saveStatus === "error" && <span style={{ fontSize: "10px", color: "#cc4444" }}>저장 오류</span>}
           </div>
+          {isRunning && (
+            <button onClick={stopCouncil}
+              style={{ padding: "8px 20px", background: "#ffffff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
+              ⏹ 멈추기
+            </button>
+          )}
+          {isPaused && (
+            <button onClick={resumeCouncil}
+              style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
+              ▶ 이어가기
+            </button>
+          )}
           {isSummarizing && (
             <span style={{ fontSize: "11px", color: "#aaaaaa" }}>✦ 이전 라운드 압축 중...</span>
           )}
-          {roundDone && !isRunning && !isSummarizing && currentRound < 3 && (
+          {roundDone && !isRunning && !isSummarizing && !isPaused && currentRound < 3 && (
             <button onClick={startNextRound}
               style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
               {ROUND_CONFIG[currentRound]?.label} → ({ROUND_CONFIG[currentRound]?.subtitle})
