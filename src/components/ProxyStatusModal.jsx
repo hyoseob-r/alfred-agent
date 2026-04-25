@@ -8,6 +8,17 @@ export default function ProxyStatusModal({ onClose, githubLogin, proxyUrl, onDet
 
   const check = async () => {
     setStatus('checking');
+    // 1) 로컬호스트 직접 시도 (같은 컴퓨터에서 실행 중인 경우)
+    const localUrl = 'http://localhost:7432';
+    const localAlive = await testProxyConnection(localUrl);
+    if (localAlive) {
+      setDetectedUrl(localUrl);
+      setActiveProxyUrl(localUrl);
+      onDetected(localUrl);
+      setStatus('ok');
+      return;
+    }
+    // 2) 서버에 등록된 URL 조회 (로그인 상태)
     if (githubLogin) {
       const serverUrl = await fetchProxyUrlFromServer(githubLogin);
       if (serverUrl) {
@@ -21,6 +32,7 @@ export default function ProxyStatusModal({ onClose, githubLogin, proxyUrl, onDet
         }
       }
     }
+    // 3) 캐시된 URL
     const cached = getProxyUrl();
     if (cached) {
       const alive = await testProxyConnection(cached);
