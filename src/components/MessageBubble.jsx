@@ -13,6 +13,8 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
   const [showCompare, setShowCompare] = useState(false);
   const [showAssembleCouncil, setShowAssembleCouncil] = useState(false);
   const [showAssembleUT, setShowAssembleUT] = useState(false);
+  const [councilRounds, setCouncilRounds] = useState([]);
+  const [councilContext, setCouncilContext] = useState("");
 
   const has2pager = !isUser && msg.content && (
     msg.content.includes("문제 정의서") || msg.content.includes("Problem Definition")
@@ -141,7 +143,13 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
           user={user}
           sessionId={sessionId}
           isOwner={isOwner}
-          onRoundsUpdate={onCouncilUpdate}
+          initialRounds={councilRounds}
+          initialContext={councilContext}
+          onRoundsUpdate={(rounds, ctx) => {
+            setCouncilRounds(rounds);
+            if (ctx) setCouncilContext(ctx);
+            onCouncilUpdate?.(rounds, ctx);
+          }}
         />
       )}
       {showAssembleUT && msg.assembleContext && (

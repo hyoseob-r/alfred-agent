@@ -41,29 +41,50 @@ const ROUND_CONFIG = [
     contextIntro: "\n위 사장님·소비자 반응을 종합하여, 전문가 관점에서 전략의 실현 가능성을 재평가하십시오.\n" },
 ];
 
+const DEFAULT_ESTIMATE_SEC = 45;
+
+const isRateLimitError = (msg) => {
+  const m = (msg || "").toLowerCase();
+  return m.includes("429") || m.includes("rate limit") || m.includes("overloaded")
+    || m.includes("529") || m === "stream_truncated";
+};
+
 const getAgentsForRound = (round) => AGENTS.filter(a => ROUND_CONFIG[round - 1]?.agentIds.includes(a.id));
 
-export default function AgentCouncilPanel({ solutionContent, onClose, user, sessionId, isOwner, onRoundsUpdate }) {
-  const [rounds, setRounds] = useState([]);
-  const [currentRound, setCurrentRound] = useState(1);
+export default function AgentCouncilPanel({ solutionContent, onClose, user, sessionId, isOwner, onRoundsUpdate, initialRounds, initialContext }) {
+  const [rounds, setRounds] = useState(initialRounds && initialRounds.length > 0 ? initialRounds : []);
+  const [currentRound, setCurrentRound] = useState(() => {
+    if (initialRounds && initialRounds.length > 0) {
+      return Math.max(...initialRounds.map(r => typeof r.round === "number" ? r.round : 0));
+    }
+    return 1;
+  });
   const [currentSteps, setCurrentSteps] = useState(getAgentsForRound(1).map(a => ({ ...a, status: "waiting", result: "" })));
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  // pendingNext: { roundNum, context, agentIndex, existingSteps } — 다음 에이전트 대기 상태
+  const [pauseReason, setPauseReason] = useState(null); // "manual" | "ratelimit"
   const [pendingNext, setPendingNext] = useState(null);
   const [pausedState, setPausedState] = useState(null);
-  const [roundDone, setRoundDone] = useState(false);
-  const [fullContext, setFullContext] = useState("");
+  const [roundDone, setRoundDone] = useState(() => initialRounds && initialRounds.length > 0);
+  const [fullContext, setFullContext] = useState(initialContext || "");
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [collapsedRounds, setCollapsedRounds] = useState({});
+  const [collapsedRounds, setCollapsedRounds] = useState(() => {
+    if (initialRounds && initialRounds.length > 0) {
+      const c = {};
+      initialRounds.forEach(r => { if (typeof r.round === "number") c[r.round] = true; });
+      return c;
+    }
+    return {};
+  });
   const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [specialSteps, setSpecialSteps] = useState([]);
   const [specialDone, setSpecialDone] = useState(false);
-  const [conflicts, setConflicts] = useState("");
   const [agentStartTime, setAgentStartTime] = useState(null);
   const [agentElapsed, setAgentElapsed] = useState(0);
   const abortControllerRef = useRef(null);
+  const agentStartRef = useRef(null); // for timing calculation (not subject to stale closure)
+  const agentTimingsRef = useRef([]); // completed agent durations (seconds)
 
   useEffect(() => {
     if (!isRunning || !agentStartTime) { setAgentElapsed(0); return; }
@@ -71,10 +92,15 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     return () => clearInterval(t);
   }, [isRunning, agentStartTime]);
 
+  const getEstimatedTime = () => {
+    if (agentTimingsRef.current.length === 0) return DEFAULT_ESTIMATE_SEC;
+    const sum = agentTimingsRef.current.reduce((a, b) => a + b, 0);
+    return Math.round(sum / agentTimingsRef.current.length);
+  };
+
   const updateStep = (id, updates) =>
     setCurrentSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
 
-  // 라운드 완료 처리
   const finishRound = async (roundNum, context, roundSteps) => {
     setFullContext(context);
     const newRounds = [...rounds, { round: roundNum, steps: roundSteps }];
@@ -96,18 +122,19 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     }
   };
 
-  // 에이전트 1명 실행
   const runOneAgent = async (roundNum, context, agentIndex, existingSteps) => {
     const roundAgents = getAgentsForRound(roundNum);
     const ac = new AbortController();
     abortControllerRef.current = ac;
     setIsRunning(true);
     setIsPaused(false);
+    setPauseReason(null);
     setPausedState(null);
     setPendingNext(null);
-    setAgentStartTime(Date.now());
+    const now = Date.now();
+    setAgentStartTime(now);
+    agentStartRef.current = now;
 
-    // currentSteps 세팅 (완료된 것 유지, 현재 running, 나머지 waiting)
     setCurrentSteps(roundAgents.map((a, i) => {
       if (i < agentIndex) {
         const done = existingSteps.find(s => s.id === a.id);
@@ -128,6 +155,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
     let result = "";
     let aborted = false;
+    let rateLimited = false;
     try {
       await streamChatAPI(
         { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
@@ -137,6 +165,8 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     } catch (e) {
       if (e.name === "AbortError") {
         aborted = true;
+      } else if (isRateLimitError(e.message)) {
+        rateLimited = true;
       } else {
         updateStep(agent.id, { status: "error", result: `오류: ${e.message}` });
         existingSteps.push({ ...agent, result: `오류: ${e.message}`, status: "error" });
@@ -146,7 +176,14 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       }
     }
 
-    if (aborted) {
+    // record timing for completed or partial responses
+    if (agentStartRef.current) {
+      const duration = Math.floor((Date.now() - agentStartRef.current) / 1000);
+      if (duration > 2) agentTimingsRef.current.push(duration);
+    }
+
+    if (aborted || rateLimited) {
+      const reason = aborted ? "manual" : "ratelimit";
       updateStep(agent.id, { status: "paused", result });
       const newSteps = [...existingSteps];
       if (result) {
@@ -156,6 +193,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       } else {
         setPausedState({ roundNum, context, agentIndex, existingSteps: newSteps });
       }
+      setPauseReason(reason);
       setIsPaused(true);
       setIsRunning(false);
       setAgentStartTime(null);
@@ -170,10 +208,8 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
     const nextIndex = agentIndex + 1;
     if (nextIndex < roundAgents.length) {
-      // 다음 에이전트 대기
       setPendingNext({ roundNum, context: newContext, agentIndex: nextIndex, existingSteps: newSteps });
     } else {
-      // 라운드 완료
       finishRound(roundNum, newContext, newSteps);
     }
   };
@@ -299,14 +335,18 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   };
 
   useEffect(() => {
-    const config = ROUND_CONFIG[0];
-    runOneAgent(1, config.contextIntro + solutionContent, 0, []);
+    // 초기 rounds가 없을 때만 자동 시작
+    if (!initialRounds || initialRounds.length === 0) {
+      const config = ROUND_CONFIG[0];
+      runOneAgent(1, config.contextIntro + solutionContent, 0, []);
+    }
   }, []);
 
-  // 현재 라운드에서 다음 에이전트 이름
   const nextAgentName = pendingNext
     ? getAgentsForRound(pendingNext.roundNum)[pendingNext.agentIndex]?.role
     : null;
+
+  const estimatedTime = getEstimatedTime();
 
   const AgentStepView = ({ steps, onRetry }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -326,7 +366,10 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                   {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
                   <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
                 </div>
-                <span style={{ fontSize: "11px", color: step.color + "99", fontVariantNumeric: "tabular-nums" }}>{agentElapsed}s</span>
+                <div style={{ display: "flex", gap: "6px", alignItems: "center", fontVariantNumeric: "tabular-nums" }}>
+                  <span style={{ fontSize: "11px", color: step.color + "bb" }}>{agentElapsed}s</span>
+                  <span style={{ fontSize: "10px", color: step.color + "66" }}>/ ~{estimatedTime}s</span>
+                </div>
               </div>
             )}
             {step.status === "paused" && (
@@ -361,6 +404,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스</span>
             <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>
               {isRunning ? `${currentRound}R 진행 중...`
+                : isPaused && pauseReason === "ratelimit" ? "⚠ 응답 제한 (리밋)"
                 : isPaused ? "⏸ 중단됨"
                 : isSummarizing ? "✦ 압축 중..."
                 : specialDone ? "✦ Special Panel 완료"
@@ -444,7 +488,16 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 ⏹ 멈추기
               </button>
             )}
-            {isPaused && (
+            {isPaused && pauseReason === "ratelimit" && (
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span style={{ fontSize: "11px", color: "#b07800" }}>⚠ 리밋 중단 — 같은 패널부터 재개</span>
+                <button onClick={resumeCouncil}
+                  style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                  ↺ 재시도
+                </button>
+              </div>
+            )}
+            {isPaused && pauseReason === "manual" && (
               <button onClick={resumeCouncil}
                 style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
                 ▶ 이어가기

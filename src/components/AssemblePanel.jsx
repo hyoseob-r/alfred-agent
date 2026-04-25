@@ -7,6 +7,8 @@ export default function AssemblePanel({ user, sessionId, isOwner }) {
   const [submitted, setSubmitted] = useState("");
   const [showCouncil, setShowCouncil] = useState(false);
   const [showUT, setShowUT] = useState(false);
+  const [councilRounds, setCouncilRounds] = useState([]);
+  const [councilContext, setCouncilContext] = useState("");
 
   const canRun = input.trim().length > 0;
 
@@ -124,6 +126,9 @@ export default function AssemblePanel({ user, sessionId, isOwner }) {
           user={user}
           sessionId={sessionId}
           isOwner={isOwner}
+          initialRounds={councilRounds}
+          initialContext={councilContext}
+          onRoundsUpdate={(rounds, ctx) => { setCouncilRounds(rounds); if (ctx) setCouncilContext(ctx); }}
         />
       )}
       {showUT && submitted && (

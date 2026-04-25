@@ -34,6 +34,7 @@ export async function streamChatAPI(body, onChunk, signal) {
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let properlyTerminated = false;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -43,16 +44,20 @@ export async function streamChatAPI(body, onChunk, signal) {
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
       const data = line.slice(6).trim();
-      if (data === "[DONE]") return;
+      if (data === "[DONE]") { properlyTerminated = true; return; }
       try {
         const json = JSON.parse(data);
         if (json.type === "content_block_delta" && json.delta?.type === "text_delta") {
           onChunk(json.delta.text);
         } else if (json.type === "message_stop") {
+          properlyTerminated = true;
           return;
         }
       } catch {}
     }
+  }
+  if (!properlyTerminated) {
+    throw new Error("STREAM_TRUNCATED");
   }
 }
 

@@ -7,14 +7,17 @@ import UTSimPanel from "./panels/UTSimPanel";
 export function M3ActionBar({ solutionContent, user, sessionId, isOwner }) {
   const [showCouncil, setShowCouncil] = useState(false);
   const [showUT, setShowUT] = useState(false);
+  const [councilRounds, setCouncilRounds] = useState([]);
+  const [councilContext, setCouncilContext] = useState("");
+  const hasProgress = councilRounds.length > 0;
   return (
     <>
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", margin: "8px 0 0 42px" }}>
         <button onClick={() => setShowCouncil(true)}
-          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#f0f4ff", border: "1px solid #aab4ee", borderRadius: "20px", color: "#446699", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
+          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: hasProgress ? "#f0f4ff" : "#f0f4ff", border: `1px solid ${hasProgress ? "#7788cc" : "#aab4ee"}`, borderRadius: "20px", color: "#446699", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
           onMouseEnter={e => e.currentTarget.style.borderColor = "#7788cc"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = "#aab4ee"}>
-          🧑‍🤝‍🧑 에이전트 협의
+          onMouseLeave={e => e.currentTarget.style.borderColor = hasProgress ? "#7788cc" : "#aab4ee"}>
+          🧑‍🤝‍🧑 에이전트 협의{hasProgress ? ` (${councilRounds.length}R 완료)` : ""}
         </button>
         <button onClick={() => setShowUT(true)}
           style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#f0fff4", border: "1px solid #aaeecc", borderRadius: "20px", color: "#447755", fontSize: "11px", cursor: "pointer", transition: "all 0.2s" }}
@@ -30,6 +33,9 @@ export function M3ActionBar({ solutionContent, user, sessionId, isOwner }) {
           user={user}
           sessionId={sessionId}
           isOwner={isOwner}
+          initialRounds={councilRounds}
+          initialContext={councilContext}
+          onRoundsUpdate={(rounds, ctx) => { setCouncilRounds(rounds); if (ctx) setCouncilContext(ctx); }}
         />
       )}
       {showUT && <UTSimPanel solutionContent={solutionContent} onClose={() => setShowUT(false)} />}
