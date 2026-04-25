@@ -385,6 +385,7 @@ export default function App() {
 
     const startRound = resumeFrom?.fromRound || 1;
     const startAgentId = resumeFrom?.fromAgentId || null;
+    let danglingRoundNum = null; // 헤더만 추가되고 에이전트가 아직 안 돌아간 라운드
 
     for (let roundNum = startRound; roundNum <= 3; roundNum++) {
       if (ac.signal.aborted) break;
@@ -394,6 +395,7 @@ export default function App() {
 
       // 라운드 헤더 메시지 (이어가기 시 해당 라운드는 이미 존재하므로 스킵)
       if (!isResumingThisRound) {
+        danglingRoundNum = roundNum; // 헤더 추가 — 아직 에이전트 없음
         setMessages(prev => [...prev, {
           role: "assistant", content: "",
           isCouncilRoundHeader: true, councilRound: roundNum,
@@ -431,6 +433,7 @@ export default function App() {
 
       for (const agent of agentsToRun) {
         if (ac.signal.aborted) break;
+        danglingRoundNum = null; // 에이전트가 실제로 시작됨 — 헤더는 dangling 아님
         const isFactChecker = agent.id === "factchecker";
         const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
         const systemPrompt = isFactChecker ? basePrompt
@@ -490,6 +493,23 @@ export default function App() {
         }
       }
       if (ac.signal.aborted) break;
+    }
+
+    // 라운드 헤더만 남고 에이전트가 안 돌아간 경우 → 헤더에 이어하기 resumeState 부착
+    if (danglingRoundNum !== null) {
+      const rs = {
+        solutionContent, fromRound: danglingRoundNum, fromAgentId: null,
+        agentTimings: [...agentTimings], cumulativeContext,
+      };
+      setMessages(prev => {
+        const updated = [...prev];
+        for (let i = updated.length - 1; i >= 0; i--) {
+          if (updated[i].isCouncilRoundHeader && updated[i].councilRound === danglingRoundNum) {
+            updated[i] = { ...updated[i], resumeState: rs }; break;
+          }
+        }
+        return updated;
+      });
     }
 
     if (!ac.signal.aborted) {

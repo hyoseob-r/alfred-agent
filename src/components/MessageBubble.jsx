@@ -7,15 +7,26 @@ import ComparePanel from "./panels/ComparePanel";
 import UTSimPanel from "./panels/UTSimPanel";
 
 // Council 라운드 헤더 (인라인)
-function CouncilRoundHeader({ msg }) {
+function CouncilRoundHeader({ msg, onResume }) {
+  const color = msg.councilColor || "#6c8ebf";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "20px 0 12px 0" }}>
-      <div style={{ width: "3px", height: "20px", background: msg.councilColor || "#6c8ebf", borderRadius: "2px", flexShrink: 0 }} />
-      <div style={{ fontSize: "11px", fontWeight: 700, color: msg.councilColor || "#6c8ebf", letterSpacing: "0.15em" }}>
+      <div style={{ width: "3px", height: "20px", background: color, borderRadius: "2px", flexShrink: 0 }} />
+      <div style={{ fontSize: "11px", fontWeight: 700, color, letterSpacing: "0.15em" }}>
         {msg.councilRound}R — {msg.councilLabel}
         <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: "6px" }}>({msg.councilSubtitle})</span>
       </div>
       <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+      {msg.resumeState && onResume && (
+        <button
+          onClick={onResume}
+          style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 10px", background: "#fff8e8", border: "1px solid #e0b040", borderRadius: "14px", color: "#b07000", fontSize: "10px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#fef0c0"; e.currentTarget.style.borderColor = "#c09000"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#fff8e8"; e.currentTarget.style.borderColor = "#e0b040"; }}
+        >
+          ▶ 이어하기
+        </button>
+      )}
     </div>
   );
 }
@@ -103,7 +114,12 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
   };
 
   // Council 특수 메시지 — 인라인 렌더링
-  if (msg.isCouncilRoundHeader) return <CouncilRoundHeader msg={msg} />;
+  if (msg.isCouncilRoundHeader) return (
+    <CouncilRoundHeader
+      msg={msg}
+      onResume={msg.resumeState && onCouncilResume ? () => onCouncilResume(msg.resumeState) : null}
+    />
+  );
   if (msg.isCouncilAgent) return (
     <CouncilAgentBubble
       msg={msg}
