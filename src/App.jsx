@@ -376,7 +376,7 @@ export default function App() {
         });
       } else {
         // assemble 트리거 감지
-        const isAssembleTrigger = /assemble|어셈블|council\s*시작|에이전트\s*협의\s*시작|19인\s*토론/i.test(userText);
+        const isAssembleTrigger = /assemble|어셈블|council\s*시작|에이전트\s*협의|19인\s*토론|토론해보자|토론\s*해봐|토론하자|의논해보자|의논\s*해봐|다같이\s*(봐|보자|검토|얘기)|전문가\s*(불러|의견)|에이전트\s*(불러|소집)|패널\s*(불러|소집)|같이\s*(검토|봐|보자)/i.test(userText);
 
         const history = messages.map(m => ({ role: m.role, content: m.content }));
 
