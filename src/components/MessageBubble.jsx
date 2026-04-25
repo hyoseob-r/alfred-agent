@@ -21,7 +21,7 @@ function CouncilRoundHeader({ msg }) {
 }
 
 // Council 에이전트 응답 (인라인 스트리밍)
-function CouncilAgentBubble({ msg }) {
+function CouncilAgentBubble({ msg, onResume }) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (msg.councilStatus !== "running") return;
@@ -31,6 +31,7 @@ function CouncilAgentBubble({ msg }) {
   }, [msg.councilStatus, msg.startedAt]);
 
   const color = msg.agentColor || "#888888";
+  const isStopped = msg.councilStatus === "stopped";
   return (
     <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "flex-start" }}>
       <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: color + "22", border: `1px solid ${color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px" }}>
@@ -40,7 +41,7 @@ function CouncilAgentBubble({ msg }) {
         <div style={{ fontSize: "11px", fontWeight: 700, color, marginBottom: "6px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
           {msg.agentRole}
         </div>
-        <div style={{ padding: "12px 14px", background: msg.councilStatus === "stopped" ? "#fffbea" : "#ffffff", border: `1px solid ${msg.councilStatus === "stopped" ? "#f0c040" : color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
+        <div style={{ padding: "12px 14px", background: isStopped ? "#fffbea" : "#ffffff", border: `1px solid ${isStopped ? "#f0c040" : color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
           {msg.councilStatus === "running" && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: msg.content ? "8px" : 0 }}>
               {[0,1,2].map(j => <div key={j} style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
@@ -50,20 +51,32 @@ function CouncilAgentBubble({ msg }) {
               </span>
             </div>
           )}
-          {msg.councilStatus === "stopped" && !msg.content && (
+          {isStopped && !msg.content && (
             <div style={{ fontSize: "10px", color: "#b07800" }}>⏹ 중단됨</div>
           )}
-          {msg.councilStatus === "stopped" && msg.content && (
+          {isStopped && msg.content && (
             <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 부분 응답</div>
           )}
           {msg.content && <MarkdownRenderer content={msg.content} />}
+          {isStopped && onResume && msg.resumeState && (
+            <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #f0e0b0" }}>
+              <button
+                onClick={onResume}
+                style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: "#fff8e8", border: "1px solid #e0b040", borderRadius: "16px", color: "#b07000", fontSize: "11px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#fef0c0"; e.currentTarget.style.borderColor = "#c09000"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#fff8e8"; e.currentTarget.style.borderColor = "#e0b040"; }}
+              >
+                ▶ 이어하기
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart }) {
+export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart, onCouncilResume }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -91,7 +104,12 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
 
   // Council 특수 메시지 — 인라인 렌더링
   if (msg.isCouncilRoundHeader) return <CouncilRoundHeader msg={msg} />;
-  if (msg.isCouncilAgent) return <CouncilAgentBubble msg={msg} />;
+  if (msg.isCouncilAgent) return (
+    <CouncilAgentBubble
+      msg={msg}
+      onResume={msg.resumeState && onCouncilResume ? () => onCouncilResume(msg.resumeState) : null}
+    />
+  );
   if (msg.isCouncilComplete) {
     return (
       <div style={{ margin: "12px 0 20px 48px", padding: "10px 16px", background: "#f0fff4", border: "1px solid #88cc88", borderRadius: "12px", fontSize: "12px", color: "#336633", fontWeight: 600 }}>

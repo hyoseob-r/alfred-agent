@@ -362,30 +362,39 @@ export default function App() {
     setCurrentStage(STAGES.IDLE);
   };
 
-  const runCouncilInChat = async (solutionContent) => {
+  // resumeFrom: { solutionContent, fromRound, fromAgentId, agentTimings, cumulativeContext }
+  const runCouncilInChat = async (solutionContent, resumeFrom = null) => {
     if (councilRunning) return;
     setCouncilRunning(true);
     const ac = new AbortController();
     councilAbortRef.current = ac;
-    let cumulativeContext = "";
-    const agentTimings = [];
+    const agentTimings = resumeFrom?.agentTimings ? [...resumeFrom.agentTimings] : [];
+    let cumulativeContext = resumeFrom?.cumulativeContext || "";
     const getEstimate = () => agentTimings.length > 0
       ? Math.round(agentTimings.reduce((a, b) => a + b, 0) / agentTimings.length) : 45;
 
-    for (let roundNum = 1; roundNum <= 3; roundNum++) {
+    const startRound = resumeFrom?.fromRound || 1;
+    const startAgentId = resumeFrom?.fromAgentId || null;
+
+    for (let roundNum = startRound; roundNum <= 3; roundNum++) {
       if (ac.signal.aborted) break;
       const roundConfig = ROUND_CONFIG[roundNum - 1];
       const roundAgents = getAgentsForRound(roundNum);
+      const isResumingThisRound = resumeFrom && roundNum === startRound;
 
-      // 라운드 헤더 메시지
-      setMessages(prev => [...prev, {
-        role: "assistant", content: "",
-        isCouncilRoundHeader: true, councilRound: roundNum,
-        councilLabel: roundConfig.label, councilSubtitle: roundConfig.subtitle, councilColor: roundConfig.color,
-      }]);
+      // 라운드 헤더 메시지 (이어가기 시 해당 라운드는 이미 존재하므로 스킵)
+      if (!isResumingThisRound) {
+        setMessages(prev => [...prev, {
+          role: "assistant", content: "",
+          isCouncilRoundHeader: true, councilRound: roundNum,
+          councilLabel: roundConfig.label, councilSubtitle: roundConfig.subtitle, councilColor: roundConfig.color,
+        }]);
+      }
 
-      // 컨텍스트 구성 (Round 2~3: 이전 라운드 요약 압축)
-      if (roundNum === 1) {
+      // 컨텍스트 구성
+      if (isResumingThisRound) {
+        // resumeFrom.cumulativeContext 사용 (이미 세팅됨)
+      } else if (roundNum === 1) {
         cumulativeContext = roundConfig.contextIntro + solutionContent;
       } else {
         let summary = "";
@@ -403,7 +412,14 @@ export default function App() {
       const roundContext = cumulativeContext
         + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n[${roundNum}라운드 — ${roundConfig.label} (${roundConfig.subtitle})]\n${roundConfig.contextIntro}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
-      for (const agent of roundAgents) {
+      // 이어가기: 중단된 에이전트부터 시작
+      let agentsToRun = roundAgents;
+      if (isResumingThisRound && startAgentId) {
+        const idx = roundAgents.findIndex(a => a.id === startAgentId);
+        if (idx >= 0) agentsToRun = roundAgents.slice(idx);
+      }
+
+      for (const agent of agentsToRun) {
         if (ac.signal.aborted) break;
         const isFactChecker = agent.id === "factchecker";
         const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
@@ -425,7 +441,7 @@ export default function App() {
         const updateAgentMsg = (updates) => setMessages(prev => {
           const updated = [...prev];
           for (let i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].isCouncilAgent && updated[i].agentId === agent.id && updated[i].councilRound === roundNum) {
+            if (updated[i].isCouncilAgent && updated[i].agentId === agent.id && updated[i].councilRound === roundNum && updated[i].councilStatus !== "stopped") {
               updated[i] = { ...updated[i], ...updates }; break;
             }
           }
@@ -444,11 +460,19 @@ export default function App() {
           cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
         } catch (e) {
           if (e.name === "AbortError" || e.message === "STREAM_TRUNCATED") {
+            // 이어하기에 필요한 상태 저장
+            const resumeState = {
+              solutionContent,
+              fromRound: roundNum,
+              fromAgentId: agent.id,
+              agentTimings: [...agentTimings],
+              cumulativeContext, // 이 에이전트 실행 전 컨텍스트
+            };
             if (result) {
-              updateAgentMsg({ councilStatus: "stopped" });
+              updateAgentMsg({ councilStatus: "stopped", resumeState });
               cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
             } else {
-              updateAgentMsg({ councilStatus: "stopped" });
+              updateAgentMsg({ councilStatus: "stopped", resumeState });
             }
             break;
           }
@@ -761,6 +785,7 @@ export default function App() {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
                 onCouncilStart={runCouncilInChat}
+                onCouncilResume={(resumeState) => runCouncilInChat(resumeState.solutionContent, resumeState)}
                 onCouncilUpdate={(rounds, fullContext) => {
                   councilDataRef.current = { rounds, fullContext };
                   setMessages(prev => {
