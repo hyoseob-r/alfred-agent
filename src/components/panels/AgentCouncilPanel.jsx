@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { chatAPI, streamChatAPI } from "../../api/proxy";
 import { AGENT_COUNCIL_PROMPTS, SPECIAL_PANEL_AGENTS, SPECIAL_PANEL_PROMPTS } from "../../prompts/council";
 import { FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "../../prompts/council";
@@ -51,7 +51,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [pausedRoundState, setPausedRoundState] = useState(null);
-  const stopFlagRef = useState(() => ({ current: false }))[0];
+  const abortControllerRef = useRef(null);
+  const [agentStartTime, setAgentStartTime] = useState(null);
+  const [agentElapsed, setAgentElapsed] = useState(0);
   const [fullContext, setFullContext] = useState("");
   const [conflicts, setConflicts] = useState("");
   const [detectingConflicts, setDetectingConflicts] = useState(false);
@@ -60,6 +62,13 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const [saveStatus, setSaveStatus] = useState("idle");
   const [specialSteps, setSpecialSteps] = useState([]);
   const [specialDone, setSpecialDone] = useState(false);
+
+  // 에이전트 실행 중 경과 시간 타이머
+  useEffect(() => {
+    if (!isRunning || !agentStartTime) { setAgentElapsed(0); return; }
+    const t = setInterval(() => setAgentElapsed(Math.floor((Date.now() - agentStartTime) / 1000)), 500);
+    return () => clearInterval(t);
+  }, [isRunning, agentStartTime]);
 
   const updateStep = (id, updates) =>
     setCurrentSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
@@ -94,13 +103,15 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   };
 
   const runRound = async (roundNum, baseContext, startFromIndex = 0, existingSteps = []) => {
-    const roundAgents = getAgentsForRound(roundNum);
-    stopFlagRef.current = false;
+    const ac = new AbortController();
+    abortControllerRef.current = ac;
     setIsRunning(true);
     setIsPaused(false);
     setPausedRoundState(null);
     setRoundDone(false);
+    setAgentStartTime(null);
 
+    const roundAgents = getAgentsForRound(roundNum);
     const initSteps = roundAgents.map((a, i) => {
       if (i < startFromIndex) {
         const done = existingSteps.find(s => s.id === a.id);
@@ -115,17 +126,11 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
     for (let i = startFromIndex; i < roundAgents.length; i++) {
       const agent = roundAgents[i];
-
-      if (stopFlagRef.current) {
-        // 멈춤 — 현재까지 진행 상황 보존
-        setCurrentSteps(prev => prev.map(s => s.status === "waiting" ? { ...s, status: "waiting" } : s));
-        setPausedRoundState({ roundNum, context, agentIndex: i, existingSteps: roundSteps });
-        setIsPaused(true);
-        setIsRunning(false);
-        return;
-      }
-
       updateStep(agent.id, { status: "running", result: "" });
+      setAgentStartTime(Date.now());
+
+      let result = "";
+      let aborted = false;
       try {
         const isFactChecker = agent.id === "factchecker";
         const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
@@ -135,36 +140,41 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
             : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
 
-        let result = "";
         await streamChatAPI(
           { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
-          (chunk) => {
-            if (stopFlagRef.current) return;
-            result += chunk;
-            updateStep(agent.id, { status: "running", result });
-          }
+          (chunk) => { result += chunk; updateStep(agent.id, { status: "running", result }); },
+          ac.signal
         );
-
-        if (stopFlagRef.current) {
-          updateStep(agent.id, { status: "done", result });
-          context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
-          roundSteps.push({ ...agent, result, status: "done" });
-          setPausedRoundState({ roundNum, context, agentIndex: i + 1, existingSteps: roundSteps });
-          setIsPaused(true);
-          setIsRunning(false);
-          return;
-        }
-
-        updateStep(agent.id, { status: "done", result });
-        context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
-        roundSteps.push({ ...agent, result, status: "done" });
       } catch (e) {
-        const errMsg = `오류가 발생했습니다: ${e.message}`;
-        updateStep(agent.id, { status: "error", result: errMsg });
-        roundSteps.push({ ...agent, result: errMsg, status: "error" });
+        if (e.name === "AbortError") {
+          aborted = true;
+        } else {
+          const errMsg = `오류: ${e.message}`;
+          updateStep(agent.id, { status: "error", result: errMsg });
+          roundSteps.push({ ...agent, result: errMsg, status: "error" });
+        }
       }
+
+      if (aborted) {
+        // 부분 텍스트 보존
+        updateStep(agent.id, { status: "paused", result });
+        if (result) {
+          context += `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
+          roundSteps.push({ ...agent, result, status: "paused" });
+        }
+        setAgentStartTime(null);
+        setPausedRoundState({ roundNum, context, agentIndex: i, existingSteps: roundSteps, partialResult: result, partialAgentId: agent.id });
+        setIsPaused(true);
+        setIsRunning(false);
+        return;
+      }
+
+      updateStep(agent.id, { status: "done", result });
+      context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
+      roundSteps.push({ ...agent, result, status: "done" });
     }
 
+    setAgentStartTime(null);
     setFullContext(context);
     const newRounds = [...rounds, { round: roundNum, steps: roundSteps }];
     setRounds(newRounds);
@@ -175,24 +185,14 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       setSaveStatus("saving");
       try {
         let cId = councilId;
-        if (!cId) {
-          cId = await dbNextCouncilId('a');
-          setCouncilId(cId);
-        }
-        await dbSaveCouncilSession({
-          id: cId, sessionId, userId: user.id,
-          topic: solutionContent.slice(0, 200),
-          rounds: newRounds, summary: null,
-        });
+        if (!cId) { cId = await dbNextCouncilId('a'); setCouncilId(cId); }
+        await dbSaveCouncilSession({ id: cId, sessionId, userId: user.id, topic: solutionContent.slice(0, 200), rounds: newRounds, summary: null });
         setSaveStatus("saved");
-      } catch (e) {
-        console.error("council save error:", e);
-        setSaveStatus("error");
-      }
+      } catch (e) { console.error("council save error:", e); setSaveStatus("error"); }
     }
   };
 
-  const stopCouncil = () => { stopFlagRef.current = true; };
+  const stopCouncil = () => { abortControllerRef.current?.abort(); };
 
   const resumeCouncil = () => {
     if (!pausedRoundState) return;
@@ -348,7 +348,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     runRound(1, initialContext);
   }, []);
 
-  const AgentStepView = ({ steps, onRetry }) => (
+  const AgentStepView = ({ steps, onRetry, elapsed }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {steps.map((step) => (
         <div key={step.id} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
@@ -361,9 +361,18 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
               <div style={{ padding: "10px 14px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "4px 12px 12px 12px", color: "#cccccc", fontSize: "12px" }}>대기 중...</div>
             )}
             {step.status === "running" && (
-              <div style={{ padding: "10px 14px", background: step.color + "0a", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px", display: "flex", gap: "6px", alignItems: "center" }}>
-                {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
-                <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
+              <div style={{ padding: "10px 14px", background: step.color + "0a", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px", display: "flex", gap: "6px", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
+                  <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
+                </div>
+                <span style={{ fontSize: "11px", color: step.color + "99", fontVariantNumeric: "tabular-nums" }}>{elapsed ?? 0}s</span>
+              </div>
+            )}
+            {step.status === "paused" && step.result && (
+              <div style={{ padding: "12px 14px", background: "#fffbea", border: "1px solid #f0c040", borderRadius: "4px 12px 12px 12px" }}>
+                <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 중단됨 (부분 저장)</div>
+                <MarkdownRenderer content={step.result} />
               </div>
             )}
             {(step.status === "done" || step.status === "error") && (
@@ -439,7 +448,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 </div>
                 <div style={{ flex: 1, height: "1px", background: "#ddeeff" }} />
               </div>
-              <AgentStepView steps={currentSteps} />
+              <AgentStepView steps={currentSteps} elapsed={agentElapsed} />
             </div>
           )}
 

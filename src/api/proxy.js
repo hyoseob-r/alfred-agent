@@ -18,7 +18,7 @@ export async function chatAPI(body) {
   return resp.json();
 }
 
-export async function streamChatAPI(body, onChunk) {
+export async function streamChatAPI(body, onChunk, signal) {
   const proxyUrl = getProxyUrl();
   if (!proxyUrl) throw new Error("프록시 미연결 — 우측 상단 프록시 버튼에서 로컬 프록시를 연결해 주세요.");
   const url = `${proxyUrl.replace(/\/$/, '')}/api/chat`;
@@ -26,6 +26,7 @@ export async function streamChatAPI(body, onChunk) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...body, stream: true }),
+    signal,
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
