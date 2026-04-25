@@ -7,7 +7,7 @@ import ComparePanel from "./panels/ComparePanel";
 import AgentCouncilPanel from "./panels/AgentCouncilPanel";
 import UTSimPanel from "./panels/UTSimPanel";
 
-export default function MessageBubble({ msg, user, sessionId, isOwner }) {
+export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -141,6 +141,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner }) {
           user={user}
           sessionId={sessionId}
           isOwner={isOwner}
+          onRoundsUpdate={onCouncilUpdate}
         />
       )}
       {showAssembleUT && msg.assembleContext && (

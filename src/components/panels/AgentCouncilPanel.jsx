@@ -43,27 +43,28 @@ const ROUND_CONFIG = [
 
 const getAgentsForRound = (round) => AGENTS.filter(a => ROUND_CONFIG[round - 1]?.agentIds.includes(a.id));
 
-export default function AgentCouncilPanel({ solutionContent, onClose, user, sessionId, isOwner }) {
+export default function AgentCouncilPanel({ solutionContent, onClose, user, sessionId, isOwner, onRoundsUpdate }) {
   const [rounds, setRounds] = useState([]);
-  const [currentSteps, setCurrentSteps] = useState(getAgentsForRound(1).map(a => ({ ...a, status: "waiting", result: "" })));
   const [currentRound, setCurrentRound] = useState(1);
-  const [roundDone, setRoundDone] = useState(false);
+  const [currentSteps, setCurrentSteps] = useState(getAgentsForRound(1).map(a => ({ ...a, status: "waiting", result: "" })));
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [pausedRoundState, setPausedRoundState] = useState(null);
-  const abortControllerRef = useRef(null);
-  const [agentStartTime, setAgentStartTime] = useState(null);
-  const [agentElapsed, setAgentElapsed] = useState(0);
+  // pendingNext: { roundNum, context, agentIndex, existingSteps } — 다음 에이전트 대기 상태
+  const [pendingNext, setPendingNext] = useState(null);
+  const [pausedState, setPausedState] = useState(null);
+  const [roundDone, setRoundDone] = useState(false);
   const [fullContext, setFullContext] = useState("");
-  const [conflicts, setConflicts] = useState("");
-  const [detectingConflicts, setDetectingConflicts] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
   const [collapsedRounds, setCollapsedRounds] = useState({});
   const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [specialSteps, setSpecialSteps] = useState([]);
   const [specialDone, setSpecialDone] = useState(false);
+  const [conflicts, setConflicts] = useState("");
+  const [agentStartTime, setAgentStartTime] = useState(null);
+  const [agentElapsed, setAgentElapsed] = useState(0);
+  const abortControllerRef = useRef(null);
 
-  // 에이전트 실행 중 경과 시간 타이머
   useEffect(() => {
     if (!isRunning || !agentStartTime) { setAgentElapsed(0); return; }
     const t = setInterval(() => setAgentElapsed(Math.floor((Date.now() - agentStartTime) / 1000)), 500);
@@ -73,113 +74,16 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const updateStep = (id, updates) =>
     setCurrentSteps(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
 
-  const retryAgent = async (agent, roundNum) => {
-    const isFactChecker = agent.id === "factchecker";
-    const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
-    const systemPrompt = isFactChecker
-      ? basePrompt
-      : roundNum === 1
-        ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
-        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
-
-    const updateRoundStep = (updates) =>
-      setRounds(prev => prev.map(r => r.round === roundNum
-        ? { ...r, steps: r.steps.map(s => s.id === agent.id ? { ...s, ...updates } : s) }
-        : r
-      ));
-
-    updateRoundStep({ status: "running", result: "" });
-    let result = "";
-    try {
-      await streamChatAPI(
-        { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: fullContext }] },
-        (chunk) => { result += chunk; updateRoundStep({ status: "running", result }); }
-      );
-      updateRoundStep({ status: "done", result });
-      setFullContext(prev => prev + `\n\n[${agent.role} ${roundNum}라운드 의견 (재시도)]\n${result}`);
-    } catch (e) {
-      updateRoundStep({ status: "error", result: `오류가 발생했습니다: ${e.message}` });
-    }
-  };
-
-  const runRound = async (roundNum, baseContext, startFromIndex = 0, existingSteps = []) => {
-    const ac = new AbortController();
-    abortControllerRef.current = ac;
-    setIsRunning(true);
-    setIsPaused(false);
-    setPausedRoundState(null);
-    setRoundDone(false);
-    setAgentStartTime(null);
-
-    const roundAgents = getAgentsForRound(roundNum);
-    const initSteps = roundAgents.map((a, i) => {
-      if (i < startFromIndex) {
-        const done = existingSteps.find(s => s.id === a.id);
-        return done ? { ...a, ...done } : { ...a, status: "done", result: "" };
-      }
-      return { ...a, status: "waiting", result: "" };
-    });
-    setCurrentSteps(initSteps);
-
-    let context = baseContext;
-    const roundSteps = [...existingSteps];
-
-    for (let i = startFromIndex; i < roundAgents.length; i++) {
-      const agent = roundAgents[i];
-      updateStep(agent.id, { status: "running", result: "" });
-      setAgentStartTime(Date.now());
-
-      let result = "";
-      let aborted = false;
-      try {
-        const isFactChecker = agent.id === "factchecker";
-        const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
-        const systemPrompt = isFactChecker
-          ? basePrompt
-          : roundNum === 1
-            ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
-            : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
-
-        await streamChatAPI(
-          { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
-          (chunk) => { result += chunk; updateStep(agent.id, { status: "running", result }); },
-          ac.signal
-        );
-      } catch (e) {
-        if (e.name === "AbortError") {
-          aborted = true;
-        } else {
-          const errMsg = `오류: ${e.message}`;
-          updateStep(agent.id, { status: "error", result: errMsg });
-          roundSteps.push({ ...agent, result: errMsg, status: "error" });
-        }
-      }
-
-      if (aborted) {
-        // 부분 텍스트 보존
-        updateStep(agent.id, { status: "paused", result });
-        if (result) {
-          context += `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
-          roundSteps.push({ ...agent, result, status: "paused" });
-        }
-        setAgentStartTime(null);
-        setPausedRoundState({ roundNum, context, agentIndex: i, existingSteps: roundSteps, partialResult: result, partialAgentId: agent.id });
-        setIsPaused(true);
-        setIsRunning(false);
-        return;
-      }
-
-      updateStep(agent.id, { status: "done", result });
-      context += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
-      roundSteps.push({ ...agent, result, status: "done" });
-    }
-
-    setAgentStartTime(null);
+  // 라운드 완료 처리
+  const finishRound = async (roundNum, context, roundSteps) => {
     setFullContext(context);
     const newRounds = [...rounds, { round: roundNum, steps: roundSteps }];
     setRounds(newRounds);
     setRoundDone(true);
     setIsRunning(false);
+    setPendingNext(null);
+    setAgentStartTime(null);
+    onRoundsUpdate?.(newRounds, context);
 
     if (user?.id && isOwner) {
       setSaveStatus("saving");
@@ -192,12 +96,136 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     }
   };
 
+  // 에이전트 1명 실행
+  const runOneAgent = async (roundNum, context, agentIndex, existingSteps) => {
+    const roundAgents = getAgentsForRound(roundNum);
+    const ac = new AbortController();
+    abortControllerRef.current = ac;
+    setIsRunning(true);
+    setIsPaused(false);
+    setPausedState(null);
+    setPendingNext(null);
+    setAgentStartTime(Date.now());
+
+    // currentSteps 세팅 (완료된 것 유지, 현재 running, 나머지 waiting)
+    setCurrentSteps(roundAgents.map((a, i) => {
+      if (i < agentIndex) {
+        const done = existingSteps.find(s => s.id === a.id);
+        return done ? { ...a, ...done } : { ...a, status: "done", result: "" };
+      }
+      if (i === agentIndex) return { ...a, status: "running", result: "" };
+      return { ...a, status: "waiting", result: "" };
+    }));
+
+    const agent = roundAgents[agentIndex];
+    const isFactChecker = agent.id === "factchecker";
+    const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+    const systemPrompt = isFactChecker
+      ? basePrompt
+      : roundNum === 1
+        ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
+        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+
+    let result = "";
+    let aborted = false;
+    try {
+      await streamChatAPI(
+        { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
+        (chunk) => { result += chunk; updateStep(agent.id, { status: "running", result }); },
+        ac.signal
+      );
+    } catch (e) {
+      if (e.name === "AbortError") {
+        aborted = true;
+      } else {
+        updateStep(agent.id, { status: "error", result: `오류: ${e.message}` });
+        existingSteps.push({ ...agent, result: `오류: ${e.message}`, status: "error" });
+        setIsRunning(false);
+        setAgentStartTime(null);
+        return;
+      }
+    }
+
+    if (aborted) {
+      updateStep(agent.id, { status: "paused", result });
+      const newSteps = [...existingSteps];
+      if (result) {
+        const newCtx = context + `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
+        newSteps.push({ ...agent, result, status: "paused" });
+        setPausedState({ roundNum, context: newCtx, agentIndex, existingSteps: newSteps });
+      } else {
+        setPausedState({ roundNum, context, agentIndex, existingSteps: newSteps });
+      }
+      setIsPaused(true);
+      setIsRunning(false);
+      setAgentStartTime(null);
+      return;
+    }
+
+    updateStep(agent.id, { status: "done", result });
+    const newContext = context + `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
+    const newSteps = [...existingSteps, { ...agent, result, status: "done" }];
+    setIsRunning(false);
+    setAgentStartTime(null);
+
+    const nextIndex = agentIndex + 1;
+    if (nextIndex < roundAgents.length) {
+      // 다음 에이전트 대기
+      setPendingNext({ roundNum, context: newContext, agentIndex: nextIndex, existingSteps: newSteps });
+    } else {
+      // 라운드 완료
+      finishRound(roundNum, newContext, newSteps);
+    }
+  };
+
   const stopCouncil = () => { abortControllerRef.current?.abort(); };
 
   const resumeCouncil = () => {
-    if (!pausedRoundState) return;
-    const { roundNum, context, agentIndex, existingSteps } = pausedRoundState;
-    runRound(roundNum, context, agentIndex, existingSteps);
+    if (!pausedState) return;
+    const { roundNum, context, agentIndex, existingSteps } = pausedState;
+    runOneAgent(roundNum, context, agentIndex, existingSteps);
+  };
+
+  const startRound = (roundNum, baseContext) => {
+    setCurrentRound(roundNum);
+    setRoundDone(false);
+    setPendingNext(null);
+    setCurrentSteps(getAgentsForRound(roundNum).map(a => ({ ...a, status: "waiting", result: "" })));
+    runOneAgent(roundNum, baseContext, 0, []);
+  };
+
+  const startNextRound = async () => {
+    if (currentRound >= 3) return;
+    const nextRound = currentRound + 1;
+    setCollapsedRounds(prev => ({ ...prev, [currentRound]: true }));
+    setIsSummarizing(true);
+    setRoundDone(false);
+    setPendingNext(null);
+
+    const config = ROUND_CONFIG[nextRound - 1];
+    let compressedContext = solutionContent;
+    try {
+      const allPrevText = rounds.map(r =>
+        `[${r.round}라운드]\n` + r.steps.map(s => `${s.role}: ${s.result}`).join("\n\n")
+      ).join("\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
+      let summary = "";
+      await streamChatAPI(
+        { model: getSelectedModel(), max_tokens: 1200,
+          system: `당신은 회의 요약 전문가입니다. 멀티라운드 에이전트 토론을 다음 라운드 참가자들이 맥락을 이해할 수 있도록 압축하세요.\n규칙:\n- 각 에이전트의 핵심 주장 1~2줄씩 보존\n- 주요 합의점과 충돌 지점 명시\n- 원본 발언의 핵심 논지는 반드시 유지\n- 한국어로. 절대 중요한 인사이트를 누락하지 말 것.`,
+          messages: [{ role: "user", content: `다음 에이전트 토론을 요약해주세요:\n\n${allPrevText}` }] },
+        (chunk) => { summary += chunk; }
+      );
+      compressedContext = `[원래 주제]\n${solutionContent}\n\n[이전 라운드 요약]\n${summary}`;
+    } catch { compressedContext = fullContext; }
+    finally { setIsSummarizing(false); }
+
+    const nextContext = compressedContext
+      + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
+      + `[${nextRound}라운드 — ${config.label} (${config.subtitle})]\n`
+      + config.contextIntro
+      + `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+    startRound(nextRound, nextContext);
   };
 
   const runSpecialPanel = async () => {
@@ -212,10 +240,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       try {
         await streamChatAPI(
           { model: getSelectedModel(), max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id], messages: [{ role: "user", content: contextIntro }] },
-          (chunk) => {
-            result += chunk;
-            setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, result } : s));
-          }
+          (chunk) => { result += chunk; setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, result } : s)); }
         );
         setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, status: "done", result } : s));
       } catch (e) {
@@ -228,29 +253,10 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setRounds(newRounds);
     setSpecialDone(true);
     setIsRunning(false);
+    onRoundsUpdate?.(newRounds, fullContext);
     if (user?.id && isOwner && councilId) {
-      try {
-        await dbSaveCouncilSession({ id: councilId, sessionId, userId: user.id, topic: solutionContent.slice(0, 200), rounds: newRounds, summary: null });
-      } catch (e) { console.error("special panel save error:", e); }
-    }
-  };
-
-  const detectConflicts = async (context) => {
-    setDetectingConflicts(true);
-    try {
-      const data = await chatAPI({
-        model: getSelectedModel(), max_tokens: 1000,
-        system: `당신은 회의 퍼실리테이터입니다. 6인 전문가의 의견에서 핵심 충돌 지점을 3개 이내로 추출하십시오.
-형식: "충돌 1: [주제] — [A 주장] vs [B 주장]" 형태로 간결하게. 한국어로.`,
-        messages: [{ role: "user", content: context }],
-      });
-      const result = data.content?.[0]?.text || "";
-      setConflicts(result);
-      return result;
-    } catch {
-      return "";
-    } finally {
-      setDetectingConflicts(false);
+      try { await dbSaveCouncilSession({ id: councilId, sessionId, userId: user.id, topic: solutionContent.slice(0, 200), rounds: newRounds, summary: null }); }
+      catch (e) { console.error("special panel save error:", e); }
     }
   };
 
@@ -259,96 +265,50 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     try {
       const summaryData = await chatAPI({
         model: getSelectedModel(), max_tokens: 600,
-        system: `당신은 회의록 작성자입니다. 다음 멀티라운드 에이전트 토론을 3~5줄로 요약하십시오.
-형식:
-- 주요 합의: [한 줄]
-- 핵심 FACT: [한 줄]
-- 최우선 액션: [한 줄]
-- Dr. Veritas 최종 신뢰도: [평균 점수]
-한국어로. 불릿 포인트만.`,
+        system: `당신은 회의록 작성자입니다. 다음 멀티라운드 에이전트 토론을 3~5줄로 요약하십시오.\n형식:\n- 주요 합의: [한 줄]\n- 핵심 FACT: [한 줄]\n- 최우선 액션: [한 줄]\n- Dr. Veritas 최종 신뢰도: [평균 점수]\n한국어로. 불릿 포인트만.`,
         messages: [{ role: "user", content: fullContext }],
       });
       const summary = summaryData.content?.[0]?.text || "";
-
       if (user?.id && isOwner) {
-        await dbSaveCouncilSession({
-          id: councilId, sessionId, userId: user.id,
-          topic: solutionContent.slice(0, 200),
-          rounds, summary,
-        });
+        await dbSaveCouncilSession({ id: councilId, sessionId, userId: user.id, topic: solutionContent.slice(0, 200), rounds, summary });
       }
-
-      await fetch("/api/update-worklog", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: solutionContent.slice(0, 80), summary }),
-      });
-
+      await fetch("/api/update-worklog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic: solutionContent.slice(0, 80), summary }) });
       setSaveStatus("worklog_saved");
-    } catch (e) {
-      console.error("worklog save error:", e);
-      setSaveStatus("error");
-    }
+    } catch (e) { console.error("worklog save error:", e); setSaveStatus("error"); }
   };
 
-  const [isSummarizing, setIsSummarizing] = useState(false);
-
-  const startNextRound = async () => {
-    if (currentRound >= 3) return;
-    const nextRound = currentRound + 1;
-    setCurrentRound(nextRound);
-    setCollapsedRounds(prev => ({ ...prev, [currentRound]: true }));
-    setIsSummarizing(true);
-
-    const config = ROUND_CONFIG[nextRound - 1];
-
-    // 이전 라운드 발언을 요약해서 컨텍스트 압축
-    let compressedContext = solutionContent;
+  const retryAgent = async (agent, roundNum) => {
+    const isFactChecker = agent.id === "factchecker";
+    const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+    const systemPrompt = isFactChecker ? basePrompt : roundNum === 1
+      ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
+      : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+    const updateRoundStep = (updates) =>
+      setRounds(prev => prev.map(r => r.round === roundNum
+        ? { ...r, steps: r.steps.map(s => s.id === agent.id ? { ...s, ...updates } : s) } : r));
+    updateRoundStep({ status: "running", result: "" });
+    let result = "";
     try {
-      const completedRounds = rounds;
-      const allPrevText = completedRounds.map(r =>
-        `[${r.round}라운드]\n` + r.steps.map(s => `${s.role}: ${s.result}`).join("\n\n")
-      ).join("\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n");
-
-      let summary = "";
       await streamChatAPI(
-        {
-          model: getSelectedModel(),
-          max_tokens: 1200,
-          system: `당신은 회의 요약 전문가입니다. 멀티라운드 에이전트 토론을 다음 라운드 참가자들이 맥락을 이해할 수 있도록 압축하세요.
-
-규칙:
-- 각 에이전트의 핵심 주장 1~2줄씩 보존
-- 주요 합의점과 충돌 지점 명시
-- 원본 발언의 핵심 논지는 반드시 유지
-- 한국어로. 절대 중요한 인사이트를 누락하지 말 것.`,
-          messages: [{ role: "user", content: `다음 에이전트 토론을 요약해주세요:\n\n${allPrevText}` }]
-        },
-        (chunk) => { summary += chunk; }
+        { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: fullContext }] },
+        (chunk) => { result += chunk; updateRoundStep({ status: "running", result }); }
       );
-      compressedContext = `[원래 주제]\n${solutionContent}\n\n[이전 라운드 요약]\n${summary}`;
-    } catch {
-      // 요약 실패 시 원본 그대로 사용
-      compressedContext = fullContext;
-    } finally {
-      setIsSummarizing(false);
-    }
-
-    const nextContext = compressedContext
-      + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
-      + `[${nextRound}라운드 — ${config.label} (${config.subtitle})]\n`
-      + config.contextIntro
-      + `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-    runRound(nextRound, nextContext);
+      updateRoundStep({ status: "done", result });
+      setFullContext(prev => prev + `\n\n[${agent.role} ${roundNum}라운드 의견 (재시도)]\n${result}`);
+    } catch (e) { updateRoundStep({ status: "error", result: `오류: ${e.message}` }); }
   };
 
   useEffect(() => {
     const config = ROUND_CONFIG[0];
-    const initialContext = config.contextIntro + solutionContent;
-    runRound(1, initialContext);
+    runOneAgent(1, config.contextIntro + solutionContent, 0, []);
   }, []);
 
-  const AgentStepView = ({ steps, onRetry, elapsed }) => (
+  // 현재 라운드에서 다음 에이전트 이름
+  const nextAgentName = pendingNext
+    ? getAgentsForRound(pendingNext.roundNum)[pendingNext.agentIndex]?.role
+    : null;
+
+  const AgentStepView = ({ steps, onRetry }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {steps.map((step) => (
         <div key={step.id} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
@@ -366,13 +326,13 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                   {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
                   <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
                 </div>
-                <span style={{ fontSize: "11px", color: step.color + "99", fontVariantNumeric: "tabular-nums" }}>{elapsed ?? 0}s</span>
+                <span style={{ fontSize: "11px", color: step.color + "99", fontVariantNumeric: "tabular-nums" }}>{agentElapsed}s</span>
               </div>
             )}
-            {step.status === "paused" && step.result && (
+            {step.status === "paused" && (
               <div style={{ padding: "12px 14px", background: "#fffbea", border: "1px solid #f0c040", borderRadius: "4px 12px 12px 12px" }}>
-                <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 중단됨 (부분 저장)</div>
-                <MarkdownRenderer content={step.result} />
+                <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 중단됨{step.result ? " (부분 저장)" : ""}</div>
+                {step.result && <MarkdownRenderer content={step.result} />}
               </div>
             )}
             {(step.status === "done" || step.status === "error") && (
@@ -380,10 +340,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 {step.status === "error" && onRetry && (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
                     <span style={{ fontSize: "11px", color: "#cc4444" }}>{step.result}</span>
-                    <button onClick={() => onRetry(step)}
-                      style={{ padding: "4px 12px", background: "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: "pointer", flexShrink: 0, marginLeft: "10px" }}>
-                      ↺ 재시도
-                    </button>
+                    <button onClick={() => onRetry(step)} style={{ padding: "4px 12px", background: "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: "pointer", flexShrink: 0, marginLeft: "10px" }}>↺ 재시도</button>
                   </div>
                 )}
                 {step.status !== "error" && <MarkdownRenderer content={step.result} />}
@@ -403,12 +360,13 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
           <div>
             <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스</span>
             <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>
-              {isRunning && specialSteps.some(s => s.status === "running")
-                ? "✦ Special Panel 진행 중..."
-                : isRunning
-                  ? `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} (${ROUND_CONFIG[currentRound-1]?.subtitle}) 진행 중...`
-                  : specialDone ? "✦ Special Panel 완료"
-                  : `${currentRound}R — ${ROUND_CONFIG[currentRound-1]?.label} 완료`}
+              {isRunning ? `${currentRound}R 진행 중...`
+                : isPaused ? "⏸ 중단됨"
+                : isSummarizing ? "✦ 압축 중..."
+                : specialDone ? "✦ Special Panel 완료"
+                : pendingNext ? `${currentRound}R — 다음 대기 중`
+                : roundDone ? `${currentRound}R 완료`
+                : ""}
             </span>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -423,7 +381,6 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
-
           {rounds.map(r => (
             <div key={r.round}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
@@ -440,38 +397,22 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             </div>
           ))}
 
-          {isRunning && (
+          {(isRunning || isPaused || pendingNext) && (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 700, color: ROUND_CONFIG[currentRound-1]?.color || "#6c8ebf", letterSpacing: "0.15em" }}>
-                  {currentRound}R — {ROUND_CONFIG[currentRound-1]?.label} ({ROUND_CONFIG[currentRound-1]?.subtitle}) ●
+                  {currentRound}R — {ROUND_CONFIG[currentRound-1]?.label} ({ROUND_CONFIG[currentRound-1]?.subtitle}) {isRunning ? "●" : ""}
                 </div>
                 <div style={{ flex: 1, height: "1px", background: "#ddeeff" }} />
               </div>
-              <AgentStepView steps={currentSteps} elapsed={agentElapsed} />
+              <AgentStepView steps={currentSteps} />
             </div>
           )}
 
-          {detectingConflicts && (
-            <div style={{ padding: "12px 16px", background: "#fffbe6", border: "1px solid #ffe58f", borderRadius: "10px", fontSize: "12px", color: "#888800" }}>
-              ⚡ 충돌 지점 분석 중...
-            </div>
-          )}
-
-          {conflicts && !detectingConflicts && !isRunning && (
-            <div style={{ padding: "14px 16px", background: "#fff9e6", border: "1px solid #ffe58f", borderRadius: "10px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "#c97b3a", marginBottom: "8px", letterSpacing: "0.1em" }}>⚡ 핵심 충돌 지점</div>
-              <MarkdownRenderer content={conflicts} />
-            </div>
-          )}
-
-          {/* Special Panel 결과 */}
           {specialSteps.length > 0 && (
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888800", letterSpacing: "0.15em" }}>
-                  ✦ SPECIAL PANEL — Jobs · Musk · Buffett
-                </div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888800", letterSpacing: "0.15em" }}>✦ SPECIAL PANEL — Jobs · Musk · Buffett</div>
                 <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
               </div>
               <AgentStepView steps={specialSteps} />
@@ -481,8 +422,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
         <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <button
-              onClick={() => openFullView(rounds.map(r => `# ${r.round}라운드\n\n` + r.steps.map(s => `## ${s.role}\n\n${s.result}`).join("\n\n---\n\n")).join("\n\n═══════════════════\n\n"))}
+            <button onClick={() => openFullView(rounds.map(r => `# ${r.round}라운드\n\n` + r.steps.map(s => `## ${s.role}\n\n${s.result}`).join("\n\n---\n\n")).join("\n\n═══════════════════\n\n"))}
               style={{ padding: "6px 16px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>
               ↗ 전체 보기
             </button>
@@ -496,39 +436,44 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             {saveStatus === "worklog_saving" && <span style={{ fontSize: "10px", color: "#aaaaaa" }}>WORKLOG 업데이트 중...</span>}
             {saveStatus === "error" && <span style={{ fontSize: "10px", color: "#cc4444" }}>저장 오류</span>}
           </div>
-          {isRunning && (
-            <button onClick={stopCouncil}
-              style={{ padding: "8px 20px", background: "#ffffff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
-              ⏹ 멈추기
-            </button>
-          )}
-          {isPaused && (
-            <button onClick={resumeCouncil}
-              style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
-              ▶ 이어가기
-            </button>
-          )}
-          {isSummarizing && (
-            <span style={{ fontSize: "11px", color: "#aaaaaa" }}>✦ 이전 라운드 압축 중...</span>
-          )}
-          {roundDone && !isRunning && !isSummarizing && !isPaused && currentRound < 3 && (
-            <button onClick={startNextRound}
-              style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
-              {ROUND_CONFIG[currentRound]?.label} → ({ROUND_CONFIG[currentRound]?.subtitle})
-            </button>
-          )}
-          {roundDone && !isRunning && currentRound >= 3 && !specialDone && specialSteps.length === 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "12px", color: "#4a9e5f", fontWeight: 600 }}>✅ 19인 완료</span>
-              <button onClick={runSpecialPanel}
-                style={{ padding: "8px 18px", background: "linear-gradient(135deg, #111 0%, #333 100%)", border: "1px solid #555", borderRadius: "20px", color: "#fff", fontSize: "12px", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>🍎🚀💰</span> Special Panel 소집
+
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {isRunning && (
+              <button onClick={stopCouncil}
+                style={{ padding: "8px 20px", background: "#ffffff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                ⏹ 멈추기
               </button>
-            </div>
-          )}
-          {specialDone && (
-            <span style={{ fontSize: "12px", color: "#888800", fontWeight: 600 }}>✦ Special Panel 완료</span>
-          )}
+            )}
+            {isPaused && (
+              <button onClick={resumeCouncil}
+                style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                ▶ 이어가기
+              </button>
+            )}
+            {isSummarizing && <span style={{ fontSize: "11px", color: "#aaaaaa" }}>✦ 이전 라운드 압축 중...</span>}
+            {pendingNext && !isRunning && !isPaused && !isSummarizing && (
+              <button onClick={() => runOneAgent(pendingNext.roundNum, pendingNext.context, pendingNext.agentIndex, pendingNext.existingSteps)}
+                style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                ▶ 다음 — {nextAgentName}
+              </button>
+            )}
+            {roundDone && !isRunning && !isSummarizing && !isPaused && !pendingNext && currentRound < 3 && (
+              <button onClick={startNextRound}
+                style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
+                {ROUND_CONFIG[currentRound]?.label} → ({ROUND_CONFIG[currentRound]?.subtitle})
+              </button>
+            )}
+            {roundDone && !isRunning && currentRound >= 3 && !specialDone && specialSteps.length === 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "12px", color: "#4a9e5f", fontWeight: 600 }}>✅ 19인 완료</span>
+                <button onClick={runSpecialPanel}
+                  style={{ padding: "8px 18px", background: "linear-gradient(135deg, #111 0%, #333 100%)", border: "1px solid #555", borderRadius: "20px", color: "#fff", fontSize: "12px", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>🍎🚀💰</span> Special Panel 소집
+                </button>
+              </div>
+            )}
+            {specialDone && <span style={{ fontSize: "12px", color: "#888800", fontWeight: 600 }}>✦ Special Panel 완료</span>}
+          </div>
         </div>
       </div>
     </div>

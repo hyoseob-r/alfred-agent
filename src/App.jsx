@@ -72,10 +72,16 @@ export default function App() {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const importSessionRef = useRef(null);
+  const councilDataRef = useRef(null); // { rounds, fullContext }
 
   const exportSession = () => {
     if (!messages.length) return;
-    const data = { version: 1, exported_at: new Date().toISOString(), messages };
+    const data = {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      messages,
+      council: councilDataRef.current || null,
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -93,6 +99,7 @@ export default function App() {
         const data = JSON.parse(e.target.result);
         if (data.version === 1 && Array.isArray(data.messages)) {
           setMessages(data.messages);
+          if (data.council) councilDataRef.current = data.council;
         }
       } catch {}
     };
@@ -613,7 +620,8 @@ export default function App() {
               </div>
             )}
             {messages.map((msg, i) => (
-              <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner} />
+              <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
+                onCouncilUpdate={(rounds, fullContext) => { councilDataRef.current = { rounds, fullContext }; }} />
             ))}
             {loading && messages[messages.length - 1]?.content === "" && (
               <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "16px" }}>
