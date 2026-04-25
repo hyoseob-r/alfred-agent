@@ -78,6 +78,10 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   });
   const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
+  const [phase, setPhase] = useState(() => (initialRounds && initialRounds.length > 0) ? "started" : "selecting");
+  const [selectedIds, setSelectedIds] = useState(() => new Set(AGENTS.map(a => a.id)));
+  const activeIdsRef = useRef(new Set(AGENTS.map(a => a.id)));
+  const [showPanelEditor, setShowPanelEditor] = useState(false);
   const [specialSteps, setSpecialSteps] = useState([]);
   const [specialDone, setSpecialDone] = useState(false);
   const [agentStartTime, setAgentStartTime] = useState(null);
@@ -96,6 +100,37 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     if (agentTimingsRef.current.length === 0) return DEFAULT_ESTIMATE_SEC;
     const sum = agentTimingsRef.current.reduce((a, b) => a + b, 0);
     return Math.round(sum / agentTimingsRef.current.length);
+  };
+
+  const AGENT_GROUPS = [
+    { label: "사장님", ids: ROUND_CONFIG[0].agentIds },
+    { label: "고객",   ids: ROUND_CONFIG[1].agentIds },
+    { label: "전문가", ids: ROUND_CONFIG[2].agentIds },
+  ];
+
+  const toggleAgent = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      activeIdsRef.current = next;
+      return next;
+    });
+  };
+
+  const toggleGroup = (ids, forceOn) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      const allOn = ids.every(id => next.has(id));
+      ids.forEach(id => forceOn !== undefined ? (forceOn ? next.add(id) : next.delete(id)) : (allOn ? next.delete(id) : next.add(id)));
+      activeIdsRef.current = next;
+      return next;
+    });
+  };
+
+  const handleStart = () => {
+    setPhase("started");
+    const config = ROUND_CONFIG[0];
+    runOneAgent(1, config.contextIntro + solutionContent, 0, []);
   };
 
   const updateStep = (id, updates) =>
@@ -124,6 +159,22 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
   const runOneAgent = async (roundNum, context, agentIndex, existingSteps) => {
     const roundAgents = getAgentsForRound(roundNum);
+    const agent = roundAgents[agentIndex];
+
+    // 비선택 에이전트 스킵
+    if (!activeIdsRef.current.has(agent.id)) {
+      setCurrentSteps(roundAgents.map((a, i) => {
+        if (i < agentIndex) { const done = existingSteps.find(s => s.id === a.id); return done ? { ...a, ...done } : { ...a, status: "done", result: "" }; }
+        if (i === agentIndex) return { ...a, status: "skipped", result: "" };
+        return { ...a, status: "waiting", result: "" };
+      }));
+      const newSteps = [...existingSteps, { ...agent, result: "", status: "skipped" }];
+      const nextIndex = agentIndex + 1;
+      if (nextIndex < roundAgents.length) { runOneAgent(roundNum, context, nextIndex, newSteps); }
+      else { finishRound(roundNum, context, newSteps); }
+      return;
+    }
+
     const ac = new AbortController();
     abortControllerRef.current = ac;
     setIsRunning(true);
@@ -143,8 +194,6 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       if (i === agentIndex) return { ...a, status: "running", result: "" };
       return { ...a, status: "waiting", result: "" };
     }));
-
-    const agent = roundAgents[agentIndex];
     const isFactChecker = agent.id === "factchecker";
     const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
     const systemPrompt = isFactChecker
@@ -334,14 +383,6 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     } catch (e) { updateRoundStep({ status: "error", result: `오류: ${e.message}` }); }
   };
 
-  useEffect(() => {
-    // 초기 rounds가 없을 때만 자동 시작
-    if (!initialRounds || initialRounds.length === 0) {
-      const config = ROUND_CONFIG[0];
-      runOneAgent(1, config.contextIntro + solutionContent, 0, []);
-    }
-  }, []);
-
   const nextAgentName = pendingNext
     ? getAgentsForRound(pendingNext.roundNum)[pendingNext.agentIndex]?.role
     : null;
@@ -359,6 +400,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             <div style={{ fontSize: "11px", fontWeight: 700, color: step.status === "waiting" ? "#aaaaaa" : step.color, marginBottom: "6px", letterSpacing: "0.05em", textTransform: "uppercase" }}>{step.role}</div>
             {step.status === "waiting" && (
               <div style={{ padding: "10px 14px", background: "#f8f8f8", border: "1px solid #e5e5e5", borderRadius: "4px 12px 12px 12px", color: "#cccccc", fontSize: "12px" }}>대기 중...</div>
+            )}
+            {step.status === "skipped" && (
+              <div style={{ padding: "8px 14px", background: "#f5f5f5", border: "1px dashed #dddddd", borderRadius: "4px 12px 12px 12px", color: "#bbbbbb", fontSize: "11px" }}>— 건너뜀</div>
             )}
             {step.status === "running" && (
               <div style={{ padding: "10px 14px", background: step.color + "0a", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px", display: "flex", gap: "6px", alignItems: "center", justifyContent: "space-between" }}>
@@ -395,6 +439,55 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     </div>
   );
 
+  if (phase === "selecting") {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+        <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스 — 패널 선택</span>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+            {AGENT_GROUPS.map(group => {
+              const groupAgents = AGENTS.filter(a => group.ids.includes(a.id));
+              const allOn = groupAgents.every(a => selectedIds.has(a.id));
+              return (
+                <div key={group.label}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#888888", letterSpacing: "0.12em" }}>{group.label}</span>
+                    <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+                    <button onClick={() => toggleGroup(group.ids, !allOn)}
+                      style={{ fontSize: "10px", color: "#aaaaaa", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                      {allOn ? "전체 해제" : "전체 선택"}
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {groupAgents.map(agent => {
+                      const on = selectedIds.has(agent.id);
+                      return (
+                        <button key={agent.id} onClick={() => toggleAgent(agent.id)}
+                          style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${on ? agent.color + "88" : "#dddddd"}`, background: on ? agent.color + "15" : "#f8f8f8", color: on ? agent.color : "#aaaaaa", transition: "all 0.15s" }}>
+                          <span>{agent.icon}</span><span>{agent.role}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "11px", color: "#aaaaaa" }}>{selectedIds.size}명 선택됨</span>
+            <button onClick={handleStart} disabled={selectedIds.size === 0}
+              style={{ padding: "8px 24px", background: selectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: selectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
+              시작 →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
       <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -414,6 +507,12 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             </span>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {isRunning && (
+              <button onClick={() => setShowPanelEditor(true)}
+                style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", cursor: "pointer", border: "1px solid #dddddd", background: "#f8f8f8", color: "#888888", transition: "all 0.15s" }}>
+                ⚙ 패널 수정
+              </button>
+            )}
             {rounds.map(r => (
               <button key={r.round} onClick={() => setCollapsedRounds(prev => ({ ...prev, [r.round]: !prev[r.round] }))}
                 style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", cursor: "pointer", border: "1px solid #cccccc", background: collapsedRounds[r.round] ? "#f0f0f0" : "#111111", color: collapsedRounds[r.round] ? "#888888" : "#ffffff", transition: "all 0.2s" }}>
@@ -529,6 +628,51 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
           </div>
         </div>
       </div>
+
+      {/* 패널 수정 오버레이 */}
+      {showPanelEditor && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPanelEditor(false); }}>
+          <div style={{ background: "#ffffff", borderRadius: "14px", padding: "20px", width: "min(600px, 90vw)", maxHeight: "75vh", display: "flex", flexDirection: "column", gap: "14px", boxShadow: "0 8px 40px rgba(0,0,0,0.25)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#444444" }}>⚙ 패널 수정</span>
+              <button onClick={() => setShowPanelEditor(false)} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "16px" }}>✕</button>
+            </div>
+            <div style={{ fontSize: "11px", color: "#aaaaaa", lineHeight: 1.6 }}>
+              대기 중인 패널만 수정 가능합니다. 실행 중이거나 완료된 패널은 변경되지 않습니다.
+            </div>
+            <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {AGENT_GROUPS.map(group => {
+                const groupAgents = AGENTS.filter(a => group.ids.includes(a.id));
+                return (
+                  <div key={group.label}>
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.12em", marginBottom: "8px" }}>{group.label}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {groupAgents.map(a => {
+                        const stepStatus = currentSteps.find(s => s.id === a.id)?.status;
+                        const canToggle = stepStatus === "waiting" || stepStatus === "skipped" || !stepStatus;
+                        const on = activeIdsRef.current.has(a.id);
+                        return (
+                          <button key={a.id} onClick={() => canToggle && toggleAgent(a.id)}
+                            style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "16px", fontSize: "10px", cursor: canToggle ? "pointer" : "default", border: `1px solid ${canToggle && on ? a.color + "88" : "#dddddd"}`, background: canToggle && on ? a.color + "15" : "#f5f5f5", color: canToggle && on ? a.color : "#bbbbbb", transition: "all 0.15s", opacity: canToggle ? 1 : 0.45 }}>
+                            <span>{a.icon}</span>
+                            <span>{a.role}</span>
+                            {!canToggle && <span style={{ fontSize: "8px", marginLeft: "2px" }}>{stepStatus === "running" ? "●" : "✓"}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button onClick={() => setShowPanelEditor(false)}
+              style={{ padding: "7px 20px", background: "#111111", border: "none", borderRadius: "16px", color: "#ffffff", fontSize: "11px", cursor: "pointer", alignSelf: "flex-end", fontWeight: 600 }}>
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
