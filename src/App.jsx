@@ -485,25 +485,32 @@ export default function App() {
           return updated;
         });
 
+        // 에이전트별 타임아웃 (180초) — 스트림이 멈춰도 자동으로 다음으로 넘어감
+        const agentAc = new AbortController();
+        const timeoutId = setTimeout(() => agentAc.abort(), 180_000);
+        const combinedSignal = AbortSignal.any([ac.signal, agentAc.signal]);
+
         try {
           await streamChatAPI(
             { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: roundContext }] },
             (chunk) => { result += chunk; updateAgentMsg({ content: result }); },
-            ac.signal
+            combinedSignal
           );
+          clearTimeout(timeoutId);
           const dur = Math.floor((Date.now() - startedAt) / 1000);
           if (dur > 2) agentTimings.push(dur);
           updateAgentMsg({ councilStatus: "done" });
           cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
         } catch (e) {
-          if (e.name === "AbortError" || e.message === "STREAM_TRUNCATED") {
-            // 이어하기에 필요한 상태 저장
+          clearTimeout(timeoutId);
+          // 수동 중지 (council 전체 중단) 또는 rate limit → 이어하기 상태 저장
+          if (ac.signal.aborted || e.message === "STREAM_TRUNCATED") {
             const resumeState = {
               solutionContent,
               fromRound: roundNum,
               fromAgentId: agent.id,
               agentTimings: [...agentTimings],
-              cumulativeContext, // 이 에이전트 실행 전 컨텍스트
+              cumulativeContext,
             };
             if (result) {
               updateAgentMsg({ councilStatus: "stopped", resumeState });
@@ -512,6 +519,18 @@ export default function App() {
               updateAgentMsg({ councilStatus: "stopped", resumeState });
             }
             break;
+          }
+          // 에이전트 타임아웃 → 부분 저장 후 다음 에이전트로 계속
+          if (agentAc.signal.aborted) {
+            const dur = Math.floor((Date.now() - startedAt) / 1000);
+            if (dur > 2) agentTimings.push(dur);
+            if (result) {
+              updateAgentMsg({ councilStatus: "done", content: result + "\n\n> ⏱ 응답 시간 초과 — 부분 수신" });
+              cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
+            } else {
+              updateAgentMsg({ councilStatus: "done", content: "⏱ 응답 없음 (타임아웃)" });
+            }
+            continue;
           }
           updateAgentMsg({ content: `오류: ${e.message}`, councilStatus: "error" });
         }

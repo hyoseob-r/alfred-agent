@@ -202,18 +202,28 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
         ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
         : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
 
+    // 에이전트별 타임아웃 (180초) — 스트림이 멈춰도 자동으로 다음으로 넘어감
+    const agentAc = new AbortController();
+    const timeoutId = setTimeout(() => agentAc.abort(), 180_000);
+    const combinedSignal = AbortSignal.any([ac.signal, agentAc.signal]);
+
     let result = "";
     let aborted = false;
     let rateLimited = false;
+    let timedOut = false;
     try {
       await streamChatAPI(
         { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: context }] },
         (chunk) => { result += chunk; updateStep(agent.id, { status: "running", result }); },
-        ac.signal
+        combinedSignal
       );
+      clearTimeout(timeoutId);
     } catch (e) {
-      if (e.name === "AbortError") {
+      clearTimeout(timeoutId);
+      if (ac.signal.aborted) {
         aborted = true;
+      } else if (agentAc.signal.aborted) {
+        timedOut = true;
       } else if (isRateLimitError(e.message)) {
         rateLimited = true;
       } else {
@@ -229,6 +239,23 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     if (agentStartRef.current) {
       const duration = Math.floor((Date.now() - agentStartRef.current) / 1000);
       if (duration > 2) agentTimingsRef.current.push(duration);
+    }
+
+    // 타임아웃 → 부분 결과 저장 후 다음 에이전트로 자동 진행
+    if (timedOut) {
+      const partialResult = result || "⏱ 응답 없음 (타임아웃)";
+      updateStep(agent.id, { status: "done", result: result ? partialResult + "\n\n> ⏱ 응답 시간 초과 — 부분 수신" : partialResult });
+      const newContext = context + (result ? `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}` : "");
+      const newSteps = [...existingSteps, { ...agent, result: partialResult, status: "done" }];
+      setIsRunning(false);
+      setAgentStartTime(null);
+      const nextIndex = agentIndex + 1;
+      if (nextIndex < roundAgents.length) {
+        setPendingNext({ roundNum, context: newContext, agentIndex: nextIndex, existingSteps: newSteps });
+      } else {
+        finishRound(roundNum, newContext, newSteps);
+      }
+      return;
     }
 
     if (aborted || rateLimited) {
