@@ -93,7 +93,17 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `alfred-session-${new Date().toISOString().slice(0,10)}.json`;
+    const n = (parseInt(localStorage.getItem("alfred_export_count") || "0", 10) + 1);
+    localStorage.setItem("alfred_export_count", String(n));
+    const now = new Date();
+    const ts = now.getFullYear().toString()
+      + String(now.getMonth()+1).padStart(2,"0")
+      + String(now.getDate()).padStart(2,"0")
+      + "_"
+      + String(now.getHours()).padStart(2,"0")
+      + String(now.getMinutes()).padStart(2,"0")
+      + String(now.getSeconds()).padStart(2,"0");
+    a.download = `alfred_chat_${String(n).padStart(2,"0")}_${ts}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
