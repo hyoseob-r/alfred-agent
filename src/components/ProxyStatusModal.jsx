@@ -4,18 +4,21 @@ import { fetchProxyUrlFromServer, testProxyConnection, setActiveProxyUrl, getPro
 export default function ProxyStatusModal({ onClose, githubLogin, proxyUrl, onDetected }) {
   const [status, setStatus] = useState('idle'); // idle | checking | ok | fail
   const [detectedUrl, setDetectedUrl] = useState(proxyUrl || '');
+  const [manualUrl, setManualUrl] = useState('');
 
   const check = async () => {
     setStatus('checking');
-    const serverUrl = await fetchProxyUrlFromServer(githubLogin);
-    if (serverUrl) {
-      const alive = await testProxyConnection(serverUrl);
-      if (alive) {
-        setDetectedUrl(serverUrl);
-        setActiveProxyUrl(serverUrl);
-        onDetected(serverUrl);
-        setStatus('ok');
-        return;
+    if (githubLogin) {
+      const serverUrl = await fetchProxyUrlFromServer(githubLogin);
+      if (serverUrl) {
+        const alive = await testProxyConnection(serverUrl);
+        if (alive) {
+          setDetectedUrl(serverUrl);
+          setActiveProxyUrl(serverUrl);
+          onDetected(serverUrl);
+          setStatus('ok');
+          return;
+        }
       }
     }
     const cached = getProxyUrl();
@@ -30,6 +33,21 @@ export default function ProxyStatusModal({ onClose, githubLogin, proxyUrl, onDet
       }
     }
     setStatus('fail');
+  };
+
+  const connectManual = async () => {
+    const url = manualUrl.trim().replace(/\/$/, '');
+    if (!url) return;
+    setStatus('checking');
+    const alive = await testProxyConnection(url);
+    if (alive) {
+      setDetectedUrl(url);
+      setActiveProxyUrl(url);
+      onDetected(url);
+      setStatus('ok');
+    } else {
+      setStatus('fail');
+    }
   };
 
   const disconnect = () => {
@@ -69,6 +87,21 @@ export default function ProxyStatusModal({ onClose, githubLogin, proxyUrl, onDet
           </div>
         )}
 
+        {!proxyUrl && (
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '8px' }}>URL 직접 입력</div>
+            <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px' }}>터미널에서 프록시 실행 후 나오는 <b>trycloudflare.com</b> 주소를 붙여넣으세요.</div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input value={manualUrl} onChange={e => setManualUrl(e.target.value)}
+                placeholder="https://xxxx.trycloudflare.com"
+                style={{ flex: 1, padding: '7px 10px', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace', outline: 'none' }} />
+              <button onClick={connectManual} disabled={!manualUrl.trim() || status === 'checking'}
+                style={{ padding: '7px 14px', background: '#111', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', color: '#fff', whiteSpace: 'nowrap' }}>
+                연결
+              </button>
+            </div>
+          </div>
+        )}
         <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px' }}>
           <div style={{ fontSize: '12px', fontWeight: '600', color: '#555', marginBottom: '10px' }}>처음 설치하는 경우</div>
           <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>터미널에서 아래 명령어를 실행하세요 (한 번만):</div>
