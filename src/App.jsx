@@ -145,6 +145,9 @@ export default function App() {
           } else {
             setSessions([]);
             setCouncilSessions([]);
+            setActiveProxyUrl(null);
+            setHasProxy(false);
+            setProxyUrl(null);
           }
           if (owner) {
             fetch("https://alfred-agent-nine.vercel.app/api/get-context")
