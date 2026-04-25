@@ -13,8 +13,8 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
   const [showCompare, setShowCompare] = useState(false);
   const [showAssembleCouncil, setShowAssembleCouncil] = useState(false);
   const [showAssembleUT, setShowAssembleUT] = useState(false);
-  const [councilRounds, setCouncilRounds] = useState([]);
-  const [councilContext, setCouncilContext] = useState("");
+  const [councilRounds, setCouncilRounds] = useState(msg.councilRounds || []);
+  const [councilContext, setCouncilContext] = useState(msg.councilContext || "");
 
   const has2pager = !isUser && msg.content && (
     msg.content.includes("문제 정의서") || msg.content.includes("Problem Definition")

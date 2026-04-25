@@ -75,6 +75,7 @@ export default function App() {
   const fileInputRef = useRef(null);
   const importSessionRef = useRef(null);
   const councilDataRef = useRef(null); // { rounds, fullContext }
+  const chatTimingsRef = useRef([]); // completed chat response durations (seconds)
 
   const exportSession = () => {
     if (!messages.length) return;
@@ -462,6 +463,10 @@ export default function App() {
         return updated;
       });
     } finally {
+      if (loadingStartRef.current) {
+        const dur = Math.floor((Date.now() - loadingStartRef.current) / 1000);
+        if (dur > 2) chatTimingsRef.current.push(dur);
+      }
       setLoading(false);
       loadingStartRef.current = null;
       inputRef.current?.focus();
@@ -637,17 +642,34 @@ export default function App() {
             )}
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
-                onCouncilUpdate={(rounds, fullContext) => { councilDataRef.current = { rounds, fullContext }; }} />
+                onCouncilUpdate={(rounds, fullContext) => {
+                  councilDataRef.current = { rounds, fullContext };
+                  // assemble 메시지에 council 데이터 직접 반영 → auto-save로 세션에 포함됨
+                  setMessages(prev => {
+                    const updated = [...prev];
+                    updated[i] = { ...updated[i], councilRounds: rounds, councilContext: fullContext };
+                    return updated;
+                  });
+                }} />
             ))}
             <div ref={bottomRef} />
           </div>
 
-          {loading && (
-            <div style={{ padding: "5px 20px", background: "#fafafa", borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: "8px" }}>
-              {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#bbbbbb", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
-              <span style={{ fontSize: "11px", color: "#bbbbbb", fontVariantNumeric: "tabular-nums" }}>응답 생성 중 {loadingElapsed}s</span>
-            </div>
-          )}
+          {loading && (() => {
+            const timings = chatTimingsRef.current;
+            const chatEstimate = timings.length > 0
+              ? Math.round(timings.reduce((a, b) => a + b, 0) / timings.length)
+              : 45;
+            return (
+              <div style={{ padding: "5px 20px", background: "#fafafa", borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: "8px" }}>
+                {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#bbbbbb", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                <span style={{ fontSize: "11px", color: "#bbbbbb", fontVariantNumeric: "tabular-nums" }}>
+                  응답 생성 중 {loadingElapsed}s
+                  <span style={{ color: "#cccccc", marginLeft: "4px" }}>/ ~{chatEstimate}s</span>
+                </span>
+              </div>
+            );
+          })()}
           <div style={{ background: "#ffffff", borderTop: "1px solid #e5e5e5" }}>
             <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
             {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
