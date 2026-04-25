@@ -343,11 +343,34 @@ export default function App() {
     }
   };
 
+  // 세션 로드 후 저장 타이밍 이슈로 resumeState가 누락된 dangling 라운드 헤더 복구
+  const fixDanglingCouncilHeaders = (msgs) => {
+    const assembleMsg = [...msgs].reverse().find(m => m.isAssemble && m.assembleContext);
+    const solutionContent = assembleMsg?.assembleContext || "";
+    const processed = [...msgs];
+    for (let i = 0; i < processed.length; i++) {
+      const msg = processed[i];
+      if (!msg.isCouncilRoundHeader || msg.resumeState) continue;
+      const roundNum = msg.councilRound;
+      const rest = processed.slice(i + 1);
+      const hasAgents = rest.some(m => m.isCouncilAgent && m.councilRound === roundNum);
+      const isComplete = rest.some(m => m.isCouncilComplete);
+      if (!hasAgents && !isComplete) {
+        let cumulativeContext = solutionContent ? ROUND_CONFIG[0].contextIntro + solutionContent : "";
+        processed.slice(0, i)
+          .filter(m => m.isCouncilAgent && m.councilStatus === "done" && m.content)
+          .forEach(m => { cumulativeContext += `\n\n[${m.agentRole} ${m.councilRound}라운드 의견]\n${m.content}`; });
+        processed[i] = { ...msg, resumeState: { solutionContent, fromRound: roundNum, fromAgentId: null, agentTimings: [], cumulativeContext } };
+      }
+    }
+    return processed;
+  };
+
   const selectSession = async (id) => {
     const s = sessions.find(x => x.id === id);
     const msgs = await dbLoadMessages(id);
     setActiveSessionId(id);
-    setMessages(msgs);
+    setMessages(fixDanglingCouncilHeaders(msgs));
     setCurrentStage(s?.stage || STAGES.M1);
     setStarted(true);
     setSidebarOpen(false);
