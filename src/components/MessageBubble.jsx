@@ -130,6 +130,14 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
     );
   }
 
+  if (msg.isSystemNote) {
+    return (
+      <div style={{ margin: "8px 0 8px 48px", padding: "8px 14px", background: "#f5f0ff", border: "1px solid #ccaaee", borderRadius: "10px", fontSize: "11px", color: "#7740aa", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+        {msg.content}
+      </div>
+    );
+  }
+
   return (
     <>
       <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: (has2pager || isM3) ? "4px" : "16px", gap: "10px", alignItems: "flex-start" }}>

@@ -1004,12 +1004,22 @@ export default function App() {
           {/* ── Council 큐 편집 모달 ── */}
           {councilQueueEditor && (() => {
             const GROUPS_RT = ["사장님", "소비자", "전문가", "레전드"];
-            const done = councilProgressRef.current + (councilWaitingNext ? 1 : 0);
-            const applyQueue = (newQ) => {
+            // 현재 실행 중인 에이전트까지 항상 잠금 (running 중이면 +1, waiting이면 already +1)
+            const done = councilProgressRef.current + 1;
+            const notifyQueueChange = (newQ) => {
+              const remaining = newQ.slice(done).map((a, i) => `${done + i + 1}. ${a.icon} ${a.role}`).join("\n");
+              setMessages(prev => [...prev, {
+                role: "assistant",
+                content: `⚙ 토론 순서가 변경됐습니다.\n\n**남은 순서 (${newQ.length - done}명)**\n${remaining || "없음"}`,
+                isSystemNote: true,
+              }]);
+            };
+            const applyQueue = (newQ, notify = true) => {
               councilRuntimeQueueRef.current = newQ;
               setCouncilRuntimeQueue([...newQ]);
               const nextAgent = newQ[done];
               if (nextAgent) setCouncilNextAgentName(`${nextAgent.group ? `[${nextAgent.group}] ` : ""}${nextAgent.role}`);
+              if (notify) notifyQueueChange(newQ);
             };
             const addAgent = (agent) => applyQueue([
               ...councilRuntimeQueueRef.current,
