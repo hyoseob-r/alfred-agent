@@ -78,7 +78,6 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   });
   const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
-  const [phase, setPhase] = useState(() => (initialRounds && initialRounds.length > 0) ? "started" : "selecting");
   const [selectedIds, setSelectedIds] = useState(() => new Set(AGENTS.map(a => a.id)));
   const activeIdsRef = useRef(new Set(AGENTS.map(a => a.id)));
   const [showPanelEditor, setShowPanelEditor] = useState(false);
@@ -128,7 +127,6 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   };
 
   const handleStart = () => {
-    setPhase("started");
     const config = ROUND_CONFIG[0];
     runOneAgent(1, config.contextIntro + solutionContent, 0, []);
   };
@@ -227,10 +225,17 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       } else if (isRateLimitError(e.message)) {
         rateLimited = true;
       } else {
-        updateStep(agent.id, { status: "error", result: `오류: ${e.message}` });
-        existingSteps.push({ ...agent, result: `오류: ${e.message}`, status: "error" });
+        const errResult = `오류: ${e.message}`;
+        updateStep(agent.id, { status: "error", result: errResult });
+        const newSteps = [...existingSteps, { ...agent, result: errResult, status: "error" }];
         setIsRunning(false);
         setAgentStartTime(null);
+        const nextIndex = agentIndex + 1;
+        if (nextIndex < roundAgents.length) {
+          setPendingNext({ roundNum, context, agentIndex: nextIndex, existingSteps: newSteps });
+        } else {
+          finishRound(roundNum, context, newSteps);
+        }
         return;
       }
     }
@@ -466,54 +471,6 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     </div>
   );
 
-  if (phase === "selecting") {
-    return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-        <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스 — 패널 선택</span>
-            <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-            {AGENT_GROUPS.map(group => {
-              const groupAgents = AGENTS.filter(a => group.ids.includes(a.id));
-              const allOn = groupAgents.every(a => selectedIds.has(a.id));
-              return (
-                <div key={group.label}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#888888", letterSpacing: "0.12em" }}>{group.label}</span>
-                    <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
-                    <button onClick={() => toggleGroup(group.ids, !allOn)}
-                      style={{ fontSize: "10px", color: "#aaaaaa", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                      {allOn ? "전체 해제" : "전체 선택"}
-                    </button>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                    {groupAgents.map(agent => {
-                      const on = selectedIds.has(agent.id);
-                      return (
-                        <button key={agent.id} onClick={() => toggleAgent(agent.id)}
-                          style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${on ? agent.color + "88" : "#dddddd"}`, background: on ? agent.color + "15" : "#f8f8f8", color: on ? agent.color : "#aaaaaa", transition: "all 0.15s" }}>
-                          <span>{agent.icon}</span><span>{agent.role}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "11px", color: "#aaaaaa" }}>{selectedIds.size}명 선택됨</span>
-            <button onClick={handleStart} disabled={selectedIds.size === 0}
-              style={{ padding: "8px 24px", background: selectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: selectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
-              시작 →
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
@@ -534,7 +491,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             </span>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            {isRunning && (
+            {!specialDone && (
               <button onClick={() => setShowPanelEditor(true)}
                 style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", cursor: "pointer", border: "1px solid #dddddd", background: "#f8f8f8", color: "#888888", transition: "all 0.15s" }}>
                 ⚙ 패널 수정
@@ -629,6 +586,12 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 ▶ 이어가기
               </button>
             )}
+            {!isRunning && !isPaused && !isSummarizing && !pendingNext && !roundDone && rounds.length === 0 && (
+              <button onClick={handleStart} disabled={selectedIds.size === 0}
+                style={{ padding: "8px 24px", background: selectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: selectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
+                시작 →
+              </button>
+            )}
             {isSummarizing && <span style={{ fontSize: "11px", color: "#aaaaaa" }}>✦ 이전 라운드 압축 중...</span>}
             {pendingNext && !isRunning && !isPaused && !isSummarizing && (
               <button onClick={() => runOneAgent(pendingNext.roundNum, pendingNext.context, pendingNext.agentIndex, pendingNext.existingSteps)}
@@ -676,15 +639,16 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                     <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.12em", marginBottom: "8px" }}>{group.label}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                       {groupAgents.map(a => {
+                        const completedInRound = rounds.some(r => r.steps?.some(s => s.id === a.id));
                         const stepStatus = currentSteps.find(s => s.id === a.id)?.status;
-                        const canToggle = stepStatus === "waiting" || stepStatus === "skipped" || !stepStatus;
+                        const canToggle = !completedInRound && (stepStatus === "waiting" || stepStatus === "skipped" || !stepStatus);
                         const on = activeIdsRef.current.has(a.id);
                         return (
                           <button key={a.id} onClick={() => canToggle && toggleAgent(a.id)}
                             style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "16px", fontSize: "10px", cursor: canToggle ? "pointer" : "default", border: `1px solid ${canToggle && on ? a.color + "88" : "#dddddd"}`, background: canToggle && on ? a.color + "15" : "#f5f5f5", color: canToggle && on ? a.color : "#bbbbbb", transition: "all 0.15s", opacity: canToggle ? 1 : 0.45 }}>
                             <span>{a.icon}</span>
                             <span>{a.role}</span>
-                            {!canToggle && <span style={{ fontSize: "8px", marginLeft: "2px" }}>{stepStatus === "running" ? "●" : "✓"}</span>}
+                            {!canToggle && <span style={{ fontSize: "8px", marginLeft: "2px" }}>{completedInRound ? "✓" : stepStatus === "running" ? "●" : "✓"}</span>}
                           </button>
                         );
                       })}
