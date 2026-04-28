@@ -887,12 +887,21 @@ export default function App() {
               ? Math.round(timings.reduce((a, b) => a + b, 0) / timings.length)
               : 45;
             return (
-              <div style={{ padding: "5px 20px", background: "#fafafa", borderTop: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: "8px" }}>
-                {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#bbbbbb", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
-                <span style={{ fontSize: "11px", color: "#bbbbbb", fontVariantNumeric: "tabular-nums" }}>
-                  응답 생성 중 {loadingElapsed}s
-                  <span style={{ color: "#cccccc", marginLeft: "4px" }}>/ ~{chatEstimate}s</span>
-                </span>
+              <div style={{ padding: "8px 20px 6px", background: "#fafafa", borderTop: "1px solid #f0f0f0" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#bbbbbb", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                    <span style={{ fontSize: "11px", color: "#bbbbbb", marginLeft: "5px" }}>응답 생성 중</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "3px", fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 700, color: "#999999", lineHeight: 1 }}>{loadingElapsed}</span>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#bbbbbb" }}>s</span>
+                    <span style={{ fontSize: "11px", color: "#cccccc", marginLeft: "4px" }}>/ ~{chatEstimate}s</span>
+                  </div>
+                </div>
+                <div style={{ height: "2px", background: "#eeeeee", borderRadius: "2px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", background: "linear-gradient(90deg, #cccccc, #999999)", borderRadius: "2px", width: `${Math.min(100, Math.round((loadingElapsed / chatEstimate) * 100))}%`, transition: "width 0.5s linear" }} />
+                </div>
               </div>
             );
           })()}
