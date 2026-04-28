@@ -27,6 +27,7 @@ export const AGENTS = [
   { id: "user_coupon",     role: "쿠폰헌터형 고객",    icon: "🎟️", color: "#b03a8a", group: "소비자" },
   { id: "user_category",   role: "카테고리 단골형 고객", icon: "🔁", color: "#5a7abf", group: "소비자" },
   { id: "user_selective",  role: "선택적 고객",         icon: "🧐", color: "#7a5a3a", group: "소비자" },
+  ...SPECIAL_PANEL_AGENTS,
 ];
 
 export const ROUND_CONFIG = [
@@ -164,11 +165,14 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       if (i === queueIndex) return { ...a, status: "running", result: "" };
       return { ...a, status: "waiting", result: "" };
     }));
-    const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+    const isLegend = agent.group === "레전드";
+    const basePrompt = isLegend ? SPECIAL_PANEL_PROMPTS[agent.id] : AGENT_COUNCIL_PROMPTS[agent.id];
     const modeDirective = responseMode === "compact"
       ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
       : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
-    const systemPrompt = `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`;
+    const systemPrompt = isLegend
+      ? `${basePrompt}${modeDirective}`
+      : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`;
     const agentAc = new AbortController();
     const timeoutId = setTimeout(() => agentAc.abort(), 180_000);
     const combinedSignal = AbortSignal.any([ac.signal, agentAc.signal]);
@@ -594,7 +598,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   );
 
   if (phase === "selecting") {
-    const GROUPS_SEL = ["사장님", "소비자", "전문가"];
+    const GROUPS_SEL = ["사장님", "소비자", "전문가", "레전드"];
     return (
       <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
         <div style={{ width: "100%", maxWidth: "820px", maxHeight: "88vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -818,7 +822,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
       {/* 패널 수정 오버레이 */}
       {showPanelEditor && (() => {
-        const GROUPS_ED = ["사장님", "소비자", "전문가"];
+        const GROUPS_ED = ["사장님", "소비자", "전문가", "레전드"];
         const done = pendingNext?.queueIndex ?? (roundDone ? agentQueue.length : queueProgress);
         const editableQueue = agentQueue.slice(done);
         const addEditorAgent = (agent) => setAgentQueue(prev => [...prev, { ...agent, qid: `${agent.id}-${Date.now()}-${Math.random().toString(36).slice(2)}` }]);

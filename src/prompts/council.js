@@ -269,9 +269,9 @@ export const AGENT_COUNCIL_PROMPTS = {
 // ─── Special Panel: 전설적 리더 3인 ──────────────────────────────────────────
 
 export const SPECIAL_PANEL_AGENTS = [
-  { id: "steve_jobs",    role: "Steve Jobs",    icon: "🍎", color: "#555555" },
-  { id: "elon_musk",     role: "Elon Musk",     icon: "🚀", color: "#cc4444" },
-  { id: "warren_buffett",role: "Warren Buffett", icon: "💰", color: "#2a6e3f" },
+  { id: "steve_jobs",    role: "Steve Jobs",    icon: "🍎", color: "#555555", group: "레전드" },
+  { id: "elon_musk",     role: "Elon Musk",     icon: "🚀", color: "#cc4444", group: "레전드" },
+  { id: "warren_buffett",role: "Warren Buffett", icon: "💰", color: "#2a6e3f", group: "레전드" },
 ];
 
 export const SPECIAL_PANEL_PROMPTS = {

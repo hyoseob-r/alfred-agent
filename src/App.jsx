@@ -11,7 +11,7 @@ import {
 
 // Prompts
 import { buildSystemPrompt, STAGES, STAGE_INFO, detectStage } from "./prompts/agent";
-import { AGENT_COUNCIL_PROMPTS, FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "./prompts/council";
+import { AGENT_COUNCIL_PROMPTS, FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT, SPECIAL_PANEL_PROMPTS } from "./prompts/council";
 import { ROUND_CONFIG, AGENTS } from "./components/panels/AgentCouncilPanel";
 import { getSelectedModel } from "./utils/model";
 
@@ -438,14 +438,17 @@ export default function App() {
         if (summary) cumulativeContext = `[원래 주제]\n${solutionContent}\n\n[이전 토론 요약]\n${summary}`;
       }
 
+      const isLegend = agent.group === "레전드";
       const isFactChecker = agent.id === "factchecker";
-      const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+      const basePrompt = isLegend ? SPECIAL_PANEL_PROMPTS[agent.id] : AGENT_COUNCIL_PROMPTS[agent.id];
       const modeDirective = responseMode === "compact"
         ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
         : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
-      const systemPrompt = isFactChecker
-        ? basePrompt + modeDirective
-        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
+      const systemPrompt = isLegend
+        ? `${basePrompt}${modeDirective}`
+        : isFactChecker
+          ? basePrompt + modeDirective
+          : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
 
       const startedAt = Date.now();
       const estimatedTime = getEstimate();
@@ -827,7 +830,7 @@ export default function App() {
 
           {/* Council 패널 선택 모달 — 큐 방식 */}
           {councilPending && (() => {
-            const GROUPS = ["사장님", "소비자", "전문가"];
+            const GROUPS = ["사장님", "소비자", "전문가", "레전드"];
             const addToQueue = (agent) => setCouncilAgentQueue(prev => [
               ...prev, { ...agent, qid: `${agent.id}-${Date.now()}-${Math.random()}` }
             ]);
