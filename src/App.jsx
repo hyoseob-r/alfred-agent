@@ -102,7 +102,10 @@ export default function App() {
   const councilDataRef = useRef(null); // { rounds, fullContext }
   const chatTimingsRef = useRef([]); // completed chat response durations (seconds)
   const councilAbortRef = useRef(null);
+  const councilNextResolverRef = useRef(null); // "다음" 버튼 대기 Promise resolver
   const [councilRunning, setCouncilRunning] = useState(false);
+  const [councilWaitingNext, setCouncilWaitingNext] = useState(false); // 다음 에이전트 대기 중
+  const [councilNextAgentName, setCouncilNextAgentName] = useState("");
   const [councilPending, setCouncilPending] = useState(null); // { content } — 선택 모달 대기
   const [proxyAlert, setProxyAlert] = useState(false);
   const [councilAgentQueue, setCouncilAgentQueue] = useState([]); // 순서 큐 (중복 허용)
@@ -407,9 +410,16 @@ export default function App() {
 
   // agentQueue: [{ id, role, icon, color, group, qid }, ...] — 순서/중복 허용
   // resumeFrom: { solutionContent, queueIndex, agentQueue, agentTimings, cumulativeContext }
+  const proceedCouncilNext = () => {
+    councilNextResolverRef.current?.();
+    councilNextResolverRef.current = null;
+    setCouncilWaitingNext(false);
+  };
+
   const runCouncilInChat = async (solutionContent, resumeFrom = null, agentQueue = null, responseMode = "full") => {
     if (councilRunning) return;
     setCouncilRunning(true);
+    setCouncilWaitingNext(false);
     const ac = new AbortController();
     councilAbortRef.current = ac;
     const agentTimings = resumeFrom?.agentTimings ? [...resumeFrom.agentTimings] : [];
@@ -502,9 +512,21 @@ export default function App() {
           if (dur > 2) agentTimings.push(dur);
           updateAgentMsg({ councilStatus: "done", content: (result || "⏱ 응답 없음") + (result ? "\n\n> ⏱ 시간 초과 — 부분 수신" : "") });
           if (result) cumulativeContext += `\n\n[${agent.role} 의견 (부분)]\n${result}`;
-          continue;
+        } else {
+          updateAgentMsg({ content: `오류: ${e.message}`, councilStatus: "error" });
         }
-        updateAgentMsg({ content: `오류: ${e.message}`, councilStatus: "error" });
+      }
+
+      // 마지막 에이전트가 아니면 "다음" 버튼 대기
+      if (!ac.signal.aborted && qi < queue.length - 1) {
+        const nextAgent = queue[qi + 1];
+        setCouncilNextAgentName(`${nextAgent.group ? `[${nextAgent.group}] ` : ""}${nextAgent.role}`);
+        setCouncilWaitingNext(true);
+        await new Promise(resolve => {
+          councilNextResolverRef.current = resolve;
+          ac.signal.addEventListener("abort", resolve, { once: true });
+        });
+        if (ac.signal.aborted) break;
       }
     }
 
@@ -515,9 +537,9 @@ export default function App() {
       }]);
     }
     setCouncilRunning(false);
+    setCouncilWaitingNext(false);
+    councilNextResolverRef.current = null;
     councilAbortRef.current = null;
-    // councilRunning → false 로 바뀌면 auto-save useEffect가 재실행되어
-    // 최신 messages로 5초 후 자동 저장됨
   };
 
   const sendMessage = async () => {
@@ -915,13 +937,31 @@ export default function App() {
           })()}
 
           {councilRunning && (
-            <div style={{ padding: "5px 20px", background: "#fff8f0", borderTop: "1px solid #f0e0cc", display: "flex", alignItems: "center", gap: "10px" }}>
-              {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#c0783a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
-              <span style={{ fontSize: "11px", color: "#c0783a", flex: 1 }}>⚡ Council 19인 토론 진행 중...</span>
-              <button onClick={() => councilAbortRef.current?.abort()}
-                style={{ padding: "3px 12px", background: "#fff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
-                ⏹ 중지
-              </button>
+            <div style={{ padding: "7px 20px", background: councilWaitingNext ? "#f0fff4" : "#fff8f0", borderTop: `1px solid ${councilWaitingNext ? "#99ddaa" : "#f0e0cc"}`, display: "flex", alignItems: "center", gap: "10px", transition: "all 0.2s" }}>
+              {councilWaitingNext ? (
+                <>
+                  <span style={{ fontSize: "11px", color: "#336644", flex: 1 }}>
+                    ✅ 완료 — 다음: <strong>{councilNextAgentName}</strong>
+                  </span>
+                  <button onClick={proceedCouncilNext}
+                    style={{ padding: "4px 16px", background: "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: "pointer", fontWeight: 700 }}>
+                    ▶ 다음
+                  </button>
+                  <button onClick={() => councilAbortRef.current?.abort()}
+                    style={{ padding: "4px 12px", background: "#fff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
+                    ⏹ 중지
+                  </button>
+                </>
+              ) : (
+                <>
+                  {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#c0783a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+                  <span style={{ fontSize: "11px", color: "#c0783a", flex: 1 }}>⚡ 토론 진행 중...</span>
+                  <button onClick={() => councilAbortRef.current?.abort()}
+                    style={{ padding: "3px 12px", background: "#fff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
+                    ⏹ 중지
+                  </button>
+                </>
+              )}
             </div>
           )}
           {loading && (() => {
