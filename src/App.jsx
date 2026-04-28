@@ -104,6 +104,7 @@ export default function App() {
   const councilAbortRef = useRef(null);
   const [councilRunning, setCouncilRunning] = useState(false);
   const [councilPending, setCouncilPending] = useState(null); // { content } — 선택 모달 대기
+  const [proxyAlert, setProxyAlert] = useState(false);
   const [councilSelectedIds, setCouncilSelectedIds] = useState(() => new Set(AGENTS.map(a => a.id)));
   const [councilResponseMode, setCouncilResponseMode] = useState("full");
 
@@ -575,6 +576,7 @@ export default function App() {
 
   const sendMessage = async () => {
     if ((!input.trim() && !pendingImages.length) || loading) return;
+    if (!getProxyUrl()) { setProxyAlert(true); setTimeout(() => setProxyAlert(false), 3500); return; }
     const userText = input.trim();
     const files = [...pendingImages];
     setInput(""); setPendingImages([]);
@@ -988,6 +990,13 @@ export default function App() {
               </div>
             );
           })()}
+          {proxyAlert && (
+            <div style={{ padding: "10px 20px", background: "#fff3cd", borderTop: "1px solid #ffc107", display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "16px" }}>⚠️</span>
+              <span style={{ fontSize: "12px", color: "#664d00", flex: 1 }}>프록시가 연결되지 않았습니다. 우측 상단 <strong>⚙ 프록시</strong> 버튼을 눌러 연결해 주세요.</span>
+              <button onClick={() => setProxyAlert(false)} style={{ background: "none", border: "none", color: "#664d00", cursor: "pointer", fontSize: "14px", padding: 0 }}>✕</button>
+            </div>
+          )}
           <div style={{ background: "#ffffff", borderTop: "1px solid #e5e5e5" }}>
             <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
             {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
