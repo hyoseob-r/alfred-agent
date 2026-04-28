@@ -437,7 +437,16 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {steps.map((step) => (
         <div key={step.id} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: step.color + "22", border: `1px solid ${step.color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px" }}>
+          <div style={{
+            width: "36px", height: "36px", borderRadius: "50%",
+            background: step.color + "22",
+            border: `1px solid ${step.color}${step.status === "running" ? "cc" : "66"}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "16px", flexShrink: 0, marginTop: "2px",
+            boxShadow: step.status === "running" ? `0 0 0 3px ${step.color}22, 0 0 12px ${step.color}44` : "none",
+            animation: step.status === "running" ? "agentGlow 2s ease-in-out infinite" : "none",
+            transition: "box-shadow 0.3s",
+          }}>
             {step.icon}
           </div>
           <div style={{ flex: 1 }}>
@@ -449,14 +458,20 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
               <div style={{ padding: "8px 14px", background: "#f5f5f5", border: "1px dashed #dddddd", borderRadius: "4px 12px 12px 12px", color: "#bbbbbb", fontSize: "11px" }}>— 건너뜀</div>
             )}
             {step.status === "running" && (
-              <div style={{ padding: "10px 14px", background: step.color + "0a", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px", display: "flex", gap: "6px", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
-                  <span style={{ fontSize: "12px", color: step.color, marginLeft: "4px" }}>검토 중...</span>
+              <div style={{ padding: "14px 16px", background: step.color + "08", border: `1px solid ${step.color}33`, borderRadius: "4px 12px 12px 12px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+                    {[0,1,2].map(j => <div key={j} style={{ width: "7px", height: "7px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
+                    <span style={{ fontSize: "12px", color: step.color, marginLeft: "6px", fontWeight: 500 }}>검토 중...</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "3px", fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ fontSize: "26px", fontWeight: 700, color: step.color, lineHeight: 1 }}>{agentElapsed}</span>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: step.color + "aa" }}>s</span>
+                    <span style={{ fontSize: "11px", color: step.color + "55", marginLeft: "4px" }}>/ ~{estimatedTime}s</span>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: "6px", alignItems: "center", fontVariantNumeric: "tabular-nums" }}>
-                  <span style={{ fontSize: "11px", color: step.color + "bb" }}>{agentElapsed}s</span>
-                  <span style={{ fontSize: "10px", color: step.color + "66" }}>/ ~{estimatedTime}s</span>
+                <div style={{ height: "3px", background: step.color + "20", borderRadius: "2px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", background: `linear-gradient(90deg, ${step.color}88, ${step.color})`, borderRadius: "2px", width: `${Math.min(100, Math.round((agentElapsed / estimatedTime) * 100))}%`, transition: "width 0.5s linear" }} />
                 </div>
               </div>
             )}
@@ -541,6 +556,12 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <style>{`
+        @keyframes agentGlow {
+          0%, 100% { box-shadow: 0 0 0 3px var(--glow-color, rgba(108,142,191,0.13)), 0 0 10px var(--glow-color, rgba(108,142,191,0.25)); }
+          50% { box-shadow: 0 0 0 5px var(--glow-color, rgba(108,142,191,0.2)), 0 0 20px var(--glow-color, rgba(108,142,191,0.4)); }
+        }
+      `}</style>
       <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
