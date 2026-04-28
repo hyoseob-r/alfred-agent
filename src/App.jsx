@@ -704,6 +704,54 @@ export default function App() {
   }
 
   if (user === null) {
+    const GuestProxyGate = () => {
+      const [gateStatus, setGateStatus] = useState("idle");
+      const installCmd = `curl -fsSL https://alfred-agent-nine.vercel.app/install.sh | bash`;
+      const tryConnect = async () => {
+        setGateStatus("checking");
+        const tryUrl = async (url) => {
+          const alive = await testProxyConnection(url);
+          if (alive) { setActiveProxyUrl(url); setProxyUrl(url); setHasProxy(true); setUser(false); return true; }
+          return false;
+        };
+        if (await tryUrl("http://localhost:7432")) return;
+        const cached = getProxyUrl();
+        if (cached && await tryUrl(cached)) return;
+        setGateStatus("fail");
+      };
+      return (
+        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ width: "100%", maxWidth: "460px", background: "#ffffff", borderRadius: "20px", padding: "32px 28px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", fontFamily: "'Pretendard', sans-serif" }}>
+            <div style={{ fontSize: "20px", fontWeight: 700, color: "#111111", marginBottom: "8px" }}>⚡ 프록시 연결 필요</div>
+            <div style={{ fontSize: "13px", color: "#888888", lineHeight: 1.7, marginBottom: "24px" }}>
+              비회원 모드는 로컬 프록시가 연결되어야 사용할 수 있습니다.<br />
+              프록시 없이는 AI 채팅과 Council 기능을 이용할 수 없습니다.
+            </div>
+            <div style={{ background: "#f5f5f5", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
+              <div style={{ fontSize: "12px", color: "#666666", marginBottom: "10px" }}>
+                {gateStatus === "checking" ? "🔍 연결 확인 중..." : gateStatus === "fail" ? "⚠ 프록시가 실행 중이 아닙니다. 아래 명령어로 설치 후 다시 시도하세요." : "프록시가 실행 중이라면 아래 버튼을 눌러 연결하세요."}
+              </div>
+              <button onClick={tryConnect} disabled={gateStatus === "checking"}
+                style={{ padding: "8px 20px", background: "#111111", border: "none", borderRadius: "8px", color: "#ffffff", fontSize: "12px", cursor: gateStatus === "checking" ? "not-allowed" : "pointer", fontWeight: 600 }}>
+                {gateStatus === "checking" ? "확인 중..." : "자동 감지 및 연결"}
+              </button>
+            </div>
+            <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: "16px" }}>
+              <div style={{ fontSize: "11px", fontWeight: 600, color: "#666666", marginBottom: "8px" }}>처음 설치하는 경우 (터미널에서 1회 실행)</div>
+              <div style={{ background: "#111111", borderRadius: "8px", padding: "10px 14px", fontFamily: "monospace", fontSize: "11px", color: "#88ff88", wordBreak: "break-all", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ flex: 1 }}>{installCmd}</span>
+                <button onClick={() => navigator.clipboard.writeText(installCmd)}
+                  style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "4px", padding: "3px 8px", color: "#cccccc", fontSize: "10px", cursor: "pointer", whiteSpace: "nowrap" }}>복사</button>
+              </div>
+            </div>
+            <button onClick={() => setShowProxySettings(false)}
+              style={{ marginTop: "20px", width: "100%", padding: "10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "12px", cursor: "pointer" }}>
+              ← 돌아가기
+            </button>
+          </div>
+        </div>
+      );
+    };
     return (
       <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
         <div style={{ textAlign: "center", maxWidth: "380px", width: "100%", padding: "0 20px" }}>
@@ -714,13 +762,14 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.background = "#111111"; }}>
             GitHub 로그인
           </button>
-          <button onClick={() => setUser(false)}
+          <button onClick={() => setShowProxySettings("guest")}
             style={{ width: "100%", padding: "14px 24px", background: "transparent", border: "none", borderRadius: "14px", color: "#888888", fontSize: "14px", fontWeight: "500", cursor: "pointer", transition: "all 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.color = "#444444"; }}
             onMouseLeave={e => { e.currentTarget.style.color = "#888888"; }}>
             로그인 없이 사용하기
           </button>
         </div>
+        {showProxySettings === "guest" && <GuestProxyGate />}
       </div>
     );
   }
@@ -742,7 +791,7 @@ export default function App() {
         />
       )}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
-      {showProxySettings && (
+      {showProxySettings === true && (
         <ProxyStatusModal
           onClose={() => setShowProxySettings(false)}
           githubLogin={user?.user_metadata?.user_name || user?.user_metadata?.preferred_username || ""}
