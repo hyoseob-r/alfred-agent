@@ -254,9 +254,10 @@ export default function App() {
   // ── Auto-save ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!started || !activeSessionId || messages.length === 0) return;
+    // Council 진행 중엔 저장 스킵 — 완료 후 한 번만 저장
+    if (councilRunning) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      // 세션 생성 시각을 ID에서 추출 (s_{timestamp})
       const createdAt = new Date(parseInt(activeSessionId.split('_')[1]) || Date.now());
       const pad = (n) => String(n).padStart(2, '0');
       const dateStr = `${createdAt.getFullYear()}${pad(createdAt.getMonth() + 1)}${pad(createdAt.getDate())}`;
@@ -269,14 +270,18 @@ export default function App() {
         try {
           await dbUpsertSession({ id: activeSessionId, title, stage: currentStage }, user.id);
           await dbSaveMessages(activeSessionId, messages, user.id);
-          const s = await dbLoadSessions(user.id);
-          setSessions(s);
+          // 세션 목록은 로컬 상태로 업데이트 (DB 재조회 없음)
+          setSessions(prev => {
+            const exists = prev.some(s => s.id === activeSessionId);
+            const updated = { id: activeSessionId, title, stage: currentStage };
+            return exists ? prev.map(s => s.id === activeSessionId ? { ...s, ...updated } : s) : [updated, ...prev];
+          });
         } catch (e) { console.error("save error:", e); }
         finally { clearTimeout(giveUp); setDbSaving(false); }
       }
-    }, 1500);
+    }, 5000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [messages]);
+  }, [messages, councilRunning]);
 
   const handleFiles = useCallback(async (files) => {
     const supported = Array.from(files).filter(f =>
@@ -508,6 +513,8 @@ export default function App() {
     }
     setCouncilRunning(false);
     councilAbortRef.current = null;
+    // councilRunning → false 로 바뀌면 auto-save useEffect가 재실행되어
+    // 최신 messages로 5초 후 자동 저장됨
   };
 
   const sendMessage = async () => {
