@@ -78,6 +78,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   });
   const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
+  const [phase, setPhase] = useState(() => (initialRounds && initialRounds.length > 0) ? "started" : "selecting");
   const [selectedIds, setSelectedIds] = useState(() => new Set(AGENTS.map(a => a.id)));
   const activeIdsRef = useRef(new Set(AGENTS.map(a => a.id)));
   const [showPanelEditor, setShowPanelEditor] = useState(false);
@@ -127,6 +128,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   };
 
   const handleStart = () => {
+    setPhase("started");
     const config = ROUND_CONFIG[0];
     runOneAgent(1, config.contextIntro + solutionContent, 0, []);
   };
@@ -471,6 +473,54 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     </div>
   );
 
+  if (phase === "selecting") {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+        <div style={{ width: "100%", maxWidth: "720px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스 — 패널 선택</span>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+            {AGENT_GROUPS.map(group => {
+              const groupAgents = AGENTS.filter(a => group.ids.includes(a.id));
+              const allOn = groupAgents.every(a => selectedIds.has(a.id));
+              return (
+                <div key={group.label}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#888888", letterSpacing: "0.12em" }}>{group.label}</span>
+                    <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+                    <button onClick={() => toggleGroup(group.ids, !allOn)}
+                      style={{ fontSize: "10px", color: "#aaaaaa", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                      {allOn ? "전체 해제" : "전체 선택"}
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {groupAgents.map(agent => {
+                      const on = selectedIds.has(agent.id);
+                      return (
+                        <button key={agent.id} onClick={() => toggleAgent(agent.id)}
+                          style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${on ? agent.color + "88" : "#dddddd"}`, background: on ? agent.color + "15" : "#f8f8f8", color: on ? agent.color : "#aaaaaa", transition: "all 0.15s" }}>
+                          <span>{agent.icon}</span><span>{agent.role}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "11px", color: "#aaaaaa" }}>{selectedIds.size}명 선택됨</span>
+            <button onClick={handleStart} disabled={selectedIds.size === 0}
+              style={{ padding: "8px 24px", background: selectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: selectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
+              시작 →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
@@ -586,13 +636,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 ▶ 이어가기
               </button>
             )}
-            {!isRunning && !isPaused && !isSummarizing && !pendingNext && !roundDone && rounds.length === 0 && (
-              <button onClick={handleStart} disabled={selectedIds.size === 0}
-                style={{ padding: "8px 24px", background: selectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: selectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
-                시작 →
-              </button>
-            )}
-            {isSummarizing && <span style={{ fontSize: "11px", color: "#aaaaaa" }}>✦ 이전 라운드 압축 중...</span>}
+{isSummarizing && <span style={{ fontSize: "11px", color: "#aaaaaa" }}>✦ 이전 라운드 압축 중...</span>}
             {pendingNext && !isRunning && !isPaused && !isSummarizing && (
               <button onClick={() => runOneAgent(pendingNext.roundNum, pendingNext.context, pendingNext.agentIndex, pendingNext.existingSteps)}
                 style={{ padding: "8px 20px", background: "#111111", border: "1px solid #111111", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}>
