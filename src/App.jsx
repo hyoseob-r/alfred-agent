@@ -12,7 +12,7 @@ import {
 // Prompts
 import { buildSystemPrompt, STAGES, STAGE_INFO, detectStage } from "./prompts/agent";
 import { AGENT_COUNCIL_PROMPTS, FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "./prompts/council";
-import { ROUND_CONFIG, getAgentsForRound } from "./components/panels/AgentCouncilPanel";
+import { ROUND_CONFIG, getAgentsForRound, AGENTS } from "./components/panels/AgentCouncilPanel";
 import { getSelectedModel } from "./utils/model";
 
 // Utils
@@ -103,6 +103,9 @@ export default function App() {
   const chatTimingsRef = useRef([]); // completed chat response durations (seconds)
   const councilAbortRef = useRef(null);
   const [councilRunning, setCouncilRunning] = useState(false);
+  const [councilPending, setCouncilPending] = useState(null); // { content } — 선택 모달 대기
+  const [councilSelectedIds, setCouncilSelectedIds] = useState(() => new Set(AGENTS.map(a => a.id)));
+  const [councilResponseMode, setCouncilResponseMode] = useState("full");
 
   const exportSession = () => {
     if (!messages.length) return;
@@ -397,7 +400,7 @@ export default function App() {
   };
 
   // resumeFrom: { solutionContent, fromRound, fromAgentId, agentTimings, cumulativeContext }
-  const runCouncilInChat = async (solutionContent, resumeFrom = null) => {
+  const runCouncilInChat = async (solutionContent, resumeFrom = null, selectedIds = null, responseMode = "full") => {
     if (councilRunning) return;
     setCouncilRunning(true);
     const ac = new AbortController();
@@ -457,12 +460,17 @@ export default function App() {
 
       for (const agent of agentsToRun) {
         if (ac.signal.aborted) break;
+        // 선택되지 않은 에이전트 스킵
+        if (selectedIds && !selectedIds.has(agent.id)) continue;
         danglingRoundNum = null; // 에이전트가 실제로 시작됨 — 헤더는 dangling 아님
         const isFactChecker = agent.id === "factchecker";
         const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
-        const systemPrompt = isFactChecker ? basePrompt
-          : roundNum === 1 ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
-          : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+        const modeDirective = responseMode === "compact"
+          ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
+          : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
+        const systemPrompt = isFactChecker ? basePrompt + modeDirective
+          : roundNum === 1 ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`
+          : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
 
         const startedAt = Date.now();
         const estimatedTime = getEstimate();
@@ -857,7 +865,7 @@ export default function App() {
             )}
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
-                onCouncilStart={runCouncilInChat}
+                onCouncilStart={(content) => setCouncilPending({ content })}
                 onCouncilResume={(resumeState) => runCouncilInChat(resumeState.solutionContent, resumeState)}
                 onCouncilUpdate={(rounds, fullContext) => {
                   councilDataRef.current = { rounds, fullContext };
@@ -870,6 +878,81 @@ export default function App() {
             ))}
             <div ref={bottomRef} />
           </div>
+
+          {/* Council 패널 선택 모달 */}
+          {councilPending && (() => {
+            const GROUPS = [
+              { label: "사장님", ids: ROUND_CONFIG[0].agentIds },
+              { label: "고객",   ids: ROUND_CONFIG[1].agentIds },
+              { label: "전문가", ids: ROUND_CONFIG[2].agentIds },
+            ];
+            const toggleAgent = (id) => setCouncilSelectedIds(prev => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id); else next.add(id);
+              return next;
+            });
+            const toggleGroup = (ids) => setCouncilSelectedIds(prev => {
+              const next = new Set(prev);
+              const allOn = ids.every(id => next.has(id));
+              ids.forEach(id => allOn ? next.delete(id) : next.add(id));
+              return next;
+            });
+            return (
+              <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+                <div style={{ width: "100%", maxWidth: "680px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스 — 패널 선택</span>
+                    <button onClick={() => setCouncilPending(null)} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
+                  </div>
+                  <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    {GROUPS.map(group => {
+                      const groupAgents = AGENTS.filter(a => group.ids.includes(a.id));
+                      const allOn = groupAgents.every(a => councilSelectedIds.has(a.id));
+                      return (
+                        <div key={group.label}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#888888", letterSpacing: "0.12em" }}>{group.label}</span>
+                            <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
+                            <button onClick={() => toggleGroup(group.ids)} style={{ fontSize: "10px", color: "#aaaaaa", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                              {allOn ? "전체 해제" : "전체 선택"}
+                            </button>
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                            {groupAgents.map(agent => {
+                              const on = councilSelectedIds.has(agent.id);
+                              return (
+                                <button key={agent.id} onClick={() => toggleAgent(agent.id)}
+                                  style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${on ? agent.color + "88" : "#dddddd"}`, background: on ? agent.color + "15" : "#f8f8f8", color: on ? agent.color : "#aaaaaa", transition: "all 0.15s" }}>
+                                  <span>{agent.icon}</span><span>{agent.role}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+                    <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                      {[{ id: "compact", label: "⚡ 핵심만" }, { id: "full", label: "📖 전문보기" }].map(m => (
+                        <button key={m.id} onClick={() => setCouncilResponseMode(m.id)}
+                          style={{ padding: "5px 12px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${councilResponseMode === m.id ? "#111111" : "#dddddd"}`, background: councilResponseMode === m.id ? "#111111" : "#f8f8f8", color: councilResponseMode === m.id ? "#ffffff" : "#aaaaaa", fontWeight: councilResponseMode === m.id ? 600 : 400, transition: "all 0.15s" }}>
+                          {m.label}
+                        </button>
+                      ))}
+                      <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "6px" }}>{councilSelectedIds.size}명 선택</span>
+                    </div>
+                    <button
+                      onClick={() => { const c = councilPending; setCouncilPending(null); runCouncilInChat(c.content, null, councilSelectedIds, councilResponseMode); }}
+                      disabled={councilSelectedIds.size === 0}
+                      style={{ padding: "8px 24px", background: councilSelectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: councilSelectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
+                      시작 →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {councilRunning && (
             <div style={{ padding: "5px 20px", background: "#fff8f0", borderTop: "1px solid #f0e0cc", display: "flex", alignItems: "center", gap: "10px" }}>
