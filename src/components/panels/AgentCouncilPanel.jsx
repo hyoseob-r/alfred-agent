@@ -79,6 +79,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const [councilId, setCouncilId] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle");
   const [phase, setPhase] = useState(() => (initialRounds && initialRounds.length > 0) ? "started" : "selecting");
+  const [responseMode, setResponseMode] = useState("full"); // "compact" | "full"
   const [selectedIds, setSelectedIds] = useState(() => new Set(AGENTS.map(a => a.id)));
   const activeIdsRef = useRef(new Set(AGENTS.map(a => a.id)));
   const [showPanelEditor, setShowPanelEditor] = useState(false);
@@ -196,11 +197,14 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     }));
     const isFactChecker = agent.id === "factchecker";
     const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+    const modeDirective = responseMode === "compact"
+      ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
+      : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
     const systemPrompt = isFactChecker
-      ? basePrompt
+      ? basePrompt + modeDirective
       : roundNum === 1
-        ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
-        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+        ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`
+        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
 
     // 에이전트별 타임아웃 (180초) — 스트림이 멈춰도 자동으로 다음으로 넘어감
     const agentAc = new AbortController();
@@ -357,8 +361,11 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, status: "running" } : s));
       let result = "";
       try {
+        const specialModeDirective = responseMode === "compact"
+          ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략."
+          : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
         await streamChatAPI(
-          { model: getSelectedModel(), max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id], messages: [{ role: "user", content: contextIntro }] },
+          { model: getSelectedModel(), max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id] + specialModeDirective, messages: [{ role: "user", content: contextIntro }] },
           (chunk) => { result += chunk; setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, result } : s)); }
         );
         setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, status: "done", result } : s));
@@ -399,9 +406,12 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const retryAgent = async (agent, roundNum) => {
     const isFactChecker = agent.id === "factchecker";
     const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
-    const systemPrompt = isFactChecker ? basePrompt : roundNum === 1
-      ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}`
-      : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}`;
+    const modeDirective = responseMode === "compact"
+      ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
+      : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
+    const systemPrompt = isFactChecker ? basePrompt + modeDirective : roundNum === 1
+      ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`
+      : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
     const updateRoundStep = (updates) =>
       setRounds(prev => prev.map(r => r.round === roundNum
         ? { ...r, steps: r.steps.map(s => s.id === agent.id ? { ...s, ...updates } : s) } : r));
@@ -510,8 +520,15 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
               );
             })}
           </div>
-          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "11px", color: "#aaaaaa" }}>{selectedIds.size}명 선택됨</span>
+          <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {[{ id: "compact", label: "⚡ 핵심만" }, { id: "full", label: "📖 전문보기" }].map(m => (
+                <button key={m.id} onClick={() => setResponseMode(m.id)}
+                  style={{ padding: "5px 12px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${responseMode === m.id ? "#111111" : "#dddddd"}`, background: responseMode === m.id ? "#111111" : "#f8f8f8", color: responseMode === m.id ? "#ffffff" : "#aaaaaa", fontWeight: responseMode === m.id ? 600 : 400, transition: "all 0.15s" }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
             <button onClick={handleStart} disabled={selectedIds.size === 0}
               style={{ padding: "8px 24px", background: selectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: selectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
               시작 →
@@ -541,6 +558,12 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             </span>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {!isRunning && (
+              <button onClick={() => setResponseMode(m => m === "compact" ? "full" : "compact")}
+                style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", cursor: "pointer", border: "1px solid #dddddd", background: "#f8f8f8", color: "#888888", transition: "all 0.15s" }}>
+                {responseMode === "compact" ? "⚡ 핵심만" : "📖 전문보기"}
+              </button>
+            )}
             {!specialDone && (
               <button onClick={() => setShowPanelEditor(true)}
                 style={{ padding: "3px 10px", borderRadius: "20px", fontSize: "10px", cursor: "pointer", border: "1px solid #dddddd", background: "#f8f8f8", color: "#888888", transition: "all 0.15s" }}>
