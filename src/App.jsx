@@ -12,7 +12,7 @@ import {
 // Prompts
 import { buildSystemPrompt, STAGES, STAGE_INFO, detectStage } from "./prompts/agent";
 import { AGENT_COUNCIL_PROMPTS, FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "./prompts/council";
-import { ROUND_CONFIG, getAgentsForRound, AGENTS } from "./components/panels/AgentCouncilPanel";
+import { ROUND_CONFIG, AGENTS } from "./components/panels/AgentCouncilPanel";
 import { getSelectedModel } from "./utils/model";
 
 // Utils
@@ -105,7 +105,7 @@ export default function App() {
   const [councilRunning, setCouncilRunning] = useState(false);
   const [councilPending, setCouncilPending] = useState(null); // { content } — 선택 모달 대기
   const [proxyAlert, setProxyAlert] = useState(false);
-  const [councilSelectedIds, setCouncilSelectedIds] = useState(() => new Set(AGENTS.map(a => a.id)));
+  const [councilAgentQueue, setCouncilAgentQueue] = useState([]); // 순서 큐 (중복 허용)
   const [councilResponseMode, setCouncilResponseMode] = useState("full");
 
   const exportSession = () => {
@@ -400,173 +400,109 @@ export default function App() {
     setCurrentStage(STAGES.IDLE);
   };
 
-  // resumeFrom: { solutionContent, fromRound, fromAgentId, agentTimings, cumulativeContext }
-  const runCouncilInChat = async (solutionContent, resumeFrom = null, selectedIds = null, responseMode = "full") => {
+  // agentQueue: [{ id, role, icon, color, group, qid }, ...] — 순서/중복 허용
+  // resumeFrom: { solutionContent, queueIndex, agentQueue, agentTimings, cumulativeContext }
+  const runCouncilInChat = async (solutionContent, resumeFrom = null, agentQueue = null, responseMode = "full") => {
     if (councilRunning) return;
     setCouncilRunning(true);
     const ac = new AbortController();
     councilAbortRef.current = ac;
     const agentTimings = resumeFrom?.agentTimings ? [...resumeFrom.agentTimings] : [];
-    let cumulativeContext = resumeFrom?.cumulativeContext || "";
+    let cumulativeContext = resumeFrom?.cumulativeContext || (`다음 주제에 대해 검토해 주십시오:\n\n${solutionContent}`);
     const getEstimate = () => agentTimings.length > 0
       ? Math.round(agentTimings.reduce((a, b) => a + b, 0) / agentTimings.length) : 45;
 
-    const startRound = resumeFrom?.fromRound || 1;
-    const startAgentId = resumeFrom?.fromAgentId || null;
-    let danglingRoundNum = null; // 헤더만 추가되고 에이전트가 아직 안 돌아간 라운드
+    const queue = resumeFrom?.agentQueue || agentQueue || AGENTS.map((a, i) => ({ ...a, qid: String(i) }));
+    const startIndex = resumeFrom?.queueIndex || 0;
 
-    for (let roundNum = startRound; roundNum <= 3; roundNum++) {
+    for (let qi = startIndex; qi < queue.length; qi++) {
       if (ac.signal.aborted) break;
-      const roundConfig = ROUND_CONFIG[roundNum - 1];
-      const roundAgents = getAgentsForRound(roundNum);
-      const isResumingThisRound = resumeFrom && roundNum === startRound;
+      const agent = queue[qi];
 
-      // 라운드 헤더 메시지 (이어가기 시 해당 라운드는 이미 존재하므로 스킵)
-      if (!isResumingThisRound) {
-        danglingRoundNum = roundNum; // 헤더 추가 — 아직 에이전트 없음
-        setMessages(prev => [...prev, {
-          role: "assistant", content: "",
-          isCouncilRoundHeader: true, councilRound: roundNum,
-          councilLabel: roundConfig.label, councilSubtitle: roundConfig.subtitle, councilColor: roundConfig.color,
-        }]);
-      }
-
-      // 컨텍스트 구성
-      if (isResumingThisRound) {
-        // resumeFrom.cumulativeContext 사용 (이미 세팅됨)
-      } else if (roundNum === 1) {
-        cumulativeContext = roundConfig.contextIntro + solutionContent;
-      } else {
+      // 5번째 에이전트마다 컨텍스트 압축
+      if (qi > 0 && qi % 5 === 0) {
         let summary = "";
         try {
           await streamChatAPI(
             { model: getSelectedModel(), max_tokens: 1200,
-              system: "당신은 회의 요약 전문가입니다. 멀티라운드 에이전트 토론을 다음 라운드 참가자들이 맥락을 이해할 수 있도록 압축하세요.\n규칙:\n- 각 에이전트의 핵심 주장 1~2줄씩 보존\n- 주요 합의점과 충돌 지점 명시\n- 원본 발언의 핵심 논지는 반드시 유지\n- 한국어로. 절대 중요한 인사이트를 누락하지 말 것.",
-              messages: [{ role: "user", content: `다음 에이전트 토론을 요약해주세요:\n\n${cumulativeContext}` }] },
+              system: "당신은 회의 요약 전문가입니다. 에이전트 토론을 압축하세요.\n규칙:\n- 각 에이전트 핵심 주장 1~2줄\n- 주요 합의점·충돌 지점 명시\n- 한국어로.",
+              messages: [{ role: "user", content: `다음 토론을 요약해주세요:\n\n${cumulativeContext}` }] },
             (chunk) => { summary += chunk; }, ac.signal
           );
         } catch {}
-        cumulativeContext = `[원래 주제]\n${solutionContent}\n\n[이전 라운드 요약]\n${summary || cumulativeContext.slice(0, 2000)}`;
+        if (summary) cumulativeContext = `[원래 주제]\n${solutionContent}\n\n[이전 토론 요약]\n${summary}`;
       }
 
-      const roundContext = cumulativeContext
-        + `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n[${roundNum}라운드 — ${roundConfig.label} (${roundConfig.subtitle})]\n${roundConfig.contextIntro}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+      const isFactChecker = agent.id === "factchecker";
+      const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
+      const modeDirective = responseMode === "compact"
+        ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
+        : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
+      const systemPrompt = isFactChecker
+        ? basePrompt + modeDirective
+        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
 
-      // 이어가기: 중단된 에이전트부터 시작
-      let agentsToRun = roundAgents;
-      if (isResumingThisRound && startAgentId) {
-        const idx = roundAgents.findIndex(a => a.id === startAgentId);
-        if (idx >= 0) agentsToRun = roundAgents.slice(idx);
-      }
+      const startedAt = Date.now();
+      const estimatedTime = getEstimate();
+      const msgKey = `${agent.qid}-${qi}`;
+      setMessages(prev => [...prev, {
+        role: "assistant", content: "",
+        isCouncilAgent: true, agentId: agent.id, agentRole: agent.role,
+        agentIcon: agent.icon, agentColor: agent.color, agentGroup: agent.group,
+        msgKey, councilStatus: "running", startedAt, estimatedTime,
+      }]);
 
-      for (const agent of agentsToRun) {
-        if (ac.signal.aborted) break;
-        // 선택되지 않은 에이전트 스킵
-        if (selectedIds && !selectedIds.has(agent.id)) continue;
-        danglingRoundNum = null; // 에이전트가 실제로 시작됨 — 헤더는 dangling 아님
-        const isFactChecker = agent.id === "factchecker";
-        const basePrompt = AGENT_COUNCIL_PROMPTS[agent.id];
-        const modeDirective = responseMode === "compact"
-          ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
-          : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
-        const systemPrompt = isFactChecker ? basePrompt + modeDirective
-          : roundNum === 1 ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`
-          : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
-
-        const startedAt = Date.now();
-        const estimatedTime = getEstimate();
-        setMessages(prev => [...prev, {
-          role: "assistant", content: "",
-          isCouncilAgent: true, agentId: agent.id, agentRole: agent.role,
-          agentIcon: agent.icon, agentColor: agent.color,
-          councilRound: roundNum, councilStatus: "running",
-          startedAt, estimatedTime,
-        }]);
-
-        let result = "";
-        const updateAgentMsg = (updates) => setMessages(prev => {
-          const updated = [...prev];
-          for (let i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].isCouncilAgent && updated[i].agentId === agent.id && updated[i].councilRound === roundNum && updated[i].councilStatus !== "stopped") {
-              updated[i] = { ...updated[i], ...updates }; break;
-            }
-          }
-          return updated;
-        });
-
-        // 에이전트별 타임아웃 (180초) — 스트림이 멈춰도 자동으로 다음으로 넘어감
-        const agentAc = new AbortController();
-        const timeoutId = setTimeout(() => agentAc.abort(), 180_000);
-        const combinedSignal = AbortSignal.any([ac.signal, agentAc.signal]);
-
-        try {
-          await streamChatAPI(
-            { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: roundContext }] },
-            (chunk) => { result += chunk; updateAgentMsg({ content: result }); },
-            combinedSignal
-          );
-          clearTimeout(timeoutId);
-          const dur = Math.floor((Date.now() - startedAt) / 1000);
-          if (dur > 2) agentTimings.push(dur);
-          updateAgentMsg({ councilStatus: "done" });
-          cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견]\n${result}`;
-        } catch (e) {
-          clearTimeout(timeoutId);
-          // 수동 중지 (council 전체 중단) 또는 rate limit → 이어하기 상태 저장
-          if (ac.signal.aborted || e.message === "STREAM_TRUNCATED") {
-            const resumeState = {
-              solutionContent,
-              fromRound: roundNum,
-              fromAgentId: agent.id,
-              agentTimings: [...agentTimings],
-              cumulativeContext,
-            };
-            if (result) {
-              updateAgentMsg({ councilStatus: "stopped", resumeState });
-              cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
-            } else {
-              updateAgentMsg({ councilStatus: "stopped", resumeState });
-            }
-            break;
-          }
-          // 에이전트 타임아웃 → 부분 저장 후 다음 에이전트로 계속
-          if (agentAc.signal.aborted) {
-            const dur = Math.floor((Date.now() - startedAt) / 1000);
-            if (dur > 2) agentTimings.push(dur);
-            if (result) {
-              updateAgentMsg({ councilStatus: "done", content: result + "\n\n> ⏱ 응답 시간 초과 — 부분 수신" });
-              cumulativeContext += `\n\n[${agent.role} ${roundNum}라운드 의견 (부분)]\n${result}`;
-            } else {
-              updateAgentMsg({ councilStatus: "done", content: "⏱ 응답 없음 (타임아웃)" });
-            }
-            continue;
-          }
-          updateAgentMsg({ content: `오류: ${e.message}`, councilStatus: "error" });
-        }
-      }
-      if (ac.signal.aborted) break;
-    }
-
-    // 라운드 헤더만 남고 에이전트가 안 돌아간 경우 → 헤더에 이어하기 resumeState 부착
-    if (danglingRoundNum !== null) {
-      const rs = {
-        solutionContent, fromRound: danglingRoundNum, fromAgentId: null,
-        agentTimings: [...agentTimings], cumulativeContext,
-      };
-      setMessages(prev => {
+      let result = "";
+      const updateAgentMsg = (updates) => setMessages(prev => {
         const updated = [...prev];
         for (let i = updated.length - 1; i >= 0; i--) {
-          if (updated[i].isCouncilRoundHeader && updated[i].councilRound === danglingRoundNum) {
-            updated[i] = { ...updated[i], resumeState: rs }; break;
+          if (updated[i].isCouncilAgent && updated[i].msgKey === msgKey && updated[i].councilStatus !== "stopped") {
+            updated[i] = { ...updated[i], ...updates }; break;
           }
         }
         return updated;
       });
+
+      const agentAc = new AbortController();
+      const timeoutId = setTimeout(() => agentAc.abort(), 180_000);
+      const combinedSignal = AbortSignal.any([ac.signal, agentAc.signal]);
+
+      try {
+        await streamChatAPI(
+          { model: getSelectedModel(), max_tokens: 4000, system: systemPrompt, messages: [{ role: "user", content: cumulativeContext }] },
+          (chunk) => { result += chunk; updateAgentMsg({ content: result }); },
+          combinedSignal
+        );
+        clearTimeout(timeoutId);
+        const dur = Math.floor((Date.now() - startedAt) / 1000);
+        if (dur > 2) agentTimings.push(dur);
+        updateAgentMsg({ councilStatus: "done" });
+        cumulativeContext += `\n\n[${agent.group ? `${agent.group} · ` : ""}${agent.role} 의견]\n${result}`;
+      } catch (e) {
+        clearTimeout(timeoutId);
+        if (ac.signal.aborted || e.message === "STREAM_TRUNCATED") {
+          const resumeState = {
+            solutionContent, queueIndex: qi, agentQueue: queue,
+            agentTimings: [...agentTimings], cumulativeContext,
+          };
+          if (result) cumulativeContext += `\n\n[${agent.role} 의견 (부분)]\n${result}`;
+          updateAgentMsg({ councilStatus: "stopped", resumeState });
+          break;
+        }
+        if (agentAc.signal.aborted) {
+          const dur = Math.floor((Date.now() - startedAt) / 1000);
+          if (dur > 2) agentTimings.push(dur);
+          updateAgentMsg({ councilStatus: "done", content: (result || "⏱ 응답 없음") + (result ? "\n\n> ⏱ 시간 초과 — 부분 수신" : "") });
+          if (result) cumulativeContext += `\n\n[${agent.role} 의견 (부분)]\n${result}`;
+          continue;
+        }
+        updateAgentMsg({ content: `오류: ${e.message}`, councilStatus: "error" });
+      }
     }
 
     if (!ac.signal.aborted) {
       setMessages(prev => [...prev, {
-        role: "assistant", content: "✅ 19인 토론이 완료됐습니다.",
+        role: "assistant", content: `✅ 토론이 완료됐습니다. (${queue.length}인)`,
         isCouncilComplete: true,
       }]);
     }
@@ -869,6 +805,7 @@ export default function App() {
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
                 onCouncilStart={(content) => setCouncilPending({ content })}
                 onCouncilResume={(resumeState) => runCouncilInChat(resumeState.solutionContent, resumeState)}
+                onCouncilStop={() => councilAbortRef.current?.abort()}
                 onCouncilUpdate={(rounds, fullContext) => {
                   councilDataRef.current = { rounds, fullContext };
                   setMessages(prev => {
@@ -881,74 +818,85 @@ export default function App() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Council 패널 선택 모달 */}
+          {/* Council 패널 선택 모달 — 큐 방식 */}
           {councilPending && (() => {
-            const GROUPS = [
-              { label: "사장님", ids: ROUND_CONFIG[0].agentIds },
-              { label: "고객",   ids: ROUND_CONFIG[1].agentIds },
-              { label: "전문가", ids: ROUND_CONFIG[2].agentIds },
-            ];
-            const toggleAgent = (id) => setCouncilSelectedIds(prev => {
-              const next = new Set(prev);
-              if (next.has(id)) next.delete(id); else next.add(id);
-              return next;
+            const GROUPS = ["사장님", "소비자", "전문가"];
+            const addToQueue = (agent) => setCouncilAgentQueue(prev => [
+              ...prev, { ...agent, qid: `${agent.id}-${Date.now()}-${Math.random()}` }
+            ]);
+            const removeFromQueue = (idx) => setCouncilAgentQueue(prev => prev.filter((_, i) => i !== idx));
+            const moveUp = (idx) => setCouncilAgentQueue(prev => {
+              if (idx === 0) return prev;
+              const next = [...prev]; [next[idx-1], next[idx]] = [next[idx], next[idx-1]]; return next;
             });
-            const toggleGroup = (ids) => setCouncilSelectedIds(prev => {
-              const next = new Set(prev);
-              const allOn = ids.every(id => next.has(id));
-              ids.forEach(id => allOn ? next.delete(id) : next.add(id));
-              return next;
+            const moveDown = (idx) => setCouncilAgentQueue(prev => {
+              if (idx === prev.length - 1) return prev;
+              const next = [...prev]; [next[idx], next[idx+1]] = [next[idx+1], next[idx]]; return next;
             });
             return (
               <div style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-                <div style={{ width: "100%", maxWidth: "680px", maxHeight: "85vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                  <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스 — 패널 선택</span>
+                <div style={{ width: "100%", maxWidth: "760px", maxHeight: "90vh", background: "#f5f5f5", border: "1px solid #cccccc", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚡ 에이전트 어벤저스 — 순서 설정</span>
                     <button onClick={() => setCouncilPending(null)} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
                   </div>
-                  <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-                    {GROUPS.map(group => {
-                      const groupAgents = AGENTS.filter(a => group.ids.includes(a.id));
-                      const allOn = groupAgents.every(a => councilSelectedIds.has(a.id));
-                      return (
-                        <div key={group.label}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#888888", letterSpacing: "0.12em" }}>{group.label}</span>
-                            <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
-                            <button onClick={() => toggleGroup(group.ids)} style={{ fontSize: "10px", color: "#aaaaaa", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                              {allOn ? "전체 해제" : "전체 선택"}
-                            </button>
-                          </div>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                            {groupAgents.map(agent => {
-                              const on = councilSelectedIds.has(agent.id);
-                              return (
-                                <button key={agent.id} onClick={() => toggleAgent(agent.id)}
-                                  style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${on ? agent.color + "88" : "#dddddd"}`, background: on ? agent.color + "15" : "#f8f8f8", color: on ? agent.color : "#aaaaaa", transition: "all 0.15s" }}>
-                                  <span>{agent.icon}</span><span>{agent.role}</span>
+                  <div style={{ flex: 1, overflowY: "auto", display: "flex", gap: 0 }}>
+                    {/* 왼쪽: 에이전트 목록 */}
+                    <div style={{ width: "55%", borderRight: "1px solid #e5e5e5", padding: "16px", overflowY: "auto" }}>
+                      <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.1em", marginBottom: "12px" }}>클릭하면 순서에 추가됩니다 (중복 가능)</div>
+                      {GROUPS.map(g => {
+                        const ga = AGENTS.filter(a => a.group === g);
+                        return (
+                          <div key={g} style={{ marginBottom: "16px" }}>
+                            <div style={{ fontSize: "10px", fontWeight: 700, color: "#888888", letterSpacing: "0.1em", marginBottom: "8px" }}>{g}</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {ga.map(agent => (
+                                <button key={agent.id} onClick={() => addToQueue(agent)}
+                                  style={{ display: "flex", alignItems: "center", gap: "4px", padding: "5px 10px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${agent.color}66`, background: agent.color + "12", color: agent.color, transition: "all 0.15s" }}
+                                  onMouseEnter={e => e.currentTarget.style.background = agent.color + "25"}
+                                  onMouseLeave={e => e.currentTarget.style.background = agent.color + "12"}>
+                                  <span>{agent.icon}</span><span>{agent.role}</span><span style={{ fontSize: "9px", opacity: 0.6 }}>+</span>
                                 </button>
-                              );
-                            })}
+                              ))}
+                            </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                    {/* 오른쪽: 실행 순서 큐 */}
+                    <div style={{ flex: 1, padding: "16px", overflowY: "auto" }}>
+                      <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.1em", marginBottom: "12px" }}>실행 순서 ({councilAgentQueue.length}명)</div>
+                      {councilAgentQueue.length === 0 && (
+                        <div style={{ fontSize: "12px", color: "#cccccc", textAlign: "center", marginTop: "40px" }}>← 왼쪽에서 에이전트를 추가하세요</div>
+                      )}
+                      {councilAgentQueue.map((agent, idx) => (
+                        <div key={agent.qid} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 8px", background: "#ffffff", border: `1px solid ${agent.color}33`, borderRadius: "10px", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "10px", color: "#cccccc", width: "16px", textAlign: "right", flexShrink: 0 }}>{idx+1}</span>
+                          <span style={{ fontSize: "14px" }}>{agent.icon}</span>
+                          <span style={{ fontSize: "11px", color: agent.color, flex: 1 }}>
+                            <span style={{ fontSize: "9px", opacity: 0.5, marginRight: "3px" }}>[{agent.group}]</span>{agent.role}
+                          </span>
+                          <button onClick={() => moveUp(idx)} disabled={idx === 0} style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #dddddd", borderRadius: "6px", cursor: idx === 0 ? "default" : "pointer", color: idx === 0 ? "#dddddd" : "#888888" }}>↑</button>
+                          <button onClick={() => moveDown(idx)} disabled={idx === councilAgentQueue.length - 1} style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #dddddd", borderRadius: "6px", cursor: idx === councilAgentQueue.length - 1 ? "default" : "pointer", color: idx === councilAgentQueue.length - 1 ? "#dddddd" : "#888888" }}>↓</button>
+                          <button onClick={() => removeFromQueue(idx)} style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #f0aaaa", borderRadius: "6px", cursor: "pointer", color: "#cc6666" }}>✕</button>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
                   <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
                     <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                       {[{ id: "compact", label: "⚡ 핵심만" }, { id: "full", label: "📖 전문보기" }].map(m => (
                         <button key={m.id} onClick={() => setCouncilResponseMode(m.id)}
-                          style={{ padding: "5px 12px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${councilResponseMode === m.id ? "#111111" : "#dddddd"}`, background: councilResponseMode === m.id ? "#111111" : "#f8f8f8", color: councilResponseMode === m.id ? "#ffffff" : "#aaaaaa", fontWeight: councilResponseMode === m.id ? 600 : 400, transition: "all 0.15s" }}>
+                          style={{ padding: "5px 12px", borderRadius: "20px", fontSize: "11px", cursor: "pointer", border: `1px solid ${councilResponseMode === m.id ? "#111111" : "#dddddd"}`, background: councilResponseMode === m.id ? "#111111" : "#f8f8f8", color: councilResponseMode === m.id ? "#ffffff" : "#aaaaaa", fontWeight: councilResponseMode === m.id ? 600 : 400 }}>
                           {m.label}
                         </button>
                       ))}
-                      <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "6px" }}>{councilSelectedIds.size}명 선택</span>
                     </div>
                     <button
-                      onClick={() => { const c = councilPending; setCouncilPending(null); runCouncilInChat(c.content, null, councilSelectedIds, councilResponseMode); }}
-                      disabled={councilSelectedIds.size === 0}
-                      style={{ padding: "8px 24px", background: councilSelectedIds.size === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: councilSelectedIds.size === 0 ? "default" : "pointer", fontWeight: 600 }}>
-                      시작 →
+                      onClick={() => { const c = councilPending; setCouncilPending(null); runCouncilInChat(c.content, null, councilAgentQueue, councilResponseMode); }}
+                      disabled={councilAgentQueue.length === 0}
+                      style={{ padding: "8px 24px", background: councilAgentQueue.length === 0 ? "#cccccc" : "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "12px", cursor: councilAgentQueue.length === 0 ? "default" : "pointer", fontWeight: 600 }}>
+                      시작 → ({councilAgentQueue.length}명)
                     </button>
                   </div>
                 </div>

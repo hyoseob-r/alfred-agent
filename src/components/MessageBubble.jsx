@@ -6,33 +6,11 @@ import { DocActionBar, M3ActionBar } from "./ActionBars";
 import ComparePanel from "./panels/ComparePanel";
 import UTSimPanel from "./panels/UTSimPanel";
 
-// Council 라운드 헤더 (인라인)
-function CouncilRoundHeader({ msg, onResume }) {
-  const color = msg.councilColor || "#6c8ebf";
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "20px 0 12px 0" }}>
-      <div style={{ width: "3px", height: "20px", background: color, borderRadius: "2px", flexShrink: 0 }} />
-      <div style={{ fontSize: "11px", fontWeight: 700, color, letterSpacing: "0.15em" }}>
-        {msg.councilRound}R — {msg.councilLabel}
-        <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: "6px" }}>({msg.councilSubtitle})</span>
-      </div>
-      <div style={{ flex: 1, height: "1px", background: "#e5e5e5" }} />
-      {msg.resumeState && onResume && (
-        <button
-          onClick={onResume}
-          style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 10px", background: "#fff8e8", border: "1px solid #e0b040", borderRadius: "14px", color: "#b07000", fontSize: "10px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#fef0c0"; e.currentTarget.style.borderColor = "#c09000"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#fff8e8"; e.currentTarget.style.borderColor = "#e0b040"; }}
-        >
-          ▶ 이어하기
-        </button>
-      )}
-    </div>
-  );
-}
+// Council 라운드 헤더 — 더 이상 사용하지 않음 (flat queue 방식으로 전환)
+function CouncilRoundHeader() { return null; }
 
 // Council 에이전트 응답 (인라인 스트리밍)
-function CouncilAgentBubble({ msg, onResume }) {
+function CouncilAgentBubble({ msg, onResume, onStop }) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (msg.councilStatus !== "running") return;
@@ -43,40 +21,57 @@ function CouncilAgentBubble({ msg, onResume }) {
 
   const color = msg.agentColor || "#888888";
   const isStopped = msg.councilStatus === "stopped";
+  const isRunning = msg.councilStatus === "running";
+  const estimated = msg.estimatedTime || 45;
+  const groupLabel = msg.agentGroup;
   return (
     <div style={{ display: "flex", gap: "12px", marginBottom: "20px", alignItems: "flex-start" }}>
-      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: color + "22", border: `1px solid ${color}66`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px" }}>
+      <div style={{
+        width: "36px", height: "36px", borderRadius: "50%", background: color + "22",
+        border: `1px solid ${color}${isRunning ? "cc" : "66"}`,
+        display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0, marginTop: "2px",
+        boxShadow: isRunning ? `0 0 0 3px ${color}22, 0 0 12px ${color}44` : "none",
+      }}>
         {msg.agentIcon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "11px", fontWeight: 700, color, marginBottom: "6px", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+        <div style={{ fontSize: "11px", fontWeight: 700, color, marginBottom: "6px", letterSpacing: "0.05em" }}>
+          {groupLabel && <span style={{ fontWeight: 400, opacity: 0.6, marginRight: "5px" }}>[{groupLabel}]</span>}
           {msg.agentRole}
         </div>
         <div style={{ padding: "12px 14px", background: isStopped ? "#fffbea" : "#ffffff", border: `1px solid ${isStopped ? "#f0c040" : color + "33"}`, borderRadius: "4px 12px 12px 12px" }}>
-          {msg.councilStatus === "running" && (
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: msg.content ? "8px" : 0 }}>
-              {[0,1,2].map(j => <div key={j} style={{ width: "5px", height: "5px", borderRadius: "50%", background: color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
-              <span style={{ fontSize: "11px", color, marginLeft: "4px" }}>검토 중...</span>
-              <span style={{ fontSize: "11px", color: color + "99", marginLeft: "auto", fontVariantNumeric: "tabular-nums" }}>
-                {elapsed}s <span style={{ color: color + "55" }}>/ ~{msg.estimatedTime || 45}s</span>
-              </span>
-            </div>
+          {isRunning && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  {[0,1,2].map(j => <div key={j} style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
+                  <span style={{ fontSize: "12px", color, marginLeft: "5px", fontWeight: 500 }}>검토 중...</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "2px", fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ fontSize: "22px", fontWeight: 700, color, lineHeight: 1 }}>{elapsed}</span>
+                    <span style={{ fontSize: "11px", color: color + "aa" }}>s</span>
+                    <span style={{ fontSize: "11px", color: color + "55", marginLeft: "3px" }}>/ ~{estimated}s</span>
+                  </div>
+                  {onStop && (
+                    <button onClick={onStop} style={{ padding: "3px 10px", background: "#fff", border: "1px solid #cc4444", borderRadius: "12px", color: "#cc4444", fontSize: "10px", cursor: "pointer", fontWeight: 600, flexShrink: 0 }}>
+                      ⏹
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div style={{ height: "2px", background: color + "20", borderRadius: "2px", overflow: "hidden", marginBottom: msg.content ? "10px" : 0 }}>
+                <div style={{ height: "100%", background: `linear-gradient(90deg, ${color}88, ${color})`, borderRadius: "2px", width: `${Math.min(100, Math.round((elapsed / estimated) * 100))}%`, transition: "width 0.5s linear" }} />
+              </div>
+            </>
           )}
-          {isStopped && !msg.content && (
-            <div style={{ fontSize: "10px", color: "#b07800" }}>⏹ 중단됨</div>
-          )}
-          {isStopped && msg.content && (
-            <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 부분 응답</div>
-          )}
+          {isStopped && !msg.content && <div style={{ fontSize: "10px", color: "#b07800" }}>⏹ 중단됨</div>}
+          {isStopped && msg.content && <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 부분 응답</div>}
           {msg.content && <MarkdownRenderer content={msg.content} />}
           {isStopped && onResume && msg.resumeState && (
             <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #f0e0b0" }}>
-              <button
-                onClick={onResume}
-                style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: "#fff8e8", border: "1px solid #e0b040", borderRadius: "16px", color: "#b07000", fontSize: "11px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.background = "#fef0c0"; e.currentTarget.style.borderColor = "#c09000"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "#fff8e8"; e.currentTarget.style.borderColor = "#e0b040"; }}
-              >
+              <button onClick={onResume}
+                style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 12px", background: "#fff8e8", border: "1px solid #e0b040", borderRadius: "16px", color: "#b07000", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
                 ▶ 이어하기
               </button>
             </div>
@@ -87,7 +82,7 @@ function CouncilAgentBubble({ msg, onResume }) {
   );
 }
 
-export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart, onCouncilResume }) {
+export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart, onCouncilResume, onCouncilStop }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -124,6 +119,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
     <CouncilAgentBubble
       msg={msg}
       onResume={msg.resumeState && onCouncilResume ? () => onCouncilResume(msg.resumeState) : null}
+      onStop={msg.councilStatus === "running" && onCouncilStop ? onCouncilStop : null}
     />
   );
   if (msg.isCouncilComplete) {
