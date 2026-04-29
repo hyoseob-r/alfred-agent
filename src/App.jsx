@@ -899,7 +899,7 @@ export default function App() {
                 onChange={e => { importSession(e.target.files?.[0]); e.target.value = ""; }} />
             </div>
           )}
-          <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px 72px 8px 20px", scrollbarWidth: "thin", scrollbarColor: "#cccccc transparent" }}>
             {!messages.length && !user && (
               <div style={{ margin: "40px auto", maxWidth: "440px", background: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "16px", padding: "28px 28px", color: "#555555", lineHeight: 1.7 }}>
                 <div style={{ fontSize: "15px", fontWeight: 700, color: "#111111", marginBottom: "16px" }}>🔒 비로그인 상태</div>
