@@ -202,7 +202,7 @@ export default function FeedbackPanel({ onClose }) {
                 background: filter === f.key ? "#111" : "#f0f0f0",
                 color: filter === f.key ? "#fff" : "#666",
                 fontSize: "11px", fontWeight: filter === f.key ? 700 : 400,
-                cursor: "pointer", whiteSpace: "nowrap",
+                cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
               {f.label}
