@@ -133,7 +133,7 @@ export function FeedbackButton() {
         onClick={() => setOpen(true)}
         title="피드백 보내기"
         style={{
-          position: "fixed", bottom: "24px", right: "24px", zIndex: 9000,
+          position: "fixed", bottom: "96px", right: "24px", zIndex: 9000,
           width: "40px", height: "40px", borderRadius: "50%",
           background: "#111", border: "none", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -151,7 +151,7 @@ export function FeedbackButton() {
         <div style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 9999,
           display: "flex", alignItems: "flex-end", justifyContent: "flex-end",
-          padding: "24px",
+          padding: "96px 24px",
         }} onClick={e => e.target === e.currentTarget && setOpen(false)}>
           <div style={{
             background: "#fff", borderRadius: "16px", padding: "20px",
