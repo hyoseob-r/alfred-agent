@@ -1,0 +1,34 @@
+name: Auto Fix Crash
+
+on:
+  repository_dispatch:
+    types: [crash-fix]
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run auto-fix script
+        run: node scripts/auto-fix-crash.mjs '${{ toJson(github.event.client_payload) }}'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GIT_USER_EMAIL: hyoseob.r@gmail.com
+          GIT_USER_NAME: alfred-autofix
