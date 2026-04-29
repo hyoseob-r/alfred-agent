@@ -36,10 +36,7 @@ import { FeedbackButton } from "./components/FeedbackSystem";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
 
-// ErrorBoundary 테스트용 — 렌더링 중 강제 에러 발생
-function CrashTrigger() {
-  throw new Error("[TEST CRASH] 의도적 크래시 테스트 — TypeError: Cannot read properties of undefined (reading 'map')");
-}
+
 
 // 세션 로드 시 저장 타이밍 이슈로 resumeState가 누락된 dangling 라운드 헤더 복구
 function fixDanglingCouncilHeaders(msgs) {
