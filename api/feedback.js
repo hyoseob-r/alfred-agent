@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     const data = await resp.json()
     if (!resp.ok) return res.status(500).json({ error: data })
     const saved = data[0]
-    sendSlackNotification(saved) // fire-and-forget
+    await sendSlackNotification(saved)
     return res.status(200).json(saved)
   }
 
