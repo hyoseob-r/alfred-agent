@@ -1,4 +1,5 @@
 const SUPABASE_URL = 'https://atwztuelyhwtohylbypv.supabase.co'
+const APP_URL = 'https://alfred-agent-nine.vercel.app'
 
 function getHeaders(serviceKey) {
   return {
@@ -6,6 +7,53 @@ function getHeaders(serviceKey) {
     'apikey': serviceKey,
     'Authorization': `Bearer ${serviceKey}`,
   }
+}
+
+async function sendSlackNotification(feedback) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL
+  if (!webhookUrl) return
+
+  const isCrash = feedback.type === 'crash'
+  const emoji = isCrash ? '💥' : '💬'
+  const priority = isCrash ? '*🔴 긴급 크래시*' : '일반 피드백'
+
+  const text = feedback.message
+    ? (feedback.message.length > 200 ? feedback.message.slice(0, 200) + '...' : feedback.message)
+    : '(메시지 없음)'
+
+  const blocks = [
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `${emoji} ${priority}\n${text}`,
+      },
+    },
+    {
+      type: 'context',
+      elements: [
+        { type: 'mrkdwn', text: `🔗 ${feedback.url || '-'}` },
+        { type: 'mrkdwn', text: `🆔 \`${feedback.id}\`` },
+      ],
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: { type: 'plain_text', text: '피드백 수집함 열기' },
+          url: APP_URL,
+          style: 'primary',
+        },
+      ],
+    },
+  ]
+
+  await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ blocks }),
+  }).catch(() => {})
 }
 
 export default async function handler(req, res) {
@@ -30,7 +78,9 @@ export default async function handler(req, res) {
     })
     const data = await resp.json()
     if (!resp.ok) return res.status(500).json({ error: data })
-    return res.status(200).json(data[0])
+    const saved = data[0]
+    sendSlackNotification(saved) // fire-and-forget
+    return res.status(200).json(saved)
   }
 
   // GET /api/feedback — 목록 조회 (오너 전용)
