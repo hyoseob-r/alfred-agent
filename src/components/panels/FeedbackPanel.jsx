@@ -172,7 +172,7 @@ export default function FeedbackPanel({ onClose }) {
     }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={{
         background: "#fff", borderRadius: "16px", width: "560px", maxWidth: "95vw",
-        maxHeight: "85vh", display: "flex", flexDirection: "column",
+        height: "85vh", display: "flex", flexDirection: "column",
         boxShadow: "0 16px 48px rgba(0,0,0,0.15)",
       }}>
         {/* 헤더 */}
