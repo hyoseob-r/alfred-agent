@@ -12,35 +12,38 @@ const FEEDBACK_API = 'https://alfred-agent-nine.vercel.app/api';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 
-// ─── 소스 파일 수집 ───────────────────────────────────────────────────────────
-function collectSourceFiles() {
+// ─── 소스 파일 수집 (스택트레이스 기반 우선순위) ─────────────────────────────
+function collectSourceFiles(stackTrace = '') {
   const files = {};
-  const dirs = ['src/components', 'src/prompts', 'api'];
-  const rootFiles = ['src/App.jsx', 'src/main.jsx'];
+  const MAX_FILES = 12;
+  const MAX_CHARS = 4000;
 
-  const readDir = (dir) => {
-    if (!fs.existsSync(dir)) return;
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        readDir(fullPath);
-      } else if (/\.(jsx?|js)$/.test(entry.name)) {
-        try {
-          const content = fs.readFileSync(fullPath, 'utf-8');
-          // 너무 큰 파일은 앞부분만 (토큰 절약)
-          files[fullPath] = content.length > 8000 ? content.slice(0, 8000) + '\n// ... (truncated)' : content;
-        } catch {}
-      }
-    }
+  const readFile = (p) => {
+    if (!fs.existsSync(p)) return;
+    const content = fs.readFileSync(p, 'utf-8');
+    files[p] = content.length > MAX_CHARS ? content.slice(0, MAX_CHARS) + '\n// ... (truncated)' : content;
   };
 
-  for (const dir of dirs) readDir(dir);
-  for (const f of rootFiles) {
-    if (fs.existsSync(f)) {
-      const content = fs.readFileSync(f, 'utf-8');
-      files[f] = content.length > 8000 ? content.slice(0, 8000) + '\n// ... (truncated)' : content;
+  // 1순위: 스택트레이스에서 언급된 파일
+  const mentioned = [...stackTrace.matchAll(/\b(src\/[^\s:)]+\.jsx?|api\/[^\s:)]+\.js)/g)].map(m => m[1]);
+  for (const f of [...new Set(mentioned)]) readFile(f);
+
+  // 2순위: 핵심 파일
+  const coreFiles = ['src/App.jsx', 'src/main.jsx', 'src/components/FeedbackSystem.jsx', 'api/feedback.js'];
+  for (const f of coreFiles) if (!files[f]) readFile(f);
+
+  // 3순위: 나머지 components (MAX_FILES 채울 때까지)
+  const readDir = (dir) => {
+    if (!fs.existsSync(dir) || Object.keys(files).length >= MAX_FILES) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (Object.keys(files).length >= MAX_FILES) break;
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) readDir(fullPath);
+      else if (/\.(jsx?|js)$/.test(entry.name) && !files[fullPath]) readFile(fullPath);
     }
-  }
+  };
+  readDir('src/components');
+
   return files;
 }
 
@@ -95,6 +98,10 @@ ${fileList}
   });
 
   const data = await resp.json();
+  if (!resp.ok) {
+    console.error('Claude API 에러:', JSON.stringify(data));
+    return null;
+  }
   const text = data.content?.[0]?.text || '';
   console.log('Claude 응답:\n', text);
 
@@ -171,7 +178,7 @@ async function main() {
   await postComment(feedback_id, `🤖 자동 분석 시작됨. GitHub Actions에서 수정 중...`);
 
   // 소스 파일 수집
-  const sourceFiles = collectSourceFiles();
+  const sourceFiles = collectSourceFiles(stack_trace);
   console.log(`📂 소스 파일 ${Object.keys(sourceFiles).length}개 로드됨`);
 
   // Claude 분석
