@@ -56,6 +56,27 @@ async function sendSlackNotification(feedback) {
   }).catch(() => {})
 }
 
+async function triggerCrashFix(feedback) {
+  const githubToken = process.env.GITHUB_TOKEN
+  if (!githubToken) return
+  await fetch('https://api.github.com/repos/hyoseob-r/alfred-agent/dispatches', {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${githubToken}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      event_type: 'crash-fix',
+      client_payload: {
+        feedback_id: feedback.id,
+        message: feedback.message,
+        stack_trace: feedback.stack_trace || '',
+      },
+    }),
+  }).catch(console.error)
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS')
@@ -80,6 +101,9 @@ export default async function handler(req, res) {
     if (!resp.ok) return res.status(500).json({ error: data })
     const saved = data[0]
     await sendSlackNotification(saved)
+    if (saved.type === 'crash') {
+      await triggerCrashFix(saved)
+    }
     return res.status(200).json(saved)
   }
 
