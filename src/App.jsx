@@ -118,6 +118,8 @@ export default function App() {
   const [proxyAlert, setProxyAlert] = useState(false);
   const [councilAgentQueue, setCouncilAgentQueue] = useState([]); // 순서 큐 (중복 허용)
   const [councilResponseMode, setCouncilResponseMode] = useState("full");
+  const [testCrash, setTestCrash] = useState(false);
+  if (testCrash) throw new Error("[TEST CRASH] 의도적 크래시 테스트 — TypeError: Cannot read properties of undefined");
 
   const exportSession = () => {
     if (!messages.length) return;
@@ -850,7 +852,7 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>💬</span> 피드백
           </button>}
-          {isOwner && <button onClick={() => { throw new Error("[TEST CRASH] 의도적 크래시 테스트 — TypeError: Cannot read properties of undefined (reading 'map')") }} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #ffcccc", borderRadius: "8px", color: "#cc4444", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+          {isOwner && <button onClick={() => setTestCrash(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #ffcccc", borderRadius: "8px", color: "#cc4444", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.background = "#fff0f0"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
             <span style={{ fontSize: "11px" }}>🧪</span> 크래시 테스트
