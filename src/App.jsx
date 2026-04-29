@@ -36,6 +36,11 @@ import { FeedbackButton } from "./components/FeedbackSystem";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
 
+// ErrorBoundary 테스트용 — 렌더링 중 강제 에러 발생
+function CrashTrigger() {
+  throw new Error("[TEST CRASH] 의도적 크래시 테스트 — TypeError: Cannot read properties of undefined (reading 'map')");
+}
+
 // 세션 로드 시 저장 타이밍 이슈로 resumeState가 누락된 dangling 라운드 헤더 복구
 function fixDanglingCouncilHeaders(msgs) {
   const assembleMsg = [...msgs].reverse().find(m => m.isAssemble && m.assembleContext);
@@ -119,7 +124,6 @@ export default function App() {
   const [councilAgentQueue, setCouncilAgentQueue] = useState([]); // 순서 큐 (중복 허용)
   const [councilResponseMode, setCouncilResponseMode] = useState("full");
   const [testCrash, setTestCrash] = useState(false);
-  if (testCrash) throw new Error("[TEST CRASH] 의도적 크래시 테스트 — TypeError: Cannot read properties of undefined");
 
   const exportSession = () => {
     if (!messages.length) return;
@@ -857,6 +861,7 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
             <span style={{ fontSize: "11px" }}>🧪</span> 크래시 테스트
           </button>}
+          {testCrash && <CrashTrigger />}
           <button onClick={() => setShowProxySettings(true)}
             title={hasProxy ? "로컬 프록시 연결됨" : "로컬 프록시 설정"}
             style={{ padding: "5px 10px", background: hasProxy ? "rgba(5,150,105,0.08)" : "transparent", border: `1px solid ${hasProxy ? "#059669" : "#e5e5e5"}`, borderRadius: "8px", color: hasProxy ? "#059669" : "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
