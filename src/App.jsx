@@ -850,6 +850,11 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>💬</span> 피드백
           </button>}
+          {isOwner && <button onClick={() => { throw new Error("[TEST CRASH] 의도적 크래시 테스트 — TypeError: Cannot read properties of undefined (reading 'map')") }} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #ffcccc", borderRadius: "8px", color: "#cc4444", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#fff0f0"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+            <span style={{ fontSize: "11px" }}>🧪</span> 크래시 테스트
+          </button>}
           <button onClick={() => setShowProxySettings(true)}
             title={hasProxy ? "로컬 프록시 연결됨" : "로컬 프록시 설정"}
             style={{ padding: "5px 10px", background: hasProxy ? "rgba(5,150,105,0.08)" : "transparent", border: `1px solid ${hasProxy ? "#059669" : "#e5e5e5"}`, borderRadius: "8px", color: hasProxy ? "#059669" : "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
