@@ -9,7 +9,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 
 const FEEDBACK_API = 'https://alfred-agent-nine.vercel.app/api';
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 
 // ─── 소스 파일 수집 (스택트레이스 직접 언급 파일만) ─────────────────────────
@@ -74,27 +74,22 @@ ${fileList}
 
 수정이 필요 없으면 files를 빈 배열로 반환하세요.`;
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    }
+  );
 
   const data = await resp.json();
   if (!resp.ok) {
-    console.error('Claude API 에러:', JSON.stringify(data));
+    console.error('Gemini API 에러:', JSON.stringify(data));
     return null;
   }
-  const text = data.content?.[0]?.text || '';
-  console.log('Claude 응답:\n', text);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  console.log('Gemini 응답:\n', text);
 
   try {
     // JSON만 추출

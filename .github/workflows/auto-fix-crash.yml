@@ -28,7 +28,7 @@ jobs:
       - name: Run auto-fix script
         run: node scripts/auto-fix-crash.mjs '${{ toJson(github.event.client_payload) }}'
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           GIT_USER_EMAIL: hyoseob.r@gmail.com
           GIT_USER_NAME: alfred-autofix
