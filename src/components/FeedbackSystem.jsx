@@ -1,5 +1,4 @@
 import { Component, useState } from "react";
-import { chatAPI } from "../api/proxy";
 
 const FEEDBACK_API = "/api/feedback";
 
@@ -15,6 +14,40 @@ async function submitFeedback(payload) {
     console.error("feedback submit failed", e);
     return null;
   }
+}
+
+// ─── 전역 에러 트래킹 (window.onerror + unhandledrejection) ──────────────────
+let _trackingInstalled = false;
+
+export function installGlobalErrorTracking() {
+  if (_trackingInstalled) return;
+  _trackingInstalled = true;
+
+  // 일반 JS 런타임 에러
+  window.addEventListener("error", (event) => {
+    // 이미 ErrorBoundary가 잡은 React 렌더링 에러는 중복 방지
+    if (event.error?._fromErrorBoundary) return;
+    submitFeedback({
+      type: "crash",
+      message: `${event.message}\n  at ${event.filename}:${event.lineno}:${event.colno}`,
+      stack_trace: event.error?.stack || "",
+      url: window.location.href,
+      user_agent: navigator.userAgent,
+    });
+  });
+
+  // 처리 안 된 Promise reject
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason;
+    const message = reason?.message || String(reason) || "Unhandled Promise Rejection";
+    submitFeedback({
+      type: "crash",
+      message: `[Promise] ${message}`,
+      stack_trace: reason?.stack || "",
+      url: window.location.href,
+      user_agent: navigator.userAgent,
+    });
+  });
 }
 
 // ─── Error Boundary ───────────────────────────────────────────────────────────
