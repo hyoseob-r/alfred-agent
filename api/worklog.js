@@ -5,16 +5,55 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { date, content, tasks } = req.body
-  // date: "2026-04-10", content: "- [완료] xxx\n- [완료] yyy"
-  // tasks (optional): [{ name, status }] — 진행중인 작업 테이블 업데이트
-
-  if (!content) return res.status(400).json({ error: 'content required' })
+  // action: "save" (default) | "update-github"
+  const { action = 'save', date, content, tasks, summary, topic } = req.body
 
   const supabaseUrl = 'https://atwztuelyhwtohylbypv.supabase.co'
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const userId = process.env.COUNCIL_USER_ID
 
+  if (action === 'update-github') {
+    const token = process.env.GITHUB_TOKEN
+    const owner = 'hyoseob-r'
+    const repo = 'alfred-agent'
+    const path = 'WORKLOG.md'
+    const entryDate = new Date().toISOString().slice(0, 10)
+
+    try {
+      const getResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+        headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' },
+      })
+      if (!getResp.ok) return res.status(500).json({ error: 'WORKLOG 파일 조회 실패' })
+      const fileData = await getResp.json()
+      const currentContent = Buffer.from(fileData.content, 'base64').toString('utf8')
+
+      const newEntry = `- [Council] ${entryDate} — ${topic}\n${summary.split('\n').map(l => `  ${l}`).join('\n')}\n`
+      const updatedContent = currentContent.replace(
+        /### \d{4}-\d{2}-\d{2}/,
+        `### ${entryDate}\n${newEntry}\n### ` + currentContent.match(/### (\d{4}-\d{2}-\d{2})/)?.[1]
+      )
+
+      const putResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+        method: 'PUT',
+        headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
+        body: JSON.stringify({
+          message: `docs: Council 토론 기록 — ${topic.slice(0, 60)}`,
+          content: Buffer.from(updatedContent).toString('base64'),
+          sha: fileData.sha,
+        }),
+      })
+      if (!putResp.ok) {
+        const err = await putResp.json()
+        return res.status(500).json({ error: err.message })
+      }
+      return res.status(200).json({ ok: true })
+    } catch (e) {
+      return res.status(500).json({ error: e.message })
+    }
+  }
+
+  // default: save to Supabase
+  if (!content) return res.status(400).json({ error: 'content required' })
   if (!serviceKey || !userId) return res.status(500).json({ error: 'Server not configured' })
 
   const headers = {
@@ -27,7 +66,6 @@ export default async function handler(req, res) {
   const title = `WORKLOG_${entryDate}`
 
   try {
-    // 같은 날짜 기존 항목 조회
     const existResp = await fetch(
       `${supabaseUrl}/rest/v1/context_notes?user_id=eq.${encodeURIComponent(userId)}&title=eq.${encodeURIComponent(title)}&select=id,content`,
       { headers }
@@ -36,7 +74,6 @@ export default async function handler(req, res) {
 
     let finalContent = content
     if (Array.isArray(existing) && existing.length > 0) {
-      // 기존 내용에 append
       finalContent = existing[0].content + '\n' + content
     }
 
@@ -54,13 +91,7 @@ export default async function handler(req, res) {
       resp = await fetch(`${supabaseUrl}/rest/v1/context_notes`, {
         method: 'POST',
         headers: { ...headers, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({
-          user_id: userId,
-          type: 'worklog',
-          title,
-          content: finalContent,
-          tags: ['worklog', entryDate],
-        }),
+        body: JSON.stringify({ user_id: userId, type: 'worklog', title, content: finalContent, tags: ['worklog', entryDate] }),
       })
     }
 
@@ -69,7 +100,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: err })
     }
 
-    // tasks 있으면 task_status도 업데이트
     if (tasks && Array.isArray(tasks)) {
       const taskContent = tasks.map(t => `| ${t.name} | ${t.status} | ${entryDate} |`).join('\n')
       const taskTitle = 'WORKLOG_task_status'
@@ -81,25 +111,16 @@ export default async function handler(req, res) {
       const existTask = await existTaskResp.json()
 
       if (Array.isArray(existTask) && existTask.length > 0) {
-        await fetch(
-          `${supabaseUrl}/rest/v1/context_notes?id=eq.${existTask[0].id}`,
-          {
-            method: 'PATCH',
-            headers: { ...headers, 'Prefer': 'return=minimal' },
-            body: JSON.stringify({ content: taskContent, tags: ['worklog', 'task_status'] }),
-          }
-        )
+        await fetch(`${supabaseUrl}/rest/v1/context_notes?id=eq.${existTask[0].id}`, {
+          method: 'PATCH',
+          headers: { ...headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ content: taskContent, tags: ['worklog', 'task_status'] }),
+        })
       } else {
         await fetch(`${supabaseUrl}/rest/v1/context_notes`, {
           method: 'POST',
           headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({
-            user_id: userId,
-            type: 'worklog',
-            title: taskTitle,
-            content: taskContent,
-            tags: ['worklog', 'task_status'],
-          }),
+          body: JSON.stringify({ user_id: userId, type: 'worklog', title: taskTitle, content: taskContent, tags: ['worklog', 'task_status'] }),
         })
       }
     }

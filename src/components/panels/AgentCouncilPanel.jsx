@@ -502,7 +502,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       if (user?.id && isOwner) {
         await dbSaveCouncilSession({ id: councilId, sessionId, userId: user.id, topic: solutionContent.slice(0, 200), rounds, summary });
       }
-      await fetch("/api/update-worklog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic: solutionContent.slice(0, 80), summary }) });
+      await fetch("/api/worklog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update-github", topic: solutionContent.slice(0, 80), summary }) });
       setSaveStatus("worklog_saved");
     } catch (e) { console.error("worklog save error:", e); setSaveStatus("error"); }
   };

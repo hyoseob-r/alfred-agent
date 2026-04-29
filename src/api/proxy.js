@@ -71,7 +71,7 @@ export async function testProxyConnection(url) {
 
 export async function fetchProxyUrlFromServer(githubLogin) {
   try {
-    const resp = await fetch(`/api/get-proxy?github_login=${encodeURIComponent(githubLogin)}`, {
+    const resp = await fetch(`/api/proxy?github_login=${encodeURIComponent(githubLogin)}`, {
       signal: AbortSignal.timeout(5000),
     });
     const data = await resp.json();
