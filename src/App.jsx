@@ -31,6 +31,8 @@ import HistorySidebar from "./components/HistorySidebar";
 import CouncilDetailPanel from "./components/CouncilDetailPanel";
 import PapersModal from "./components/PapersModal";
 import AgentCouncilPanel from "./components/panels/AgentCouncilPanel";
+import FeedbackPanel from "./components/panels/FeedbackPanel";
+import { FeedbackButton } from "./components/FeedbackSystem";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
 
@@ -74,6 +76,7 @@ export default function App() {
   const [showPapers, setShowPapers] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
   const [showContextAgent, setShowContextAgent] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showProxySettings, setShowProxySettings] = useState(false);
   const [hasProxy, setHasProxy] = useState(!!getProxyUrl());
   const [proxyUrl, setProxyUrl] = useState(getProxyUrl());
@@ -801,6 +804,8 @@ export default function App() {
       )}
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
       <ContextAgentPanel open={showContextAgent} onClose={() => setShowContextAgent(false)} />
+      {showFeedback && <FeedbackPanel onClose={() => setShowFeedback(false)} />}
+      <FeedbackButton />
 
       <div
         onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
@@ -839,6 +844,11 @@ export default function App() {
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#fa0050"; e.currentTarget.style.color = "#fa0050"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>📄</span> Papers
+          </button>}
+          {isOwner && <button onClick={() => setShowFeedback(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#cc4444"; e.currentTarget.style.color = "#cc4444"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
+            <span style={{ fontSize: "11px" }}>💬</span> 피드백
           </button>}
           <button onClick={() => setShowProxySettings(true)}
             title={hasProxy ? "로컬 프록시 연결됨" : "로컬 프록시 설정"}
