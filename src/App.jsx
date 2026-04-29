@@ -774,17 +774,17 @@ export default function App() {
       <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 50%, #c8c8e0 0%, #f5f5f5 60%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Pretendard', sans-serif" }}>
         <div style={{ textAlign: "center", maxWidth: "380px", width: "100%", padding: "0 20px" }}>
           <div style={{ fontSize: "80px", fontWeight: "800", color: "#111111", lineHeight: 1, marginBottom: "40px", letterSpacing: "-0.04em", fontFamily: "'Pretendard', sans-serif" }}>A</div>
-          <button onClick={signInWithGitHub}
+          <button onClick={() => setShowProxySettings("guest")}
             style={{ width: "100%", padding: "16px 24px", background: "#111111", border: "none", borderRadius: "14px", color: "#ffffff", fontSize: "15px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", marginBottom: "10px" }}
             onMouseEnter={e => { e.currentTarget.style.background = "#333333"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#111111"; }}>
-            GitHub 로그인
+            로그인 없이 사용하기
           </button>
-          <button onClick={() => setShowProxySettings("guest")}
+          <button onClick={signInWithGitHub}
             style={{ width: "100%", padding: "14px 24px", background: "transparent", border: "none", borderRadius: "14px", color: "#888888", fontSize: "14px", fontWeight: "500", cursor: "pointer", transition: "all 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.color = "#444444"; }}
             onMouseLeave={e => { e.currentTarget.style.color = "#888888"; }}>
-            로그인 없이 사용하기
+            GitHub 로그인
           </button>
         </div>
         {showProxySettings === "guest" && <GuestProxyGate />}
