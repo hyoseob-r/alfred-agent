@@ -333,6 +333,17 @@ export default function App() {
     if (files.length) handleFiles(files);
   }, [handleFiles]);
 
+  const searchRAGContext = async (query) => {
+    try {
+      const resp = await fetch(`/api/search-context?q=${encodeURIComponent(query.slice(0, 80))}`);
+      const data = await resp.json();
+      if (!data.results?.length) return null;
+      return data.results.map(r =>
+        `[${r.source === 'council' ? '과거 Council' : '결정/전략'} — ${r.title} (${r.date})]\n${r.content}`
+      ).join('\n\n');
+    } catch { return null; }
+  };
+
   const callClaude = async (userText, files, history) => {
     const buildContent = (text, fls) => {
       if (!fls?.length) return text || "";
@@ -354,9 +365,10 @@ export default function App() {
       ...history.map(m => ({ role: m.role, content: m.files?.length && m.files.some(f => f.base64 || f.text) ? buildContent(m.content, m.files) : (m.content || "") })),
       { role: "user", content: buildContent(userText, files) },
     ];
+    const ragContext = userText?.length > 5 ? await searchRAGContext(userText) : null;
     let reply = "";
     await streamChatAPI(
-      { model: selectedModel, max_tokens: 16000, system: buildSystemPrompt(contextBriefing), messages: msgs },
+      { model: selectedModel, max_tokens: 16000, system: buildSystemPrompt(contextBriefing, ragContext), messages: msgs },
       (chunk) => {
         reply += chunk;
         setMessages(prev => {
