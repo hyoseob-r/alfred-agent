@@ -183,7 +183,7 @@ type 분류:
 # 전략 상태 저장
 curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
   -H "Content-Type: application/json" \
-  -d '{"type":"strategy","title":"요기요_현재전략상태","content":"버티컬 전략 방향 확정. 포천 파일럿 1순위(경쟁 속 능동적 강세). 건강식 버티컬 홀드(데이터 확인 후). EXIT/사모펀드 목표 없음 — 자체 가치 증명이 핵심.","tags":["요기요","포천","버티컬"]}'
+  -d '{"type":"strategy","title":"요기요_현재전략상태","content":"버티컬 전략 방향 확정. 건강식 버티컬+지방 집중. EXIT/사모펀드 목표 없음 — 자체 가치 증명이 핵심.","tags":["요기요","버티컬"]}'
 ```
 
 ## 작업 규칙 (Feedback — 반드시 준수)
