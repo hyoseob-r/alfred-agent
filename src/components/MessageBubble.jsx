@@ -200,6 +200,11 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
                   <span style={{ fontSize: "16px" }}>📄</span>
                   <span style={{ fontSize: "11px", color: "#7740aa" }}>{f.name}</span>
                 </div>
+              ) : f.type === "textdoc" ? (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 10px", background: "#f0f8ff", border: "1px solid #aaccee", borderRadius: "8px" }}>
+                  <span style={{ fontSize: "16px" }}>📝</span>
+                  <span style={{ fontSize: "11px", color: "#3366aa" }}>{f.name}</span>
+                </div>
               ) : f.type === "data" ? (
                 <div key={i} style={{ padding: "6px 12px", background: "#eef8ee", border: "1px solid #90c890", borderRadius: "8px", width: "100%" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: f.stats ? "6px" : 0 }}>

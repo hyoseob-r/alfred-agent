@@ -298,10 +298,12 @@ export default function App() {
   }, [messages, councilRunning]);
 
   const handleFiles = useCallback(async (files) => {
+    const isTextDoc = (f) => f.name?.match(/\.(html|htm|txt|md|markdown|js|ts|jsx|tsx|json|xml|yaml|yml|css)$/i) || f.type === "text/plain" || f.type === "text/html";
     const supported = Array.from(files).filter(f =>
       f.type.startsWith("image/") || isPdf(f) ||
       f.name?.match(/\.(csv|xlsx|xls|tsv)$/i) ||
-      f.type === "text/csv" || f.type.includes("spreadsheet")
+      f.type === "text/csv" || f.type.includes("spreadsheet") ||
+      isTextDoc(f)
     );
     if (!supported.length) return;
     const newFiles = await Promise.all(supported.map(async (file) => {
@@ -317,6 +319,13 @@ export default function App() {
       }
       if (file.name?.match(/\.(xlsx|xls)$/i)) {
         return { type: "data", name: file.name, text: `[Excel 파일: ${file.name} — 내용 분석을 위해 CSV로 변환하거나 내용을 붙여넣기 해주십시오]`, parsed: null, stats: null };
+      }
+      if (isTextDoc(file)) {
+        const text = await fileToText(file);
+        const stripped = file.name?.match(/\.(html|htm)$/i)
+          ? text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<[^>]+>/g, "").replace(/\s{2,}/g, " ").trim()
+          : text;
+        return { type: "textdoc", name: file.name, text: stripped };
       }
       const base64 = await fileToBase64(file);
       return { type: "image", name: file.name, base64, preview: URL.createObjectURL(file), mediaType: file.type };
@@ -356,6 +365,9 @@ export default function App() {
         } else if (f.type === "data" && f.text) {
           const preview = f.text.length > 8000 ? f.text.slice(0, 8000) + "\n...(truncated)" : f.text;
           parts.push({ type: "text", text: `[데이터 파일: ${f.name}]\n${preview}` });
+        } else if (f.type === "textdoc" && f.text) {
+          const preview = f.text.length > 12000 ? f.text.slice(0, 12000) + "\n...(truncated)" : f.text;
+          parts.push({ type: "text", text: `[문서: ${f.name}]\n${preview}` });
         }
       });
       if (text) parts.push({ type: "text", text });
@@ -1204,12 +1216,12 @@ export default function App() {
           )}
           <div style={{ background: "#ffffff", borderTop: "1px solid #e5e5e5" }}>
             <FilePreview files={pendingImages} onRemove={(i) => setPendingImages(prev => prev.filter((_, idx) => idx !== i))} />
-            {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
+            {!pendingImages.length && <div style={{ padding: "6px 18px 0" }}><span style={{ fontSize: "10px", color: "#252540" }}>🖼 이미지 · 📄 PDF · 📊 CSV/Excel · 📝 HTML/TXT/MD — 드래그 · 붙여넣기 · 클릭 업로드</span></div>}
             <div style={{ padding: "10px 16px 14px", display: "flex", gap: "8px", alignItems: "flex-end" }}>
               <button onClick={() => fileInputRef.current?.click()} style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#f8f8f8", border: "1px solid #cccccc", color: "#5a5a90", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0, transition: "all 0.2s" }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = "#aaaaaa"; e.currentTarget.style.color = "#9090d0"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#5a5a90"; }}>📎</button>
-              <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls,.tsv,text/csv" multiple style={{ display: "none" }} onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
+              <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.csv,.xlsx,.xls,.tsv,text/csv,.html,.htm,.txt,.md,.js,.ts,.jsx,.tsx,.json,.xml,.yaml,.yml,.css" multiple style={{ display: "none" }} onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} onPaste={onPaste}
                 onCompositionStart={() => { isComposingRef.current = true; }}
                 onCompositionEnd={() => { isComposingRef.current = false; }}
