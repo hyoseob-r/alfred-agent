@@ -10,15 +10,17 @@ const TYPE_META = {
   worklog:   { label: "Worklog",   bg: "#fffbe6", border: "#ffe082", color: "#b07800", icon: "📋" },
   session:   { label: "Session",   bg: "#f5f5f5", border: "#e0e0e0", color: "#666",    icon: "💾" },
   ai_queue:  { label: "AI Queue",  bg: "#f5f5f5", border: "#e0e0e0", color: "#999",    icon: "🤖" },
+  guest_question: { label: "Guest Q", bg: "#fff8f0", border: "#ffd0a0", color: "#b05000", icon: "👤" },
 };
 
 const TABS = [
-  { id: "all",       label: "전체" },
-  { id: "strategy",  label: "Strategy" },
-  { id: "decision",  label: "Decision" },
-  { id: "feedback",  label: "Feedback" },
-  { id: "user_pref", label: "User Pref" },
-  { id: "worklog",   label: "Worklog" },
+  { id: "all",            label: "전체" },
+  { id: "guest_question", label: "👤 Guest 질문" },
+  { id: "strategy",       label: "Strategy" },
+  { id: "decision",       label: "Decision" },
+  { id: "feedback",       label: "Feedback" },
+  { id: "user_pref",      label: "User Pref" },
+  { id: "worklog",        label: "Worklog" },
 ];
 
 function fmtDate(d) {
@@ -64,7 +66,7 @@ export default function ContextNotesModal({ onClose }) {
     getSupabase().then(sb => {
       sb.from("context_notes")
         .select("id,type,title,content,tags,created_at,updated_at")
-        .not("type", "in", '("ai_queue")')
+        .not("type", "in", '("ai_queue","session")')
         .order("updated_at", { ascending: false })
         .then(({ data, error }) => {
           if (!error && data) setNotes(data);
@@ -78,7 +80,7 @@ export default function ContextNotesModal({ onClose }) {
   }, []);
 
   const filtered = notes
-    .filter(n => tab === "all" || n.type === tab)
+    .filter(n => tab === "all" ? n.type !== "guest_question" : n.type === tab)
     .filter(n => !query || n.title?.toLowerCase().includes(query.toLowerCase()) || n.content?.toLowerCase().includes(query.toLowerCase()));
 
   const countOf = (type) => type === "all" ? notes.length : notes.filter(n => n.type === type).length;

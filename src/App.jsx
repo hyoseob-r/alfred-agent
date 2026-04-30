@@ -596,6 +596,19 @@ export default function App() {
     const userText = input.trim();
     const files = [...pendingImages];
     setInput(""); setPendingImages([]);
+    // 비로그인 질문 저장
+    if (!user && userText) {
+      fetch("/api/save-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "guest_question",
+          title: `guest_q_${Date.now()}`,
+          content: userText,
+          tags: ["guest"],
+        }),
+      }).catch(() => {});
+    }
     // 채팅 모드에서도 첫 메시지 발송 시 세션 ID 생성 (auto-save 활성화)
     if (!activeSessionId && user) setActiveSessionId(newSessionId());
     const newMessages = [...messages, { role: "user", content: userText, files }];
