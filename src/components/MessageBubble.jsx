@@ -246,7 +246,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
           {!isUser && msg.content && <FullViewButton content={msg.content} />}
         </div>
         {!isUser && msg.content && msg.content.length > 200 && (
-          <div style={{ display: "flex", gap: "6px", marginTop: "6px", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", gap: "6px", marginTop: "6px", marginLeft: "42px" }}>
             <button
               onClick={() => exportPDF(msg.content, "1pager")}
               style={{ padding: "4px 10px", background: "transparent", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.15s" }}
