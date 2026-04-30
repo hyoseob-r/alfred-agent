@@ -6,6 +6,54 @@ import { DocActionBar, M3ActionBar } from "./ActionBars";
 import ComparePanel from "./panels/ComparePanel";
 import UTSimPanel from "./panels/UTSimPanel";
 
+function exportPDF(content, mode) {
+  const fontSize = mode === "1pager" ? "10px" : "12px";
+  const margin = mode === "1pager" ? "10mm" : "18mm";
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Alfred Export</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+  body { font-family: 'Noto Sans KR', 'Pretendard', sans-serif; font-size: ${fontSize}; line-height: 1.7; margin: ${margin}; color: #111; }
+  h1,h2,h3 { margin: 1em 0 0.4em; }
+  h1 { font-size: 1.5em; border-bottom: 2px solid #111; padding-bottom: 6px; }
+  h2 { font-size: 1.2em; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8em 0; }
+  th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+  th { background: #f5f5f5; font-weight: 700; }
+  ul, ol { padding-left: 1.5em; }
+  code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+  @media print { body { margin: ${margin}; } }
+</style></head><body>
+<div class="meta" style="font-size:9px;color:#999;margin-bottom:12px">Alfred Agent · ${new Date().toLocaleDateString("ko-KR")}</div>
+${markdownToHtml(content)}
+<script>window.onload = () => window.print();<\/script>
+</body></html>`;
+  const win = window.open("", "_blank");
+  win.document.write(html);
+  win.document.close();
+}
+
+function markdownToHtml(md) {
+  return md
+    .replace(/^#{3}\s(.+)$/gm, "<h3>$1</h3>")
+    .replace(/^#{2}\s(.+)$/gm, "<h2>$1</h2>")
+    .replace(/^#{1}\s(.+)$/gm, "<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/`(.+?)`/g, "<code>$1</code>")
+    .replace(/^\|(.+)\|$/gm, (_, row) => {
+      const cells = row.split("|").map(c => `<td>${c.trim()}</td>`).join("");
+      return `<tr>${cells}</tr>`;
+    })
+    .replace(/(<tr>.*<\/tr>\n?)+/gs, m => `<table>${m}</table>`)
+    .replace(/<table>(<tr><td>[-: ]+<\/td>.*<\/tr>\n?)<\/table>/g, "")
+    .replace(/^[-*]\s(.+)$/gm, "<li>$1</li>")
+    .replace(/(<li>.*<\/li>\n?)+/gs, m => `<ul>${m}</ul>`)
+    .replace(/^(\d+)\.\s(.+)$/gm, "<li>$2</li>")
+    .replace(/\n{2,}/g, "</p><p>")
+    .replace(/^(?!<[hupot])/gm, "")
+    .split("\n").join("<br>");
+}
+
 // Council 라운드 헤더 — 더 이상 사용하지 않음 (flat queue 방식으로 전환)
 function CouncilRoundHeader() { return null; }
 
@@ -197,6 +245,22 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
           })()}
           {!isUser && msg.content && <FullViewButton content={msg.content} />}
         </div>
+        {!isUser && msg.content && msg.content.length > 200 && (
+          <div style={{ display: "flex", gap: "6px", marginTop: "6px", justifyContent: "flex-end" }}>
+            <button
+              onClick={() => exportPDF(msg.content, "1pager")}
+              style={{ padding: "4px 10px", background: "transparent", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#999"; e.currentTarget.style.color = "#444"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#888"; }}
+            >PDF 1-pager</button>
+            <button
+              onClick={() => exportPDF(msg.content, "2pager")}
+              style={{ padding: "4px 10px", background: "transparent", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#999"; e.currentTarget.style.color = "#444"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#888"; }}
+            >PDF 2-pager</button>
+          </div>
+        )}
       </div>
 
       {has2pager && !isUser && (

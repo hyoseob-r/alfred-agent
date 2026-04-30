@@ -368,7 +368,7 @@ export default function App() {
     const ragContext = userText?.length > 5 ? await searchRAGContext(userText) : null;
     let reply = "";
     await streamChatAPI(
-      { model: selectedModel, max_tokens: 16000, system: buildSystemPrompt(contextBriefing, ragContext), messages: msgs },
+      { model: selectedModel, max_tokens: 16000, system: buildSystemPrompt(contextBriefing, ragContext, isOwner), messages: msgs },
       (chunk) => {
         reply += chunk;
         setMessages(prev => {

@@ -159,8 +159,14 @@ export const STAGE_INFO = {
   m5_validation: { label: "M5 검증", color: "#7a9e5a", icon: "✅" },
 };
 
-export function buildSystemPrompt(briefing, ragContext) {
+export function buildSystemPrompt(briefing, ragContext, isOwner) {
   let prompt = AGENT_SYSTEM_PROMPT;
+
+  if (isOwner) {
+    prompt += `\n\n---\n\n## 저장/문서화 안내\n사용자가 "저장해줘", "문서화해줘" 등을 요청하면: 파일 시스템 권한을 요청하지 마세요. 대신 화면 우측 하단의 **PDF 내보내기** 버튼(1-pager / 2-pager)을 사용하거나, 좌측 상단 **세션 저장** 기능을 안내하세요.`;
+  } else {
+    prompt += `\n\n---\n\n## 저장/문서화 안내 (비오너 사용자)\n사용자가 "저장해줘", "문서화해줘" 등을 요청하면: 파일 권한이나 쓰기 권한 얘기는 절대 하지 마세요. 대신 이렇게 안내하세요: "저장하고 싶으시면 화면 하단의 **PDF 내보내기** 버튼으로 1-pager 또는 2-pager PDF로 바로 저장할 수 있어요."`;
+  }
 
   if (briefing) {
     prompt += `\n\n---\n\n## 현재 진행 상황 (백로그 / 컨텍스트)\n\n아래는 최신 인수인계 브리핑입니다. 사용자가 백로그, 진행 중인 작업, 이전 결정 사항을 물어보면 이 내용을 바탕으로 답하세요.\n\n${briefing}`;
