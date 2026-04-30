@@ -30,6 +30,7 @@ import ContextAgentPanel from "./components/ContextAgentPanel";
 import HistorySidebar from "./components/HistorySidebar";
 import CouncilDetailPanel from "./components/CouncilDetailPanel";
 import PapersModal from "./components/PapersModal";
+import ContextNotesModal from "./components/ContextNotesModal";
 import AgentCouncilPanel from "./components/panels/AgentCouncilPanel";
 import FeedbackPanel from "./components/panels/FeedbackPanel";
 import { FeedbackButton } from "./components/FeedbackSystem";
@@ -76,6 +77,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const openSidebar = () => { setSidebarOpen(true); if (user?.id) dbLoadCouncilSessions(user.id).then(setCouncilSessions); };
   const [showPapers, setShowPapers] = useState(false);
+  const [showContextNotes, setShowContextNotes] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
   const [showContextAgent, setShowContextAgent] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -821,6 +823,7 @@ export default function App() {
         />
       )}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
+      {showContextNotes && <ContextNotesModal onClose={() => setShowContextNotes(false)} />}
       {showProxySettings === true && (
         <ProxyStatusModal
           onClose={() => setShowProxySettings(false)}
@@ -871,6 +874,11 @@ export default function App() {
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#fa0050"; e.currentTarget.style.color = "#fa0050"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>📄</span> Papers
+          </button>}
+          {isOwner && <button onClick={() => setShowContextNotes(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#0c74e4"; e.currentTarget.style.color = "#0c74e4"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
+            <span style={{ fontSize: "11px" }}>🧠</span> Context
           </button>}
           {isOwner && <button onClick={() => setShowFeedback(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cc4444"; e.currentTarget.style.color = "#cc4444"; }}
