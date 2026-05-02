@@ -631,7 +631,7 @@ export default function App() {
         });
       } else {
         // assemble 트리거 감지
-        const isAssembleTrigger = /assemble|어셈블|어쎔블|council\s*시작|에이전트\s*협의|19인\s*토론|토론해보자|토론\s*해봐|토론하자|의논해보자|의논\s*해봐|다같이\s*(봐|보자|검토|얘기)|전문가\s*(불러|의견)|에이전트\s*(불러|소집)|패널\s*(불러|소집)|같이\s*(검토|봐|보자)/i.test(userText);
+        const isAssembleTrigger = /assemble|어셈블|어쎔블|소집|council\s*시작|에이전트\s*협의|19인\s*토론|토론해보자|토론\s*해봐|토론하자|의논해보자|의논\s*해봐|다같이\s*(봐|보자|검토|얘기)|전문가\s*(불러|의견)|에이전트\s*(불러|소집)|패널\s*(불러|소집)|같이\s*(검토|봐|보자)/i.test(userText);
 
         const history = messages.map(m => ({ role: m.role, content: m.content }));
 
@@ -642,8 +642,9 @@ export default function App() {
             .map(m => `${m.role === "user" ? "사용자" : "Alf"}: ${m.content}`)
             .join("\n\n");
 
-          const ASSEMBLE_SYSTEM = `당신은 알프(Alf)입니다. 사용자가 "assemble"을 요청했습니다.
-지금까지의 대화를 검토하여, Council 19인(전문가·사장님·고객)에게 전달할 브리핑을 작성하십시오.
+          const ASSEMBLE_SYSTEM = `당신은 알프(Alf)입니다. 사용자가 Council 소집을 요청했습니다.
+지금까지의 대화 내용만을 기반으로 Council 19인에게 전달할 브리핑을 즉시 작성하십시오.
+절대로 추가 자료를 요청하거나 질문하지 마십시오. 지금 있는 대화 내용만으로 바로 작성합니다.
 
 브리핑 형식:
 1. 핵심 주제/솔루션 아이디어 (2-3문장)
