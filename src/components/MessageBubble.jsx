@@ -130,7 +130,7 @@ function CouncilAgentBubble({ msg, onResume, onStop }) {
   );
 }
 
-export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart, onCouncilResume, onCouncilStop }) {
+export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart, onAlfOpinion, onCouncilResume, onCouncilStop }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -288,7 +288,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
 
       {/* Assemble — Council 소집 버튼 (인라인 실행) */}
       {msg.isAssemble && !isUser && (
-        <div style={{ marginBottom: "16px", marginLeft: "42px", display: "flex", gap: "8px" }}>
+        <div style={{ marginBottom: "16px", marginLeft: "42px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <button
             onClick={() => onCouncilStart?.(msg.assembleContext)}
             style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 18px", background: "#111111", border: "1px solid #333333", borderRadius: "20px", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", letterSpacing: "0.04em" }}
@@ -296,6 +296,14 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
             onMouseLeave={e => e.currentTarget.style.background = "#111111"}
           >
             ⚡ Council 19인 토론 시작
+          </button>
+          <button
+            onClick={() => onAlfOpinion?.(msg.assembleContext)}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#f5f0ff", border: "1px solid #c4aaf0", borderRadius: "20px", color: "#6040b0", fontSize: "12px", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#ede0ff"; e.currentTarget.style.borderColor = "#9970e0"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#f5f0ff"; e.currentTarget.style.borderColor = "#c4aaf0"; }}
+          >
+            💬 알프 의견 듣기
           </button>
           <button
             onClick={() => setShowAssembleUT(true)}

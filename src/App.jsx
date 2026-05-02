@@ -453,6 +453,31 @@ export default function App() {
     setCouncilWaitingNext(false);
   };
 
+  // Council 없이 알프 직접 의견
+  const runAlfOpinion = async (solutionContent) => {
+    setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+    let reply = "";
+    await streamChatAPI(
+      {
+        model: "claude-sonnet-4-6",
+        max_tokens: 2000,
+        system: `당신은 알프(Alf)입니다. 아래 브리핑을 읽고 알프 자신의 솔직한 의견을 말해주십시오.
+핵심을 짚고, 가장 중요한 리스크·기회·다음 액션을 구체적으로 제시하십시오.
+전문가 토론(Council)을 열지 않고, 알프 본인의 판단으로만 답변하십시오.
+절대로 추가 자료를 요청하거나 질문하지 마십시오.`,
+        messages: [{ role: "user", content: `브리핑:\n\n${solutionContent}` }],
+      },
+      (chunk) => {
+        reply += chunk;
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: reply };
+          return updated;
+        });
+      }
+    );
+  };
+
   const runCouncilInChat = async (solutionContent, resumeFrom = null, agentQueue = null, responseMode = "full") => {
     if (councilRunning) return;
     setCouncilRunning(true);
@@ -1000,6 +1025,7 @@ export default function App() {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
                 onCouncilStart={(content) => setCouncilPending({ content })}
+                onAlfOpinion={runAlfOpinion}
                 onCouncilResume={(resumeState) => runCouncilInChat(resumeState.solutionContent, resumeState)}
                 onCouncilStop={() => councilAbortRef.current?.abort()}
                 onCouncilUpdate={(rounds, fullContext) => {
