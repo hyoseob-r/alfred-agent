@@ -684,12 +684,46 @@ export default function App() {
             return updated;
           });
         } else {
+          // 오너 전용: 페이퍼 불러오기 감지
+          let paperContext = "";
+          if (isOwner) {
+            const paperTrigger = /페이퍼|paper/i.test(userText) && /불러|읽어|봐|열어|알려|뭐야|내용|요약|정리/i.test(userText);
+            if (paperTrigger) {
+              try {
+                const listRes = await fetch("/api/list-papers");
+                const listData = await listRes.json();
+                const papers = listData.papers || [];
+                // 제목/파일명 키워드 매칭
+                const matched = papers.find(p =>
+                  userText.toLowerCase().includes(p.title.toLowerCase().split(" ")[0]) ||
+                  p.title.split(" ").some(w => w.length > 2 && userText.includes(w)) ||
+                  userText.toLowerCase().includes(p.filename.replace(".html","").toLowerCase())
+                ) || (papers.length === 1 ? papers[0] : null);
+                if (matched) {
+                  const htmlRes = await fetch(matched.path);
+                  const html = await htmlRes.text();
+                  // HTML 태그 제거 후 텍스트 추출
+                  const text = html
+                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+                    .replace(/<[^>]+>/g, " ")
+                    .replace(/\s{2,}/g, " ")
+                    .trim()
+                    .slice(0, 12000);
+                  paperContext = `\n\n---\n\n## 📄 페이퍼: ${matched.title}\n\n${text}`;
+                } else if (papers.length > 0) {
+                  paperContext = `\n\n---\n\n## 📄 저장된 페이퍼 목록\n${papers.map(p => `- ${p.title} (${p.filename})`).join("\n")}\n\n어떤 페이퍼를 불러올까요?`;
+                }
+              } catch {}
+            }
+          }
+
           let reply = "";
           await streamChatAPI(
             {
               model: selectedModel,
               max_tokens: 8000,
-              system: `당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, 아이디어 검토, 질문 답변 등 무엇이든 도와드립니다. 사용자가 'assemble' 또는 '어셈블'이라고 하면 Council 19인 토론을 소집할 수 있다고 안내하십시오.${contextBriefing ? `\n\n---\n\n## 현재 진행 상황 (백로그 / 컨텍스트)\n\n${contextBriefing}` : ""}`,
+              system: `당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, 아이디어 검토, 질문 답변 등 무엇이든 도와드립니다. 사용자가 'assemble' 또는 '어셈블'이라고 하면 Council 19인 토론을 소집할 수 있다고 안내하십시오.${contextBriefing ? `\n\n---\n\n## 현재 진행 상황 (백로그 / 컨텍스트)\n\n${contextBriefing}` : ""}${paperContext}`,
               messages: [...history, { role: "user", content: userText }],
             },
             (chunk) => {
