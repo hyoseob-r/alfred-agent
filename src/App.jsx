@@ -1244,7 +1244,7 @@ export default function App() {
               ? Math.round(timings.reduce((a, b) => a + b, 0) / timings.length)
               : 45;
             return (
-              <div style={{ padding: "8px 20px 6px", background: "#fafafa", borderTop: "1px solid #f0f0f0" }}>
+              <div style={{ padding: "8px 72px 6px 20px", background: "#fafafa", borderTop: "1px solid #f0f0f0" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                     {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#bbbbbb", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
