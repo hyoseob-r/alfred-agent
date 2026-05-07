@@ -130,7 +130,7 @@ function CouncilAgentBubble({ msg, onResume, onStop }) {
   );
 }
 
-export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncilUpdate, onCouncilStart, onAlfOpinion, onCouncilResume, onCouncilStop }) {
+export default function MessageBubble({ msg, user, sessionId, isOwner, councilRunning, onCouncilUpdate, onCouncilStart, onAlfOpinion, onCouncilResume, onCouncilStop }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -288,15 +288,20 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, onCouncil
 
       {/* Assemble — Council 소집 버튼 (인라인 실행) */}
       {msg.isAssemble && !isUser && (
-        <div style={{ marginBottom: "16px", marginLeft: "42px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <div style={{ marginBottom: "16px", marginLeft: "42px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
           <button
-            onClick={() => onCouncilStart?.(msg.assembleContext)}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 18px", background: "#111111", border: "1px solid #333333", borderRadius: "20px", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s", letterSpacing: "0.04em" }}
-            onMouseEnter={e => e.currentTarget.style.background = "#333333"}
-            onMouseLeave={e => e.currentTarget.style.background = "#111111"}
+            onClick={() => !councilRunning && onCouncilStart?.(msg.assembleContext)}
+            disabled={councilRunning}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 18px", background: councilRunning ? "#888888" : "#111111", border: `1px solid ${councilRunning ? "#aaaaaa" : "#333333"}`, borderRadius: "20px", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: councilRunning ? "not-allowed" : "pointer", transition: "all 0.2s", letterSpacing: "0.04em", opacity: councilRunning ? 0.5 : 1 }}
+            onMouseEnter={e => { if (!councilRunning) e.currentTarget.style.background = "#333333"; }}
+            onMouseLeave={e => { if (!councilRunning) e.currentTarget.style.background = "#111111"; }}
+            title={councilRunning ? "토론이 이미 진행 중입니다" : undefined}
           >
             ⚡ Council 19인 토론 시작
           </button>
+          {councilRunning && (
+            <span style={{ fontSize: "10px", color: "#888888", fontStyle: "italic" }}>토론 진행 중 — 중복 시작 불가</span>
+          )}
           <button
             onClick={() => onAlfOpinion?.(msg.assembleContext)}
             style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#f5f0ff", border: "1px solid #c4aaf0", borderRadius: "20px", color: "#6040b0", fontSize: "12px", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}

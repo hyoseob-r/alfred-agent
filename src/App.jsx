@@ -1024,6 +1024,7 @@ export default function App() {
             )}
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
+                councilRunning={councilRunning}
                 onCouncilStart={(content) => setCouncilPending({ content })}
                 onAlfOpinion={runAlfOpinion}
                 onCouncilResume={(resumeState) => runCouncilInChat(resumeState.solutionContent, resumeState)}
@@ -1129,7 +1130,6 @@ export default function App() {
           {/* ── Council 큐 편집 모달 ── */}
           {councilQueueEditor && (() => {
             const GROUPS_RT = ["사장님", "소비자", "전문가", "레전드"];
-            // 현재 실행 중인 에이전트까지 항상 잠금 (running 중이면 +1, waiting이면 already +1)
             const done = councilProgressRef.current + 1;
             const notifyQueueChange = (newQ) => {
               const remaining = newQ.slice(done).map((a, i) => `${done + i + 1}. ${a.icon} ${a.role}`).join("\n");
@@ -1151,26 +1151,58 @@ export default function App() {
               { ...agent, qid: `${agent.id}-${Date.now()}-${Math.random().toString(36).slice(2)}` }
             ]);
             const removeItem = (idx) => applyQueue(councilRuntimeQueueRef.current.filter((_, i) => i !== idx));
-            const moveUp = (idx) => {
-              if (idx <= done) return;
-              const n = [...councilRuntimeQueueRef.current]; [n[idx-1], n[idx]] = [n[idx], n[idx-1]]; applyQueue(n);
+
+            // 드래그 상태
+            let dragSrcIdx = null;
+
+            const onDragStart = (e, idx) => {
+              dragSrcIdx = idx;
+              e.dataTransfer.effectAllowed = "move";
+              e.currentTarget.style.opacity = "0.4";
             };
-            const moveDown = (idx) => {
-              if (idx >= councilRuntimeQueueRef.current.length - 1) return;
-              const n = [...councilRuntimeQueueRef.current]; [n[idx], n[idx+1]] = [n[idx+1], n[idx]]; applyQueue(n);
+            const onDragEnd = (e) => {
+              e.currentTarget.style.opacity = "1";
+              dragSrcIdx = null;
+              // 모든 드래그 오버 하이라이트 제거
+              document.querySelectorAll("[data-qitem]").forEach(el => {
+                el.style.borderColor = "";
+                el.style.background = "";
+              });
             };
+            const onDragOver = (e, idx) => {
+              e.preventDefault();
+              if (dragSrcIdx === null || dragSrcIdx === idx || idx < done) return;
+              e.currentTarget.style.borderColor = "#777777";
+              e.currentTarget.style.background = "#f0f0f0";
+            };
+            const onDragLeave = (e, agent, isDone) => {
+              e.currentTarget.style.borderColor = isDone ? "#e5e5e5" : agent.color + "33";
+              e.currentTarget.style.background = isDone ? "#f5f5f5" : "#ffffff";
+            };
+            const onDrop = (e, targetIdx) => {
+              e.preventDefault();
+              if (dragSrcIdx === null || dragSrcIdx === targetIdx || targetIdx < done) return;
+              const n = [...councilRuntimeQueueRef.current];
+              const [moved] = n.splice(dragSrcIdx, 1);
+              n.splice(targetIdx, 0, moved);
+              applyQueue(n);
+            };
+
             return (
               <div style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
                 onClick={(e) => { if (e.target === e.currentTarget) setCouncilQueueEditor(false); }}>
                 <div style={{ width: "100%", maxWidth: "820px", maxHeight: "88vh", background: "#f5f5f5", borderRadius: "16px", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 8px 40px rgba(0,0,0,0.3)" }}>
                   <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5e5e5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚙ 토론 순서 수정 — 진행 중</span>
+                    <div>
+                      <span style={{ fontSize: "14px", fontWeight: 600, color: "#444444" }}>⚙ 토론 순서 수정</span>
+                      <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "10px" }}>대기 중인 패널을 드래그해서 순서 변경</span>
+                    </div>
                     <button onClick={() => setCouncilQueueEditor(false)} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px" }}>✕</button>
                   </div>
                   <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
                     {/* 왼쪽: 추가 */}
-                    <div style={{ width: "48%", borderRight: "1px solid #e5e5e5", padding: "14px 16px", overflowY: "auto" }}>
-                      <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.1em", marginBottom: "12px" }}>추가 (클릭)</div>
+                    <div style={{ width: "44%", borderRight: "1px solid #e5e5e5", padding: "14px 16px", overflowY: "auto" }}>
+                      <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.1em", marginBottom: "12px" }}>패널 추가 (클릭)</div>
                       {GROUPS_RT.map(g => {
                         const ga = AGENTS.filter(a => a.group === g);
                         return (
@@ -1192,30 +1224,54 @@ export default function App() {
                     </div>
                     {/* 오른쪽: 전체 큐 */}
                     <div style={{ flex: 1, padding: "14px 16px", overflowY: "auto" }}>
-                      <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.1em", marginBottom: "12px" }}>전체 순서 ({councilRuntimeQueue.length}명)</div>
-                      {councilRuntimeQueue.map((agent, idx) => {
-                        const isDone = idx < done;
+                      <div style={{ fontSize: "10px", fontWeight: 700, color: "#aaaaaa", letterSpacing: "0.1em", marginBottom: "8px" }}>
+                        전체 순서 ({councilRuntimeQueue.length}명) — 완료 {done}명 / 대기 {Math.max(0, councilRuntimeQueue.length - done)}명
+                      </div>
+                      {/* 완료된 패널 */}
+                      {councilRuntimeQueue.slice(0, done).map((agent, idx) => (
+                        <div key={agent.qid} data-qitem="1"
+                          style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 8px", background: "#f5f5f5", border: "1px solid #e5e5e5", borderRadius: "8px", marginBottom: "4px", opacity: 0.45 }}>
+                          <span style={{ fontSize: "9px", color: "#cccccc", width: "14px", textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
+                          <span style={{ fontSize: "13px" }}>{agent.icon}</span>
+                          <span style={{ fontSize: "10px", color: "#aaaaaa", flex: 1 }}>
+                            <span style={{ fontSize: "8px", opacity: 0.4, marginRight: "2px" }}>[{agent.group}]</span>{agent.role}
+                          </span>
+                          <span style={{ fontSize: "10px", color: "#aaaaaa" }}>✓</span>
+                        </div>
+                      ))}
+                      {/* 대기 중인 패널 — 드래그 가능 */}
+                      {councilRuntimeQueue.length > done && (
+                        <div style={{ fontSize: "9px", color: "#bbbbbb", margin: "8px 0 6px", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
+                          <span>대기 ({councilRuntimeQueue.length - done}명) — 드래그로 순서 변경</span>
+                          <div style={{ flex: 1, height: "1px", background: "#e0e0e0" }} />
+                        </div>
+                      )}
+                      {councilRuntimeQueue.slice(done).map((agent, relIdx) => {
+                        const idx = done + relIdx;
                         return (
-                          <div key={agent.qid} style={{ display: "flex", alignItems: "center", gap: "4px", padding: "5px 7px", background: isDone ? "#f5f5f5" : "#ffffff", border: `1px solid ${isDone ? "#e5e5e5" : agent.color + "33"}`, borderRadius: "8px", marginBottom: "4px", opacity: isDone ? 0.5 : 1 }}>
-                            <span style={{ fontSize: "9px", color: "#cccccc", width: "14px", textAlign: "right" }}>{idx + 1}</span>
-                            <span>{agent.icon}</span>
-                            <span style={{ fontSize: "10px", color: isDone ? "#aaaaaa" : agent.color, flex: 1 }}>
+                          <div key={agent.qid} data-qitem="1"
+                            draggable
+                            onDragStart={e => onDragStart(e, idx)}
+                            onDragEnd={onDragEnd}
+                            onDragOver={e => onDragOver(e, idx)}
+                            onDragLeave={e => onDragLeave(e, agent, false)}
+                            onDrop={e => onDrop(e, idx)}
+                            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 8px", background: "#ffffff", border: `1px solid ${agent.color}33`, borderRadius: "8px", marginBottom: "4px", cursor: "grab", userSelect: "none", transition: "border-color 0.1s, background 0.1s" }}>
+                            <span style={{ fontSize: "9px", color: "#cccccc", width: "14px", textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
+                            <span style={{ fontSize: "10px", color: "#cccccc", flexShrink: 0 }}>⠿</span>
+                            <span style={{ fontSize: "13px" }}>{agent.icon}</span>
+                            <span style={{ fontSize: "10px", color: agent.color, flex: 1 }}>
                               <span style={{ fontSize: "8px", opacity: 0.4, marginRight: "2px" }}>[{agent.group}]</span>{agent.role}
                             </span>
-                            {isDone
-                              ? <span style={{ fontSize: "9px", color: "#aaaaaa" }}>✓</span>
-                              : <>
-                                  <button onClick={() => moveUp(idx)} disabled={idx === done}
-                                    style={{ padding: "1px 5px", fontSize: "9px", background: "none", border: "1px solid #e0e0e0", borderRadius: "4px", cursor: idx === done ? "default" : "pointer", color: idx === done ? "#e0e0e0" : "#888888" }}>↑</button>
-                                  <button onClick={() => moveDown(idx)} disabled={idx === councilRuntimeQueue.length - 1}
-                                    style={{ padding: "1px 5px", fontSize: "9px", background: "none", border: "1px solid #e0e0e0", borderRadius: "4px", cursor: idx === councilRuntimeQueue.length - 1 ? "default" : "pointer", color: idx === councilRuntimeQueue.length - 1 ? "#e0e0e0" : "#888888" }}>↓</button>
-                                  <button onClick={() => removeItem(idx)}
-                                    style={{ padding: "1px 5px", fontSize: "9px", background: "none", border: "1px solid #f0aaaa", borderRadius: "4px", cursor: "pointer", color: "#cc6666" }}>✕</button>
-                                </>
-                            }
+                            <button onClick={() => removeItem(idx)}
+                              style={{ padding: "2px 7px", fontSize: "9px", background: "none", border: "1px solid #f0aaaa", borderRadius: "4px", cursor: "pointer", color: "#cc6666", flexShrink: 0 }}>✕</button>
                           </div>
                         );
                       })}
+                      {councilRuntimeQueue.length === 0 && (
+                        <div style={{ fontSize: "12px", color: "#cccccc", textAlign: "center", marginTop: "30px" }}>대기 중인 패널이 없습니다</div>
+                      )}
                     </div>
                   </div>
                   <div style={{ padding: "12px 20px", borderTop: "1px solid #e5e5e5", display: "flex", justifyContent: "flex-end" }}>
