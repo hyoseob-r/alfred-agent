@@ -93,6 +93,8 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const abortControllerRef = useRef(null);
   const agentStartRef = useRef(null); // for timing calculation (not subject to stale closure)
   const agentTimingsRef = useRef([]); // completed agent durations (seconds)
+  const dragIndexRef = useRef(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
 
   useEffect(() => {
     if (!isRunning || !agentStartTime) { setAgentElapsed(0); return; }
@@ -637,7 +639,34 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 <div style={{ fontSize: "12px", color: "#cccccc", textAlign: "center", marginTop: "50px", lineHeight: 1.8 }}>← 왼쪽 에이전트를<br/>클릭해 추가하세요</div>
               )}
               {agentQueue.map((agent, idx) => (
-                <div key={agent.qid} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 8px", background: "#ffffff", border: `1px solid ${agent.color}33`, borderRadius: "10px", marginBottom: "5px" }}>
+                <div key={agent.qid}
+                  draggable
+                  onDragStart={() => { dragIndexRef.current = idx; }}
+                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
+                  onDragLeave={() => setDragOverIdx(null)}
+                  onDrop={e => {
+                    e.preventDefault();
+                    const from = dragIndexRef.current;
+                    if (from === null || from === idx) { setDragOverIdx(null); return; }
+                    setAgentQueue(prev => {
+                      const n = [...prev];
+                      const [item] = n.splice(from, 1);
+                      n.splice(idx, 0, item);
+                      return n;
+                    });
+                    dragIndexRef.current = null;
+                    setDragOverIdx(null);
+                  }}
+                  onDragEnd={() => { dragIndexRef.current = null; setDragOverIdx(null); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "5px", padding: "6px 8px",
+                    background: dragOverIdx === idx ? agent.color + "12" : "#ffffff",
+                    border: dragOverIdx === idx ? `1.5px solid ${agent.color}88` : `1px solid ${agent.color}33`,
+                    borderRadius: "10px", marginBottom: "5px",
+                    cursor: "grab", transition: "border 0.1s, background 0.1s",
+                    opacity: dragIndexRef.current === idx ? 0.4 : 1,
+                  }}>
+                  <span style={{ fontSize: "11px", color: "#cccccc", cursor: "grab", flexShrink: 0, letterSpacing: "-1px" }}>⠿</span>
                   <span style={{ fontSize: "10px", color: "#cccccc", width: "16px", textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
                   <span style={{ fontSize: "14px" }}>{agent.icon}</span>
                   <span style={{ fontSize: "11px", color: agent.color, flex: 1 }}>
