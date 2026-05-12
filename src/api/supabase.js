@@ -144,6 +144,52 @@ export function guestDeleteSession(id) {
   localStorage.setItem(GUEST_LS_KEY, JSON.stringify(guestGetAllSessions().filter(s => s.id !== id)));
 }
 
+// ─── Agent Memory ────────────────────────────────────────────────────────────
+
+export async function dbGetAgentMemory(agentId) {
+  const sb = await getSupabase();
+  const { data } = await sb.from("context_notes")
+    .select("content")
+    .eq("type", "agent_memory")
+    .eq("title", `agent_memory_${agentId}`)
+    .maybeSingle();
+  return data?.content || null;
+}
+
+export async function dbAppendAgentMemory(agentId, dateLabel, text) {
+  const sb = await getSupabase();
+  const existing = await dbGetAgentMemory(agentId);
+  const entries = existing ? existing.split("\n\n") : [];
+  const snippet = text.slice(0, 280) + (text.length > 280 ? "…" : "");
+  const newEntry = `[${dateLabel}] ${snippet}`;
+  const updated = [...entries, newEntry].slice(-5).join("\n\n");
+  const { data: row } = await sb.from("context_notes")
+    .select("id").eq("type", "agent_memory").eq("title", `agent_memory_${agentId}`).maybeSingle();
+  if (row?.id) {
+    await sb.from("context_notes").update({ content: updated, updated_at: new Date().toISOString() }).eq("id", row.id);
+  } else {
+    await sb.from("context_notes").insert({ type: "agent_memory", title: `agent_memory_${agentId}`, content: updated, tags: [agentId, "memory"] });
+  }
+}
+
+export async function dbGetCouncilSynthesis() {
+  const sb = await getSupabase();
+  const { data } = await sb.from("context_notes")
+    .select("content").eq("type", "agent_memory").eq("title", "council_synthesis_latest").maybeSingle();
+  return data?.content || null;
+}
+
+export async function dbSaveCouncilSynthesis(content) {
+  const sb = await getSupabase();
+  const { data: row } = await sb.from("context_notes")
+    .select("id").eq("type", "agent_memory").eq("title", "council_synthesis_latest").maybeSingle();
+  if (row?.id) {
+    await sb.from("context_notes").update({ content, updated_at: new Date().toISOString() }).eq("id", row.id);
+  } else {
+    await sb.from("context_notes").insert({ type: "agent_memory", title: "council_synthesis_latest", content, tags: ["synthesis", "memory"] });
+  }
+}
+
 // Auth helpers
 export async function signInWithGitHub() {
   const sb = await getSupabase();

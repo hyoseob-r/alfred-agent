@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { chatAPI, streamChatAPI } from "../../api/proxy";
 import { AGENT_COUNCIL_PROMPTS, SPECIAL_PANEL_AGENTS, SPECIAL_PANEL_PROMPTS } from "../../prompts/council";
 import { FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "../../prompts/council";
-import { dbNextCouncilId, dbSaveCouncilSession } from "../../api/supabase";
+import { dbNextCouncilId, dbSaveCouncilSession, dbGetAgentMemory, dbAppendAgentMemory, dbGetCouncilSynthesis, dbSaveCouncilSynthesis } from "../../api/supabase";
 import { getSelectedModel } from "../../utils/model";
 import { MarkdownRenderer, openFullView } from "../../utils/markdown";
 
@@ -95,6 +95,56 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const agentTimingsRef = useRef([]); // completed agent durations (seconds)
   const dragIndexRef = useRef(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
+  const agentMemoryCacheRef = useRef({});
+  const synthesisRef = useRef(null);
+  const [agentTrends, setAgentTrends] = useState({}); // {agentId: "현장 주입 텍스트"}
+  const [trendTarget, setTrendTarget] = useState(null); // qid of open trend input
+
+  // 세션 시작 시 synthesis 로드
+  useEffect(() => {
+    dbGetCouncilSynthesis().then(s => { synthesisRef.current = s; }).catch(() => {});
+  }, []);
+
+  // 에이전트별 메모리 + 트렌드 + synthesis 조합 → system prompt 주입용
+  const buildMemorySection = async (agentId) => {
+    try {
+      if (agentMemoryCacheRef.current[agentId] === undefined) {
+        agentMemoryCacheRef.current[agentId] = await dbGetAgentMemory(agentId);
+      }
+    } catch { agentMemoryCacheRef.current[agentId] = null; }
+
+    const mem = agentMemoryCacheRef.current[agentId];
+    const trend = agentTrends[agentId];
+    const synthesis = synthesisRef.current;
+
+    if (!mem && !trend && !synthesis) return "";
+
+    const parts = [];
+    if (mem) parts.push(`[🧠 당신의 이전 토론 발언 기억 — 일관성을 유지하되, 더 강한 논리와 근거가 제시될 때만 자연스럽게 입장을 업데이트하세요]\n${mem}`);
+    if (synthesis) parts.push(`[🔁 이전 Council 공유 합의 — 동료들과 축적된 공동 지식 기반. 이를 출발점으로 더 깊이 파고드세요]\n${synthesis}`);
+    if (trend) parts.push(`[💡 현장 트렌드 주입 — 이번 토론에서 반드시 반영하세요]\n${trend}`);
+
+    return "\n\n---\n\n" + parts.join("\n\n");
+  };
+
+  // 라운드 완료 후 에이전트 메모리 저장 + synthesis 갱신 (백그라운드)
+  const saveRoundMemories = (steps, roundLabel) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const dateLabel = councilId ? `${today} ${councilId} ${roundLabel}` : `${today} ${roundLabel}`;
+    steps.forEach(step => {
+      if ((step.status === "done" || step.status === "paused") && step.result) {
+        agentMemoryCacheRef.current[step.id] = undefined; // 캐시 무효화
+        dbAppendAgentMemory(step.id, dateLabel, step.result).catch(() => {});
+      }
+    });
+    // synthesis: Dr. Veritas 또는 마지막 완료 에이전트 발언 기반
+    const veritasStep = steps.find(s => s.id === "factchecker" && s.status === "done");
+    const synthSource = veritasStep || [...steps].reverse().find(s => s.status === "done");
+    if (synthSource?.result) {
+      const synthContent = `[${today} ${roundLabel}]\n${synthSource.result.slice(0, 500)}${synthSource.result.length > 500 ? "…" : ""}`;
+      dbSaveCouncilSynthesis(synthContent).then(() => { synthesisRef.current = synthContent; }).catch(() => {});
+    }
+  };
 
   useEffect(() => {
     if (!isRunning || !agentStartTime) { setAgentElapsed(0); return; }
@@ -138,6 +188,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setPendingNext(null);
     setAgentStartTime(null);
     onRoundsUpdate?.(newRounds, context);
+    saveRoundMemories(allSteps, "큐토론");
     if (user?.id && isOwner) {
       setSaveStatus("saving");
       try {
@@ -172,9 +223,10 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     const modeDirective = responseMode === "compact"
       ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
       : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
+    const memorySection = await buildMemorySection(agent.id);
     const systemPrompt = isLegend
-      ? `${basePrompt}${modeDirective}`
-      : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`;
+      ? `${basePrompt}${memorySection}${modeDirective}`
+      : `${basePrompt}${memorySection}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`;
     const agentAc = new AbortController();
     const timeoutId = setTimeout(() => agentAc.abort(), 180_000);
     const combinedSignal = AbortSignal.any([ac.signal, agentAc.signal]);
@@ -252,6 +304,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setPendingNext(null);
     setAgentStartTime(null);
     onRoundsUpdate?.(newRounds, context);
+    saveRoundMemories(roundSteps, `${roundNum}R ${ROUND_CONFIG[roundNum-1]?.label || "토론"}`);
 
     if (user?.id && isOwner) {
       setSaveStatus("saving");
@@ -306,11 +359,12 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     const modeDirective = responseMode === "compact"
       ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
       : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
+    const memorySection = await buildMemorySection(agent.id);
     const systemPrompt = isFactChecker
-      ? basePrompt + modeDirective
+      ? basePrompt + memorySection + modeDirective
       : roundNum === 1
-        ? `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`
-        : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
+        ? `${basePrompt}${memorySection}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`
+        : `${basePrompt}${memorySection}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
 
     // 에이전트별 타임아웃 (180초) — 스트림이 멈춰도 자동으로 다음으로 넘어감
     const agentAc = new AbortController();
@@ -639,45 +693,63 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 <div style={{ fontSize: "12px", color: "#cccccc", textAlign: "center", marginTop: "50px", lineHeight: 1.8 }}>← 왼쪽 에이전트를<br/>클릭해 추가하세요</div>
               )}
               {agentQueue.map((agent, idx) => (
-                <div key={agent.qid}
-                  draggable
-                  onDragStart={() => { dragIndexRef.current = idx; }}
-                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
-                  onDragLeave={() => setDragOverIdx(null)}
-                  onDrop={e => {
-                    e.preventDefault();
-                    const from = dragIndexRef.current;
-                    if (from === null || from === idx) { setDragOverIdx(null); return; }
-                    setAgentQueue(prev => {
-                      const n = [...prev];
-                      const [item] = n.splice(from, 1);
-                      n.splice(idx, 0, item);
-                      return n;
-                    });
-                    dragIndexRef.current = null;
-                    setDragOverIdx(null);
-                  }}
-                  onDragEnd={() => { dragIndexRef.current = null; setDragOverIdx(null); }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: "5px", padding: "6px 8px",
-                    background: dragOverIdx === idx ? agent.color + "12" : "#ffffff",
-                    border: dragOverIdx === idx ? `1.5px solid ${agent.color}88` : `1px solid ${agent.color}33`,
-                    borderRadius: "10px", marginBottom: "5px",
-                    cursor: "grab", transition: "border 0.1s, background 0.1s",
-                    opacity: dragIndexRef.current === idx ? 0.4 : 1,
-                  }}>
-                  <span style={{ fontSize: "11px", color: "#cccccc", cursor: "grab", flexShrink: 0, letterSpacing: "-1px" }}>⠿</span>
-                  <span style={{ fontSize: "10px", color: "#cccccc", width: "16px", textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
-                  <span style={{ fontSize: "14px" }}>{agent.icon}</span>
-                  <span style={{ fontSize: "11px", color: agent.color, flex: 1 }}>
-                    <span style={{ fontSize: "9px", opacity: 0.45, marginRight: "3px" }}>[{agent.group}]</span>{agent.role}
-                  </span>
-                  <button onClick={() => moveQueueUp(idx)} disabled={idx === 0}
-                    style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #e0e0e0", borderRadius: "6px", cursor: idx === 0 ? "default" : "pointer", color: idx === 0 ? "#e0e0e0" : "#888888" }}>↑</button>
-                  <button onClick={() => moveQueueDown(idx)} disabled={idx === agentQueue.length - 1}
-                    style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #e0e0e0", borderRadius: "6px", cursor: idx === agentQueue.length - 1 ? "default" : "pointer", color: idx === agentQueue.length - 1 ? "#e0e0e0" : "#888888" }}>↓</button>
-                  <button onClick={() => removeFromQueue(idx)}
-                    style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #f0aaaa", borderRadius: "6px", cursor: "pointer", color: "#cc6666" }}>✕</button>
+                <div key={agent.qid}>
+                  <div
+                    draggable
+                    onDragStart={() => { dragIndexRef.current = idx; }}
+                    onDragOver={e => { e.preventDefault(); setDragOverIdx(idx); }}
+                    onDragLeave={() => setDragOverIdx(null)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      const from = dragIndexRef.current;
+                      if (from === null || from === idx) { setDragOverIdx(null); return; }
+                      setAgentQueue(prev => {
+                        const n = [...prev];
+                        const [item] = n.splice(from, 1);
+                        n.splice(idx, 0, item);
+                        return n;
+                      });
+                      dragIndexRef.current = null;
+                      setDragOverIdx(null);
+                    }}
+                    onDragEnd={() => { dragIndexRef.current = null; setDragOverIdx(null); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "5px", padding: "6px 8px",
+                      background: dragOverIdx === idx ? agent.color + "12" : "#ffffff",
+                      border: dragOverIdx === idx ? `1.5px solid ${agent.color}88` : `1px solid ${agent.color}33`,
+                      borderRadius: "10px", marginBottom: "3px",
+                      cursor: "grab", transition: "border 0.1s, background 0.1s",
+                      opacity: dragIndexRef.current === idx ? 0.4 : 1,
+                    }}>
+                    <span style={{ fontSize: "11px", color: "#cccccc", cursor: "grab", flexShrink: 0, letterSpacing: "-1px" }}>⠿</span>
+                    <span style={{ fontSize: "10px", color: "#cccccc", width: "16px", textAlign: "right", flexShrink: 0 }}>{idx + 1}</span>
+                    <span style={{ fontSize: "14px" }}>{agent.icon}</span>
+                    <span style={{ fontSize: "11px", color: agent.color, flex: 1 }}>
+                      <span style={{ fontSize: "9px", opacity: 0.45, marginRight: "3px" }}>[{agent.group}]</span>{agent.role}
+                    </span>
+                    <button onClick={() => setTrendTarget(trendTarget === agent.qid ? null : agent.qid)}
+                      title="현장 트렌드 주입"
+                      style={{ padding: "2px 5px", fontSize: "10px", background: agentTrends[agent.id] ? "#fff8e1" : "none", border: `1px solid ${agentTrends[agent.id] ? "#ffe082" : "#e0e0e0"}`, borderRadius: "6px", cursor: "pointer", color: agentTrends[agent.id] ? "#b07800" : "#cccccc", flexShrink: 0 }}>💡</button>
+                    <button onClick={() => moveQueueUp(idx)} disabled={idx === 0}
+                      style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #e0e0e0", borderRadius: "6px", cursor: idx === 0 ? "default" : "pointer", color: idx === 0 ? "#e0e0e0" : "#888888" }}>↑</button>
+                    <button onClick={() => moveQueueDown(idx)} disabled={idx === agentQueue.length - 1}
+                      style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #e0e0e0", borderRadius: "6px", cursor: idx === agentQueue.length - 1 ? "default" : "pointer", color: idx === agentQueue.length - 1 ? "#e0e0e0" : "#888888" }}>↓</button>
+                    <button onClick={() => removeFromQueue(idx)}
+                      style={{ padding: "2px 6px", fontSize: "10px", background: "none", border: "1px solid #f0aaaa", borderRadius: "6px", cursor: "pointer", color: "#cc6666" }}>✕</button>
+                  </div>
+                  {trendTarget === agent.qid && (
+                    <div style={{ margin: "0 0 5px 28px", padding: "8px 10px", background: "#fffde7", border: "1px solid #ffe082", borderRadius: "8px" }}>
+                      <div style={{ fontSize: "9px", color: "#b07800", marginBottom: "5px", fontWeight: 600 }}>💡 현장 트렌드 주입 — {agent.role}에게 적용됩니다</div>
+                      <textarea
+                        value={agentTrends[agent.id] || ""}
+                        onChange={e => setAgentTrends(prev => ({ ...prev, [agent.id]: e.target.value }))}
+                        placeholder="예: 오늘 현장에서 들은 말, 최근 경험, 수정된 데이터, 새로운 컨텍스트..."
+                        style={{ width: "100%", height: "56px", fontSize: "11px", border: "1px solid #ffe082", borderRadius: "4px", padding: "5px 7px", fontFamily: "inherit", resize: "vertical", background: "#fffef5", boxSizing: "border-box", color: "#555", outline: "none" }}
+                      />
+                      <button onClick={() => setTrendTarget(null)}
+                        style={{ marginTop: "4px", padding: "3px 10px", fontSize: "10px", background: "#111", border: "none", borderRadius: "6px", color: "#fff", cursor: "pointer" }}>확인</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
