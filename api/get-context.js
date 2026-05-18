@@ -63,6 +63,22 @@ export default async function handler(req, res) {
       latestFull = Array.isArray(latestArr) ? (latestArr[0] || null) : null
     }
 
+    // agent_data: 에이전트별 메모리·드리프트 파싱 (t-008 — #에이전트 테스트 시 주입용)
+    const agentDataMap = {}
+    const synthesis = notes.find(n => n.title === 'council_synthesis_latest')?.content || null
+    notes.forEach(n => {
+      if (n.type === 'agent_memory' && n.title?.startsWith('agent_memory_')) {
+        const id = n.title.replace('agent_memory_', '')
+        if (!agentDataMap[id]) agentDataMap[id] = {}
+        agentDataMap[id].memory = n.content
+      }
+      if (n.type === 'agent_drift' && n.title?.startsWith('agent_drift_')) {
+        const id = n.title.replace('agent_drift_', '')
+        if (!agentDataMap[id]) agentDataMap[id] = {}
+        agentDataMap[id].drift = n.content
+      }
+    })
+
     const context = {
       generated_at: new Date().toISOString(),
       claude_md: claudeMd,
@@ -74,6 +90,7 @@ export default async function handler(req, res) {
         created_at: s.created_at,
       })),
       context_notes: notes,
+      agent_data: { agents: agentDataMap, synthesis },
       latest_full: latestFull ? {
         id: latestFull.id,
         topic: latestFull.topic,

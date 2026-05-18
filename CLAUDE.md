@@ -228,6 +228,30 @@ curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-council \
 - 각 에이전트는 이전 결과를 context로 누적 수신
 - 완료 후 자동으로 Supabase에 저장
 
+**t-008 상호학습 적용 (필수):**
+`get-context` 응답의 `agent_data` 필드를 사용해 각 에이전트에 메모리·드리프트를 주입하세요.
+
+각 에이전트 발언 전, 아래 순서로 시스템 프롬프트 앞에 추가:
+```
+[🌊 관점 드리프트] agent_data.agents.{agentId}.drift  (있을 때만)
+[🧠 이전 발언 기억] agent_data.agents.{agentId}.memory  (있을 때만)
+[🔁 공유 합의] agent_data.synthesis  (있을 때만)
+```
+
+완료 후 각 에이전트 발언을 `save-context` API로 저장 (type: "agent_memory"):
+```bash
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
+  -H "Content-Type: application/json" \
+  -d '{"type":"agent_memory","title":"agent_memory_{agentId}","content":"[날짜] 발언 앞 280자","tags":["{agentId}","memory"]}'
+```
+
+전체 완료 후 드리프트 분석 → Dr. Veritas 발언 기반 synthesis 저장:
+```bash
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
+  -H "Content-Type: application/json" \
+  -d '{"type":"agent_memory","title":"council_synthesis_latest","content":"[날짜] Dr.Veritas 발언 앞 500자","tags":["synthesis","memory"]}'
+```
+
 ---
 
 ## 19인 에이전트 시뮬레이션 방식 (기본 지침)
