@@ -190,6 +190,34 @@ export async function dbSaveCouncilSynthesis(content) {
   }
 }
 
+// ─── Agent Drift ─────────────────────────────────────────────────────────────
+
+export async function dbGetAgentDrift(agentId) {
+  const sb = await getSupabase();
+  const { data } = await sb.from("context_notes")
+    .select("content")
+    .eq("type", "agent_drift")
+    .eq("title", `agent_drift_${agentId}`)
+    .maybeSingle();
+  return data?.content || null;
+}
+
+export async function dbSaveAgentDrift(agentId, dateLabel, driftText) {
+  const sb = await getSupabase();
+  const existing = await dbGetAgentDrift(agentId);
+  const entries = existing ? existing.split("\n\n") : [];
+  const snippet = driftText.slice(0, 200) + (driftText.length > 200 ? "…" : "");
+  const newEntry = `[${dateLabel}] ${snippet}`;
+  const updated = [...entries, newEntry].slice(-5).join("\n\n");
+  const { data: row } = await sb.from("context_notes")
+    .select("id").eq("type", "agent_drift").eq("title", `agent_drift_${agentId}`).maybeSingle();
+  if (row?.id) {
+    await sb.from("context_notes").update({ content: updated, updated_at: new Date().toISOString() }).eq("id", row.id);
+  } else {
+    await sb.from("context_notes").insert({ type: "agent_drift", title: `agent_drift_${agentId}`, content: updated, tags: [agentId, "drift"] });
+  }
+}
+
 // Auth helpers
 export async function signInWithGitHub() {
   const sb = await getSupabase();

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { chatAPI, streamChatAPI } from "../../api/proxy";
 import { AGENT_COUNCIL_PROMPTS, SPECIAL_PANEL_AGENTS, SPECIAL_PANEL_PROMPTS } from "../../prompts/council";
 import { FACT_CHECK_STANDARD, DEBATE_ROUND_PROMPT } from "../../prompts/council";
-import { dbNextCouncilId, dbSaveCouncilSession, dbGetAgentMemory, dbAppendAgentMemory, dbGetCouncilSynthesis, dbSaveCouncilSynthesis } from "../../api/supabase";
+import { dbNextCouncilId, dbSaveCouncilSession, dbGetAgentMemory, dbAppendAgentMemory, dbGetCouncilSynthesis, dbSaveCouncilSynthesis, dbGetAgentDrift, dbSaveAgentDrift } from "../../api/supabase";
 import { getSelectedModel } from "../../utils/model";
 import { MarkdownRenderer, openFullView } from "../../utils/markdown";
 
@@ -96,6 +96,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
   const dragIndexRef = useRef(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const agentMemoryCacheRef = useRef({});
+  const agentDriftCacheRef = useRef({});
   const synthesisRef = useRef(null);
   const [agentTrends, setAgentTrends] = useState({}); // {agentId: "현장 주입 텍스트"}
   const [trendTarget, setTrendTarget] = useState(null); // qid of open trend input
@@ -105,7 +106,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     dbGetCouncilSynthesis().then(s => { synthesisRef.current = s; }).catch(() => {});
   }, []);
 
-  // 에이전트별 메모리 + 트렌드 + synthesis 조합 → system prompt 주입용
+  // 에이전트별 드리프트 + 메모리 + 트렌드 + synthesis 조합 → system prompt 주입용
   const buildMemorySection = async (agentId) => {
     try {
       if (agentMemoryCacheRef.current[agentId] === undefined) {
@@ -113,18 +114,64 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       }
     } catch { agentMemoryCacheRef.current[agentId] = null; }
 
+    try {
+      if (agentDriftCacheRef.current[agentId] === undefined) {
+        agentDriftCacheRef.current[agentId] = await dbGetAgentDrift(agentId);
+      }
+    } catch { agentDriftCacheRef.current[agentId] = null; }
+
+    const drift = agentDriftCacheRef.current[agentId];
     const mem = agentMemoryCacheRef.current[agentId];
     const trend = agentTrends[agentId];
     const synthesis = synthesisRef.current;
 
-    if (!mem && !trend && !synthesis) return "";
+    if (!drift && !mem && !trend && !synthesis) return "";
 
     const parts = [];
-    if (mem) parts.push(`[🧠 당신의 이전 토론 발언 기억 — 일관성을 유지하되, 더 강한 논리와 근거가 제시될 때만 자연스럽게 입장을 업데이트하세요]\n${mem}`);
-    if (synthesis) parts.push(`[🔁 이전 Council 공유 합의 — 동료들과 축적된 공동 지식 기반. 이를 출발점으로 더 깊이 파고드세요]\n${synthesis}`);
+    // 드리프트: 가장 먼저 — 진화된 관점이 기본 페르소나를 덮음
+    if (drift) parts.push(`[🌊 관점 드리프트 — 이전 Council 경험들을 통해 당신의 관점이 아래와 같이 자연스럽게 진화했습니다. 이를 지금의 당신으로 받아들이고 반영하세요]\n${drift}`);
+    if (mem) parts.push(`[🧠 이전 토론 발언 기억 — 일관성을 유지하되, 더 강한 논리와 근거가 제시될 때만 입장을 업데이트하세요]\n${mem}`);
+    if (synthesis) parts.push(`[🔁 이전 Council 공유 합의 — 동료들과 축적된 공동 지식. 이를 출발점으로 더 깊이 파고드세요]\n${synthesis}`);
     if (trend) parts.push(`[💡 현장 트렌드 주입 — 이번 토론에서 반드시 반영하세요]\n${trend}`);
 
     return "\n\n---\n\n" + parts.join("\n\n");
+  };
+
+  // 라운드 완료 후 드리프트 분석 → 에이전트별 관점 진화 저장 (백그라운드)
+  const generateAndSaveDrifts = async (steps, context, roundLabel) => {
+    const participants = steps.filter(s => s.status === "done" && s.result && s.id);
+    if (participants.length < 2) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const dateLabel = councilId ? `${today} ${councilId} ${roundLabel}` : `${today} ${roundLabel}`;
+    try {
+      const result = await chatAPI({
+        model: getSelectedModel(),
+        max_tokens: 1000,
+        system: `당신은 에이전트 페르소나 진화 분석가입니다.
+아래 Council 토론을 분석하여, 각 참가 에이전트의 관점이 이번 토론 경험을 통해 어떻게 미묘하게 진화했는지 분석하세요.
+
+규칙:
+- 변화는 미묘하고 자연스러워야 합니다. 극적인 전환 금지.
+- 변화의 근거는 반드시 이번 토론에서 제시된 논리/데이터/사실이어야 합니다. 감정 기반 변화 금지.
+- 변화가 없거나 미미하면 null로 표시.
+- 반드시 유효한 JSON만 응답하세요. 다른 텍스트 없음.
+
+형식: {"agentId1": "관점 변화 1-2문장 (한국어)", "agentId2": null, ...}`,
+        messages: [{ role: "user", content: `[참가 에이전트 ID 목록]\n${participants.map(s => s.id).join(", ")}\n\n[토론 전문 (앞 6000자)]\n${context.slice(0, 6000)}` }],
+      });
+      const text = result?.content?.[0]?.text || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return;
+      const drifts = JSON.parse(jsonMatch[0]);
+      for (const [agentId, driftText] of Object.entries(drifts)) {
+        if (driftText && typeof driftText === "string" && driftText.length > 5) {
+          agentDriftCacheRef.current[agentId] = undefined; // 캐시 무효화
+          dbSaveAgentDrift(agentId, dateLabel, driftText).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn("drift generation skipped:", e.message);
+    }
   };
 
   // 라운드 완료 후 에이전트 메모리 저장 + synthesis 갱신 (백그라운드)
@@ -189,6 +236,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setAgentStartTime(null);
     onRoundsUpdate?.(newRounds, context);
     saveRoundMemories(allSteps, "큐토론");
+    generateAndSaveDrifts(allSteps, context, "큐토론").catch(() => {});
     if (user?.id && isOwner) {
       setSaveStatus("saving");
       try {
@@ -304,7 +352,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setPendingNext(null);
     setAgentStartTime(null);
     onRoundsUpdate?.(newRounds, context);
-    saveRoundMemories(roundSteps, `${roundNum}R ${ROUND_CONFIG[roundNum-1]?.label || "토론"}`);
+    const roundLabel = `${roundNum}R ${ROUND_CONFIG[roundNum-1]?.label || "토론"}`;
+    saveRoundMemories(roundSteps, roundLabel);
+    generateAndSaveDrifts(roundSteps, context, roundLabel).catch(() => {});
 
     if (user?.id && isOwner) {
       setSaveStatus("saving");
