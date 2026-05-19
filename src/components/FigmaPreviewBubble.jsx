@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { chatAPIMultimodal } from "../api/proxy";
+import { chatAPIMultimodal, streamChatAPIMultimodal } from "../api/proxy";
 
 const FIGMA_TOKEN_KEY = "figma_pat";
 const MAX_ITER = 3;
@@ -145,10 +145,10 @@ ${currentHtml}`,
   return { done: false, html };
 }
 
-// ── 초기 HTML 생성 (Figma 이미지 참조) ───────────────────────────────────────
-async function generateInitialHtml(figmaB64) {
+// ── 초기 HTML 생성 (스트리밍 — 실시간 미리보기) ──────────────────────────────
+async function generateInitialHtml(figmaB64, onChunk) {
   const jpeg = await resizeToJpeg(figmaB64, 800, 0.82, "png");
-  const result = await chatAPIMultimodal({
+  const full = await streamChatAPIMultimodal({
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [{
@@ -170,12 +170,11 @@ async function generateInitialHtml(figmaB64) {
         { type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpeg } },
       ],
     }],
-  });
+  }, onChunk);
 
-  const text = (result.content?.[0]?.text || "").trim();
-  const html = text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  const html = full.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
   if (!html.toLowerCase().includes("<!doctype") && !html.toLowerCase().includes("<html")) {
-    throw new Error(`HTML 생성 실패: ${html.slice(0, 100)}`);
+    throw new Error(`HTML 생성 실패: ${html.slice(0, 120)}`);
   }
   return html;
 }
@@ -309,9 +308,15 @@ export default function FigmaPreviewBubble({ url }) {
       const fb64 = await fetchFigmaBase64(parsed.fileKey, parsed.nodeId, tok);
       setFigmaB64(fb64);
 
-      // 2. 초기 HTML 생성
+      // 2. 초기 HTML 생성 (스트리밍 — 실시간 미리보기)
       setPhase("generate");
-      let html = await generateInitialHtml(fb64);
+      let html = await generateInitialHtml(fb64, (_, full) => {
+        // 부분 HTML이라도 <html 태그 등장하면 즉시 iframe에 반영
+        const partial = full.replace(/^```html?\n?/i, "");
+        if (partial.toLowerCase().includes("<html") || partial.toLowerCase().includes("<!doctype")) {
+          setHtmlCode(partial);
+        }
+      });
       setHtmlCode(html);
 
       // 3. 검증 루프
