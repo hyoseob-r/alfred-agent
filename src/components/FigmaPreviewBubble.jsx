@@ -1,126 +1,241 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { chatAPI } from "../api/proxy";
 
 const FIGMA_TOKEN_KEY = "figma_pat";
+const MAX_ITER = 3;
 
+// ── URL 파싱 ──────────────────────────────────────────────────────────────────
 function parseFigmaUrl(url) {
   try {
     const u = new URL(url);
     const parts = u.pathname.split("/");
-    const typeIdx = parts.findIndex(p => p === "design" || p === "file");
-    if (typeIdx < 0) return null;
-    const fileKey = parts[typeIdx + 1];
-    if (!fileKey) return null;
-    const rawNodeId = u.searchParams.get("node-id");
-    const nodeId = rawNodeId ? rawNodeId.replace(/-/g, ":") : null;
-    return { fileKey, nodeId };
+    const idx = parts.findIndex(p => p === "design" || p === "file");
+    if (idx < 0) return null;
+    const fileKey = parts[idx + 1];
+    const rawNode = u.searchParams.get("node-id");
+    const nodeId = rawNode ? rawNode.replace(/-/g, ":") : null;
+    return fileKey ? { fileKey, nodeId } : null;
   } catch { return null; }
 }
 
-async function fetchFigmaImage(fileKey, nodeId, token) {
-  if (!token || !nodeId) return null;
+// ── html2canvas 동적 로드 ─────────────────────────────────────────────────────
+async function loadHtml2Canvas() {
+  if (window.html2canvas) return window.html2canvas;
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://html2canvas.hertzen.com/dist/html2canvas.min.js";
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => reject(new Error("html2canvas 로드 실패"));
+    document.head.appendChild(s);
+  });
+}
+
+// ── Figma 원본 → base64 ───────────────────────────────────────────────────────
+async function fetchFigmaBase64(fileKey, nodeId, token) {
+  const resp = await fetch(
+    `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!resp.ok) throw new Error(`Figma API ${resp.status} — 토큰을 확인해 주세요.`);
+  const data = await resp.json();
+  if (data.err) throw new Error(`Figma: ${data.err}`);
+  const imgUrl = data.images?.[nodeId];
+  if (!imgUrl) throw new Error("Figma 이미지 URL을 받지 못했습니다.");
+
+  const imgResp = await fetch(imgUrl);
+  const blob = await imgResp.blob();
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onloadend = () => res(r.result.split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
+// ── 렌더링 → 스크린샷 base64 ─────────────────────────────────────────────────
+async function screenshotHtml(htmlCode) {
+  const h2c = await loadHtml2Canvas();
+
+  // <html><head>...</head><body>...</body></html> → body 내용 + style 태그만 추출
+  const doc = document.implementation.createHTMLDocument("");
+  doc.documentElement.innerHTML = htmlCode;
+  const styleContent = Array.from(doc.querySelectorAll("style"))
+    .map(s => s.outerHTML).join("\n");
+  const linkTags = Array.from(doc.querySelectorAll("link[rel='stylesheet']"))
+    .map(l => l.outerHTML).join("\n");
+  const bodyHtml = doc.body.innerHTML;
+
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "position:fixed;left:-9999px;top:0;width:390px;background:#f5f5f5;overflow:hidden;";
+  wrapper.innerHTML = linkTags + styleContent + bodyHtml;
+  document.body.appendChild(wrapper);
+
+  await new Promise(r => setTimeout(r, 500)); // 폰트/이미지 로딩 대기
+
   try {
-    const resp = await fetch(
-      `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
-      { headers: { "Authorization": `Bearer ${token}` } }
-    );
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    return data.images?.[nodeId] || null;
-  } catch { return null; }
+    const canvas = await h2c(wrapper, {
+      width: 390,
+      useCORS: true,
+      allowTaint: true,
+      scale: 1,
+      logging: false,
+    });
+    return canvas.toDataURL("image/png").split(",")[1];
+  } finally {
+    document.body.removeChild(wrapper);
+  }
 }
 
-function TokenInput({ currentToken, onSave, onCancel }) {
-  const [val, setVal] = useState(currentToken);
+// ── Claude 멀티모달 비교 + 수정 ───────────────────────────────────────────────
+async function compareAndFix(figmaB64, renderedB64, currentHtml, iter) {
+  const result = await chatAPI({
+    model: "claude-sonnet-4-6",
+    max_tokens: 5000,
+    messages: [{
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `[검증 ${iter}/${MAX_ITER}회차] Figma 원본(이미지 1)과 현재 렌더링(이미지 2)을 비교해 주세요.
+
+시각적 차이(간격·색상·타이포그래피·크기·정렬·보더·그림자)를 분석하고:
+- 차이가 없거나 미미하면 첫 줄에 DONE 만 작성
+- 차이가 있으면 수정된 전체 HTML만 반환 (설명·마크다운 없음)
+
+현재 HTML:
+${currentHtml}`,
+        },
+        { type: "image", source: { type: "base64", media_type: "image/png", data: figmaB64 } },
+        { type: "image", source: { type: "base64", media_type: "image/png", data: renderedB64 } },
+      ],
+    }],
+  });
+
+  const text = (result.content?.[0]?.text || "").trim();
+  if (text.startsWith("DONE")) return { done: true, html: currentHtml, diffs: null };
+
+  const html = text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  return { done: false, html };
+}
+
+// ── 초기 HTML 생성 (Figma 이미지 참조) ───────────────────────────────────────
+async function generateInitialHtml(figmaB64) {
+  const result = await chatAPI({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4000,
+    messages: [{
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `이 Figma 디자인을 self-contained HTML로 구현해 주세요.
+
+규칙:
+- DOCTYPE html부터 시작하는 완전한 단일 HTML 파일
+- Pretendard 폰트: <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+- 모든 스타일 <style> 태그 사용
+- 한국어 현실적 콘텐츠
+- body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
+- 이미지: https://picsum.photos/{w}/{h}?random={n}
+- HTML 코드만 반환, 마크다운 없음`,
+        },
+        { type: "image", source: { type: "base64", media_type: "image/png", data: figmaB64 } },
+      ],
+    }],
+  });
+
+  const text = (result.content?.[0]?.text || "").trim();
+  return text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+}
+
+// ── 상태 표시 바 ──────────────────────────────────────────────────────────────
+const PHASES = {
+  figma:    { label: "Figma 원본 읽기",      icon: "🎨" },
+  generate: { label: "초기 컴포넌트 생성",   icon: "⚙️" },
+  render:   { label: "렌더링 캡처",          icon: "📸" },
+  compare:  { label: "Claude 시각 비교",     icon: "🔍" },
+  done:     { label: "검증 완료",            icon: "✅" },
+};
+
+function StatusBar({ phase, iteration }) {
+  const p = PHASES[phase] || {};
   return (
-    <div style={{ padding: "12px 16px", background: "#fafafa", borderBottom: "1px solid #eeeeee", display: "flex", gap: "8px", alignItems: "center" }}>
-      <input
-        value={val}
-        onChange={e => setVal(e.target.value)}
-        placeholder="Figma Personal Access Token (figd_...)"
-        type="password"
-        style={{ flex: 1, padding: "7px 10px", border: "1px solid #cccccc", borderRadius: "8px", fontSize: "12px", outline: "none", background: "#ffffff" }}
-        onKeyDown={e => e.key === "Enter" && onSave(val)}
-        autoFocus
-      />
-      <button
-        onClick={() => onSave(val)}
-        style={{ padding: "6px 14px", background: "#111111", border: "none", borderRadius: "8px", color: "#ffffff", fontSize: "11px", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}
-      >저장</button>
-      {currentToken && (
-        <button
-          onClick={() => onSave("")}
-          style={{ padding: "6px 10px", background: "transparent", border: "1px solid #dddddd", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", whiteSpace: "nowrap" }}
-        >삭제</button>
+    <div style={{ padding: "10px 16px", background: "#fafafa", borderBottom: "1px solid #eeeeee", display: "flex", alignItems: "center", gap: "10px" }}>
+      <div style={{ display: "flex", gap: "4px" }}>
+        {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+      </div>
+      <span style={{ fontSize: "12px", color: "#7740c8", fontWeight: 600 }}>{p.icon} {p.label}</span>
+      {iteration > 0 && phase !== "done" && (
+        <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "auto" }}>검증 {iteration}/{MAX_ITER}회차</span>
       )}
-      <button
-        onClick={onCancel}
-        style={{ padding: "6px 10px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "11px", cursor: "pointer" }}
-      >✕</button>
     </div>
   );
 }
 
-function PreviewLayout({ figmaImageUrl, htmlCode, onRegenerate }) {
+// ── 최종 프리뷰 ───────────────────────────────────────────────────────────────
+function PreviewResult({ figmaB64, htmlCode, iterations, onRerun }) {
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
 
-  const copyCode = () => {
+  const copy = () => {
     navigator.clipboard.writeText(htmlCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const converged = iterations[iterations.length - 1]?.done;
+
   return (
     <div>
-      <div style={{ display: "flex", minHeight: "360px", borderBottom: "1px solid #eeeeee" }}>
-        {figmaImageUrl && (
+      {/* 검증 결과 배지 */}
+      <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid #eeeeee", background: converged ? "#f0fff4" : "#fffbf0" }}>
+        <span style={{ fontSize: "11px", fontWeight: 600, color: converged ? "#338833" : "#b07000" }}>
+          {converged ? `✅ ${iterations.length}회 검증 후 수렴` : `⚠ ${MAX_ITER}회 검증 후 종료 (차이 남음)`}
+        </span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+          {iterations.map((it, i) => (
+            <span key={i} style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "8px", background: it.done ? "#d0f0d8" : "#ffe8d0", color: it.done ? "#337733" : "#a06020" }}>
+              {it.done ? "✓" : `${it.iteration}차`}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 프리뷰 */}
+      <div style={{ display: "flex", borderBottom: "1px solid #eeeeee" }}>
+        {figmaB64 && (
           <div style={{ flex: 1, borderRight: "1px solid #eeeeee", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "7px 12px", fontSize: "10px", fontWeight: 700, color: "#9970d8", letterSpacing: "0.1em", background: "#faf8ff", borderBottom: "1px solid #eeeeee" }}>
-              🎨 FIGMA 원본
-            </div>
-            <div style={{ flex: 1, overflow: "auto", background: "#f0f0f4" }}>
-              <img src={figmaImageUrl} alt="Figma design" style={{ width: "100%", display: "block" }} />
-            </div>
+            <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#9970d8", background: "#faf8ff", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>FIGMA 원본</div>
+            <img src={`data:image/png;base64,${figmaB64}`} alt="Figma" style={{ width: "100%", display: "block" }} />
           </div>
         )}
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "7px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", letterSpacing: "0.1em", background: "#f8fff8", borderBottom: "1px solid #eeeeee" }}>
-            ⚡ 렌더링 결과
-          </div>
+          <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", background: "#f8fff8", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>렌더링 결과</div>
           <iframe
             srcDoc={htmlCode}
-            style={{ flex: 1, width: "100%", border: "none", display: "block", minHeight: "340px" }}
+            style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }}
             sandbox="allow-scripts"
-            title="Figma component preview"
+            title="Figma preview"
           />
         </div>
       </div>
-      <div style={{ padding: "10px 14px", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-        <button
-          onClick={copyCode}
-          style={{ padding: "5px 14px", background: copied ? "#f0fff4" : "#f5f5f5", border: `1px solid ${copied ? "#88cc88" : "#dddddd"}`, borderRadius: "12px", fontSize: "11px", color: copied ? "#338833" : "#555555", cursor: "pointer", transition: "all 0.2s", fontWeight: 600 }}
-        >
+
+      {/* 액션바 */}
+      <div style={{ padding: "10px 14px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+        <button onClick={copy} style={{ padding: "5px 14px", background: copied ? "#f0fff4" : "#f5f5f5", border: `1px solid ${copied ? "#88cc88" : "#dddddd"}`, borderRadius: "12px", fontSize: "11px", color: copied ? "#338833" : "#555", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
           {copied ? "✓ 복사됨" : "코드 복사"}
         </button>
-        <button
-          onClick={() => setShowCode(v => !v)}
-          style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777777", cursor: "pointer" }}
-        >
+        <button onClick={() => setShowCode(v => !v)} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
           {showCode ? "코드 숨기기" : "코드 보기"}
         </button>
-        <button
-          onClick={onRegenerate}
-          style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777777", cursor: "pointer" }}
-        >↺ 재생성</button>
+        <button onClick={onRerun} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
+          ↺ 재실행
+        </button>
       </div>
+
       {showCode && (
         <div style={{ padding: "0 14px 14px" }}>
-          <pre style={{
-            background: "#111111", borderRadius: "10px", padding: "14px", fontSize: "11px",
-            color: "#88ff88", overflow: "auto", maxHeight: "320px", margin: 0,
-            whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5,
-          }}>
+          <pre style={{ background: "#111111", borderRadius: "10px", padding: "14px", fontSize: "11px", color: "#88ff88", overflow: "auto", maxHeight: "320px", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5 }}>
             {htmlCode}
           </pre>
         </div>
@@ -129,180 +244,185 @@ function PreviewLayout({ figmaImageUrl, htmlCode, onRegenerate }) {
   );
 }
 
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function FigmaPreviewBubble({ url }) {
-  const [figmaToken, setFigmaToken] = useState(localStorage.getItem(FIGMA_TOKEN_KEY) || "");
-  const [showTokenInput, setShowTokenInput] = useState(false);
-  const [figmaImageUrl, setFigmaImageUrl] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem(FIGMA_TOKEN_KEY) || "");
+  const [tokenInput, setTokenInput] = useState("");
+  const [showTokenForm, setShowTokenForm] = useState(!localStorage.getItem(FIGMA_TOKEN_KEY));
+
+  const [status, setStatus] = useState("idle");  // idle | running | done | error
+  const [phase, setPhase] = useState("");
+  const [iteration, setIteration] = useState(0);
+  const [figmaB64, setFigmaB64] = useState(null);
   const [htmlCode, setHtmlCode] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | loading | done | error
-  const [errorMsg, setErrorMsg] = useState("");
+  const [iterations, setIterations] = useState([]);
+  const [error, setError] = useState("");
 
   const parsed = parseFigmaUrl(url);
+  const runRef = useRef(false);
 
-  const saveToken = (token) => {
-    setFigmaToken(token);
-    if (token) localStorage.setItem(FIGMA_TOKEN_KEY, token);
+  const saveToken = (t) => {
+    const val = t.trim();
+    setToken(val);
+    if (val) localStorage.setItem(FIGMA_TOKEN_KEY, val);
     else localStorage.removeItem(FIGMA_TOKEN_KEY);
-    setShowTokenInput(false);
+    setShowTokenForm(false);
   };
 
-  const generate = async () => {
-    setStatus("loading");
+  const run = async (tok = token) => {
+    if (runRef.current) return;
+    runRef.current = true;
+    setStatus("running");
+    setError("");
+    setIterations([]);
+    setFigmaB64(null);
     setHtmlCode("");
-    setFigmaImageUrl(null);
-
-    let imgUrl = null;
-    let imageHint = "";
-
-    if (parsed?.nodeId && figmaToken) {
-      imgUrl = await fetchFigmaImage(parsed.fileKey, parsed.nodeId, figmaToken);
-      if (imgUrl) {
-        setFigmaImageUrl(imgUrl);
-        imageHint = `\n\nFigma 디자인 이미지 URL (참고): ${imgUrl}`;
-      }
-    }
-
-    const prompt = `다음 Figma URL의 컴포넌트를 self-contained HTML로 구현해 주세요.
-
-Figma URL: ${url}${imageHint}
-
-규칙:
-- DOCTYPE html부터 시작하는 완전한 단일 HTML 파일
-- 외부 의존성 없음 (Pretendard 폰트 CDN만 허용)
-- Pretendard 폰트: <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
-- 모든 스타일은 <style> 태그 또는 인라인으로
-- 현실적인 한국어 콘텐츠로 채울 것
-- 모바일 중심 (max-width: 390px, margin: 0 auto)
-- body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
-- 이미지 자리: https://picsum.photos/{w}/{h}?random={n} 사용
-- HTML 코드만 반환, \`\`\` 없이`;
+    setIteration(0);
 
     try {
-      const result = await chatAPI({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4000,
-        messages: [{ role: "user", content: prompt }],
-      });
+      if (!tok) throw new Error("Figma Personal Access Token이 필요합니다.");
+      if (!parsed?.nodeId) throw new Error("URL에 node-id가 없습니다.\nFigma에서 컴포넌트를 선택한 후 URL을 복사해 주세요.");
 
-      let code = result.content?.[0]?.text || "";
-      // Strip code block markers if present
-      code = code.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+      // 1. Figma 원본
+      setPhase("figma");
+      const fb64 = await fetchFigmaBase64(parsed.fileKey, parsed.nodeId, tok);
+      setFigmaB64(fb64);
 
-      if (!code) throw new Error("빈 응답");
-      setHtmlCode(code);
+      // 2. 초기 HTML 생성
+      setPhase("generate");
+      let html = await generateInitialHtml(fb64);
+      setHtmlCode(html);
+
+      // 3. 검증 루프
+      for (let i = 1; i <= MAX_ITER; i++) {
+        setIteration(i);
+
+        setPhase("render");
+        const rb64 = await screenshotHtml(html);
+
+        setPhase("compare");
+        const result = await compareAndFix(fb64, rb64, html, i);
+
+        setIterations(prev => [...prev, { iteration: i, done: result.done }]);
+
+        if (result.done) break;
+        html = result.html;
+        setHtmlCode(html);
+      }
+
+      setPhase("done");
       setStatus("done");
     } catch (e) {
+      setError(e.message);
       setStatus("error");
-      setErrorMsg(e.message);
+    } finally {
+      runRef.current = false;
     }
   };
 
+  // 토큰 있고 nodeId 있으면 자동 시작
+  useEffect(() => {
+    if (token && parsed?.nodeId) run();
+  }, []);
+
   return (
-    <div style={{
-      margin: "0 0 20px 0",
-      background: "#ffffff",
-      border: "1px solid #e0d8f4",
-      borderRadius: "12px",
-      overflow: "hidden",
-      boxShadow: "0 2px 12px rgba(120,80,200,0.07)",
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: "11px 16px",
-        background: "linear-gradient(135deg, #f5f0ff 0%, #ede8ff 100%)",
-        borderBottom: "1px solid #e0d8f4",
-        display: "flex", alignItems: "center", gap: "10px",
-      }}>
+    <div style={{ margin: "0 0 20px 0", background: "#ffffff", border: "1px solid #e0d8f4", borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 12px rgba(120,80,200,0.07)" }}>
+
+      {/* 헤더 */}
+      <div style={{ padding: "11px 16px", background: "linear-gradient(135deg, #f5f0ff 0%, #ede8ff 100%)", borderBottom: "1px solid #e0d8f4", display: "flex", alignItems: "center", gap: "10px" }}>
         <span style={{ fontSize: "15px" }}>🎨</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "#7740c8", letterSpacing: "0.1em" }}>FIGMA PREVIEW</div>
-          <div style={{ fontSize: "11px", color: "#9a70d8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "1px" }}>
-            {url}
-          </div>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#7740c8", letterSpacing: "0.1em" }}>FIGMA → 자동 검증 프리뷰</div>
+          <div style={{ fontSize: "11px", color: "#9a70d8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "1px" }}>{url}</div>
         </div>
         <button
-          onClick={() => setShowTokenInput(v => !v)}
-          style={{
-            padding: "4px 10px",
-            background: figmaToken ? "#f0fff4" : "#fff8f0",
-            border: `1px solid ${figmaToken ? "#88cc88" : "#f0b060"}`,
-            borderRadius: "12px",
-            color: figmaToken ? "#338833" : "#b07000",
-            fontSize: "10px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600,
-          }}
+          onClick={() => setShowTokenForm(v => !v)}
+          style={{ padding: "4px 10px", background: token ? "#f0fff4" : "#fff8f0", border: `1px solid ${token ? "#88cc88" : "#f0b060"}`, borderRadius: "12px", color: token ? "#338833" : "#b07000", fontSize: "10px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600 }}
         >
-          {figmaToken ? "✓ 토큰 연결됨" : "토큰 설정"}
+          {token ? "✓ 토큰" : "⚠ 토큰 필요"}
         </button>
       </div>
 
-      {/* Token input panel */}
-      {showTokenInput && (
-        <TokenInput currentToken={figmaToken} onSave={saveToken} onCancel={() => setShowTokenInput(false)} />
-      )}
-
-      {/* Idle: generate button */}
-      {status === "idle" && (
-        <div style={{ padding: "24px 20px", textAlign: "center" }}>
-          {!figmaToken && (
-            <div style={{ fontSize: "11px", color: "#aaaaaa", marginBottom: "14px", lineHeight: 1.6 }}>
-              Figma 토큰 없이도 생성 가능합니다.<br />
-              토큰이 있으면 Figma 원본 디자인도 함께 비교할 수 있습니다.
+      {/* 토큰 입력 폼 */}
+      {showTokenForm && (
+        <div style={{ padding: "12px 16px", background: "#fffbf0", borderBottom: "1px solid #f0e8cc", display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "10px", color: "#a07000", marginBottom: "6px" }}>
+              Figma Settings → Personal Access Tokens에서 발급 (figd_... 형식)
             </div>
-          )}
-          {!parsed && (
-            <div style={{ fontSize: "11px", color: "#cc8844", marginBottom: "12px" }}>
-              ⚠ node-id가 없어 특정 컴포넌트를 정확히 가져오기 어렵습니다.
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                value={tokenInput}
+                onChange={e => setTokenInput(e.target.value)}
+                placeholder="figd_..."
+                type="password"
+                autoFocus
+                onKeyDown={e => e.key === "Enter" && tokenInput.trim() && saveToken(tokenInput)}
+                style={{ flex: 1, padding: "7px 10px", border: "1px solid #cccccc", borderRadius: "8px", fontSize: "12px", outline: "none" }}
+              />
+              <button
+                onClick={() => { if (tokenInput.trim()) { saveToken(tokenInput); run(tokenInput.trim()); } }}
+                disabled={!tokenInput.trim()}
+                style={{ padding: "7px 16px", background: tokenInput.trim() ? "#7740c8" : "#cccccc", border: "none", borderRadius: "8px", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: tokenInput.trim() ? "pointer" : "not-allowed" }}
+              >
+                저장 후 실행
+              </button>
             </div>
-          )}
-          <button
-            onClick={generate}
-            style={{
-              padding: "10px 28px",
-              background: "linear-gradient(135deg, #7740c8 0%, #5520a8 100%)",
-              border: "none", borderRadius: "20px",
-              color: "#ffffff", fontSize: "13px", fontWeight: 700, cursor: "pointer",
-              boxShadow: "0 4px 14px rgba(120,80,200,0.35)",
-            }}
-          >
-            ⚡ 컴포넌트 생성
-          </button>
-        </div>
-      )}
-
-      {/* Loading */}
-      {status === "loading" && (
-        <div style={{ padding: "32px 20px", textAlign: "center" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: "5px", marginBottom: "12px" }}>
-            {[0, 1, 2].map(i => (
-              <div key={i} style={{
-                width: "7px", height: "7px", borderRadius: "50%",
-                background: "#7740c8",
-                animation: "pulse 1.2s ease-in-out infinite",
-                animationDelay: `${i * 0.2}s`,
-              }} />
-            ))}
-          </div>
-          <div style={{ fontSize: "12px", color: "#9970d8" }}>
-            {figmaToken && parsed?.nodeId ? "Figma 디자인 읽는 중..." : "컴포넌트 생성 중..."}
           </div>
         </div>
       )}
 
-      {/* Done */}
-      {status === "done" && htmlCode && (
-        <PreviewLayout
-          figmaImageUrl={figmaImageUrl}
+      {/* node-id 없음 경고 */}
+      {!showTokenForm && token && !parsed?.nodeId && status === "idle" && (
+        <div style={{ padding: "20px", textAlign: "center" }}>
+          <div style={{ fontSize: "12px", color: "#cc8844", lineHeight: 1.8 }}>
+            ⚠ URL에 node-id가 없습니다.<br />
+            Figma에서 컴포넌트를 <strong>선택</strong>한 후 URL을 복사해 주세요.
+          </div>
+        </div>
+      )}
+
+      {/* 실행 중 */}
+      {status === "running" && (
+        <div>
+          <StatusBar phase={phase} iteration={iteration} />
+          {htmlCode && (
+            <div style={{ padding: "8px 14px", borderBottom: "1px solid #eeeeee" }}>
+              <div style={{ fontSize: "10px", color: "#aaaaaa", marginBottom: "6px" }}>현재 생성 중...</div>
+              <iframe
+                srcDoc={htmlCode}
+                style={{ width: "100%", height: "300px", border: "1px solid #eeeeee", borderRadius: "8px", display: "block" }}
+                sandbox="allow-scripts"
+                title="preview in progress"
+              />
+            </div>
+          )}
+          {!htmlCode && (
+            <div style={{ padding: "40px", textAlign: "center" }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: "5px" }}>
+                {[0,1,2].map(i => <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 완료 */}
+      {status === "done" && (
+        <PreviewResult
+          figmaB64={figmaB64}
           htmlCode={htmlCode}
-          onRegenerate={() => setStatus("idle")}
+          iterations={iterations}
+          onRerun={() => { setStatus("idle"); runRef.current = false; run(); }}
         />
       )}
 
-      {/* Error */}
+      {/* 에러 */}
       {status === "error" && (
         <div style={{ padding: "24px 20px", textAlign: "center" }}>
-          <div style={{ fontSize: "12px", color: "#cc4444", marginBottom: "12px" }}>{errorMsg}</div>
+          <div style={{ fontSize: "12px", color: "#cc4444", lineHeight: 1.8, marginBottom: "14px", whiteSpace: "pre-wrap" }}>{error}</div>
           <button
-            onClick={() => setStatus("idle")}
+            onClick={() => { setStatus("idle"); setShowTokenForm(!token); }}
             style={{ padding: "7px 18px", background: "#f5f5f5", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", cursor: "pointer" }}
           >
             ↺ 다시 시도
