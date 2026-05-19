@@ -48,8 +48,10 @@ async function loadHtml2Canvas() {
   });
 }
 
-// ── Figma 원본 → base64 ───────────────────────────────────────────────────────
-async function fetchFigmaBase64(fileKey, nodeId, token) {
+// ── Figma 이미지 URL + base64 동시 취득 ───────────────────────────────────────
+// url: Anthropic에 직접 전달 (요청 크기 최소화)
+// base64: 렌더링 비교용 (screenshotHtml 결과와 대조)
+async function fetchFigmaImage(fileKey, nodeId, token) {
   const resp = await fetch(
     `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=1`,
     { headers: { "X-Figma-Token": token } }
@@ -60,14 +62,17 @@ async function fetchFigmaBase64(fileKey, nodeId, token) {
   const imgUrl = data.images?.[nodeId];
   if (!imgUrl) throw new Error("Figma 이미지 URL을 받지 못했습니다.");
 
+  // base64는 비교용으로만 필요 — 별도로 fetch
   const imgResp = await fetch(imgUrl);
   const blob = await imgResp.blob();
-  return new Promise((res, rej) => {
+  const base64 = await new Promise((res, rej) => {
     const r = new FileReader();
     r.onloadend = () => res(r.result.split(",")[1]);
     r.onerror = rej;
     r.readAsDataURL(blob);
   });
+
+  return { imgUrl, base64 };
 }
 
 // ── 렌더링 → 스크린샷 base64 ─────────────────────────────────────────────────
@@ -145,10 +150,8 @@ ${currentHtml}`,
   return { done: false, html };
 }
 
-// ── 초기 HTML 생성 ────────────────────────────────────────────────────────────
-async function generateInitialHtml(figmaB64) {
-  const jpeg = await resizeToJpeg(figmaB64, 600, 0.75, "png");  // 더 작게
-
+// ── 초기 HTML 생성 (Figma URL 직접 전달 — base64 인코딩 불필요) ───────────────
+async function generateInitialHtml(figmaImgUrl) {
   const result = await chatAPIMultimodal({
     model: "claude-sonnet-4-6",
     max_tokens: 3000,
@@ -168,7 +171,7 @@ async function generateInitialHtml(figmaB64) {
 - 이미지: https://picsum.photos/{w}/{h}?random={n}
 - HTML 코드만 반환, 마크다운 없음`,
         },
-        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpeg } },
+        { type: "image", source: { type: "url", url: figmaImgUrl } },
       ],
     }],
   });
@@ -315,12 +318,12 @@ export default function FigmaPreviewBubble({ url }) {
 
       // 1. Figma 원본
       setPhase("figma");
-      const fb64 = await fetchFigmaBase64(parsed.fileKey, parsed.nodeId, tok);
+      const { imgUrl, base64: fb64 } = await fetchFigmaImage(parsed.fileKey, parsed.nodeId, tok);
       setFigmaB64(fb64);
 
-      // 2. 초기 HTML 생성
+      // 2. 초기 HTML 생성 (URL 직접 전달 — 요청 크기 최소화)
       setPhase("generate");
-      let html = await generateInitialHtml(fb64);
+      let html = await generateInitialHtml(imgUrl);
       setHtmlCode(html);
 
       // 3. 검증 루프
