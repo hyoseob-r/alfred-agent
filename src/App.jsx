@@ -621,6 +621,19 @@ export default function App() {
     const userText = input.trim();
     const files = [...pendingImages];
     setInput(""); setPendingImages([]);
+
+    // Figma URL 감지 — 인라인 프리뷰 모드
+    const figmaUrlMatch = userText.match(/https:\/\/(?:www\.)?figma\.com\/(?:design|file)\/[^\s)>"']+/);
+    if (figmaUrlMatch) {
+      const figmaUrl = figmaUrlMatch[0];
+      setMessages(prev => [
+        ...prev,
+        { role: "user", content: userText, files },
+        { isFigmaPreview: true, figmaUrl },
+      ]);
+      return;
+    }
+
     // 비로그인 질문 저장
     if (!user && userText) {
       fetch("/api/save-context", {

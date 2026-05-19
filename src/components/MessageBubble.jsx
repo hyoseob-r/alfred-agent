@@ -5,6 +5,7 @@ import { ChartRenderer, DataSummaryCard } from "./ChartRenderer";
 import { DocActionBar, M3ActionBar } from "./ActionBars";
 import ComparePanel from "./panels/ComparePanel";
 import UTSimPanel from "./panels/UTSimPanel";
+import FigmaPreviewBubble from "./FigmaPreviewBubble";
 
 function exportPDF(content, mode) {
   const fontSize = mode === "1pager" ? "10px" : "12px";
@@ -184,6 +185,10 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
         {msg.content}
       </div>
     );
+  }
+
+  if (msg.isFigmaPreview) {
+    return <FigmaPreviewBubble url={msg.figmaUrl} />;
   }
 
   return (
