@@ -246,10 +246,6 @@ function PreviewResult({ figmaB64, htmlCode, iterations, onRerun }) {
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function FigmaPreviewBubble({ url }) {
-  const [token, setToken] = useState(localStorage.getItem(FIGMA_TOKEN_KEY) || "");
-  const [tokenInput, setTokenInput] = useState("");
-  const [showTokenForm, setShowTokenForm] = useState(!localStorage.getItem(FIGMA_TOKEN_KEY));
-
   const [status, setStatus] = useState("idle");  // idle | running | done | error
   const [phase, setPhase] = useState("");
   const [iteration, setIteration] = useState(0);
@@ -261,15 +257,8 @@ export default function FigmaPreviewBubble({ url }) {
   const parsed = parseFigmaUrl(url);
   const runRef = useRef(false);
 
-  const saveToken = (t) => {
-    const val = t.trim();
-    setToken(val);
-    if (val) localStorage.setItem(FIGMA_TOKEN_KEY, val);
-    else localStorage.removeItem(FIGMA_TOKEN_KEY);
-    setShowTokenForm(false);
-  };
-
-  const run = async (tok = token) => {
+  const run = async () => {
+    const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
     if (runRef.current) return;
     runRef.current = true;
     setStatus("running");
@@ -322,7 +311,8 @@ export default function FigmaPreviewBubble({ url }) {
 
   // 토큰 있고 nodeId 있으면 자동 시작
   useEffect(() => {
-    if (token && parsed?.nodeId) run();
+    const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
+    if (tok && parsed?.nodeId) run();
   }, []);
 
   return (
@@ -335,45 +325,10 @@ export default function FigmaPreviewBubble({ url }) {
           <div style={{ fontSize: "10px", fontWeight: 700, color: "#7740c8", letterSpacing: "0.1em" }}>FIGMA → 자동 검증 프리뷰</div>
           <div style={{ fontSize: "11px", color: "#9a70d8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: "1px" }}>{url}</div>
         </div>
-        <button
-          onClick={() => setShowTokenForm(v => !v)}
-          style={{ padding: "4px 10px", background: token ? "#f0fff4" : "#fff8f0", border: `1px solid ${token ? "#88cc88" : "#f0b060"}`, borderRadius: "12px", color: token ? "#338833" : "#b07000", fontSize: "10px", cursor: "pointer", whiteSpace: "nowrap", fontWeight: 600 }}
-        >
-          {token ? "✓ 토큰" : "⚠ 토큰 필요"}
-        </button>
       </div>
 
-      {/* 토큰 입력 폼 */}
-      {showTokenForm && (
-        <div style={{ padding: "12px 16px", background: "#fffbf0", borderBottom: "1px solid #f0e8cc", display: "flex", gap: "8px", alignItems: "center" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "10px", color: "#a07000", marginBottom: "6px" }}>
-              Figma Settings → Personal Access Tokens에서 발급 (figd_... 형식)
-            </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input
-                value={tokenInput}
-                onChange={e => setTokenInput(e.target.value)}
-                placeholder="figd_..."
-                type="password"
-                autoFocus
-                onKeyDown={e => e.key === "Enter" && tokenInput.trim() && saveToken(tokenInput)}
-                style={{ flex: 1, padding: "7px 10px", border: "1px solid #cccccc", borderRadius: "8px", fontSize: "12px", outline: "none" }}
-              />
-              <button
-                onClick={() => { if (tokenInput.trim()) { saveToken(tokenInput); run(tokenInput.trim()); } }}
-                disabled={!tokenInput.trim()}
-                style={{ padding: "7px 16px", background: tokenInput.trim() ? "#7740c8" : "#cccccc", border: "none", borderRadius: "8px", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: tokenInput.trim() ? "pointer" : "not-allowed" }}
-              >
-                저장 후 실행
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* node-id 없음 경고 */}
-      {!showTokenForm && token && !parsed?.nodeId && status === "idle" && (
+      {!parsed?.nodeId && status === "idle" && (
         <div style={{ padding: "20px", textAlign: "center" }}>
           <div style={{ fontSize: "12px", color: "#cc8844", lineHeight: 1.8 }}>
             ⚠ URL에 node-id가 없습니다.<br />
@@ -420,9 +375,14 @@ export default function FigmaPreviewBubble({ url }) {
       {/* 에러 */}
       {status === "error" && (
         <div style={{ padding: "24px 20px", textAlign: "center" }}>
-          <div style={{ fontSize: "12px", color: "#cc4444", lineHeight: 1.8, marginBottom: "14px", whiteSpace: "pre-wrap" }}>{error}</div>
+          <div style={{ fontSize: "12px", color: "#cc4444", lineHeight: 1.8, marginBottom: "6px", whiteSpace: "pre-wrap" }}>{error}</div>
+          {error.includes("토큰") && (
+            <div style={{ fontSize: "11px", color: "#888888", marginBottom: "14px" }}>
+              상단 헤더의 <strong>🎨 Figma</strong> 버튼에서 토큰을 설정/변경해 주세요.
+            </div>
+          )}
           <button
-            onClick={() => { setStatus("idle"); setShowTokenForm(!token); }}
+            onClick={() => { setStatus("idle"); runRef.current = false; run(); }}
             style={{ padding: "7px 18px", background: "#f5f5f5", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", cursor: "pointer" }}
           >
             ↺ 다시 시도

@@ -98,6 +98,9 @@ export default function App() {
   const [isOwner, setIsOwner] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [contextBriefing, setContextBriefing] = useState(null);
+  const [showFigmaToken, setShowFigmaToken] = useState(false);
+  const [figmaToken, setFigmaTokenState] = useState(localStorage.getItem("figma_pat") || "");
+  const [figmaTokenInput, setFigmaTokenInput] = useState("");
   const [selectedModel, setSelectedModelState] = useState(getSelectedModel());
   const [dbSaving, setDbSaving] = useState(false);
   const [loadingElapsed, setLoadingElapsed] = useState(0);
@@ -923,6 +926,58 @@ export default function App() {
       {showFeedback && <FeedbackPanel onClose={() => setShowFeedback(false)} />}
       <FeedbackButton />
 
+      {showFigmaToken && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+          onClick={e => { if (e.target === e.currentTarget) setShowFigmaToken(false); }}>
+          <div style={{ width: "100%", maxWidth: "440px", background: "#ffffff", borderRadius: "16px", padding: "28px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", fontFamily: "'Pretendard', sans-serif" }}>
+            <div style={{ fontSize: "16px", fontWeight: 700, color: "#111111", marginBottom: "6px" }}>🎨 Figma 토큰 설정</div>
+            <div style={{ fontSize: "12px", color: "#888888", lineHeight: 1.7, marginBottom: "20px" }}>
+              Figma Settings → Security → Personal Access Tokens에서 발급하세요.<br />
+              Scopes: <code style={{ background: "#f0f0f0", padding: "1px 5px", borderRadius: "4px" }}>file_content:read</code> 체크
+            </div>
+            <input
+              value={figmaTokenInput}
+              onChange={e => setFigmaTokenInput(e.target.value)}
+              placeholder="figd_..."
+              type="password"
+              autoFocus
+              onKeyDown={e => {
+                if (e.key === "Enter" && figmaTokenInput.trim()) {
+                  const t = figmaTokenInput.trim();
+                  localStorage.setItem("figma_pat", t);
+                  setFigmaTokenState(t);
+                  setShowFigmaToken(false);
+                }
+              }}
+              style={{ width: "100%", padding: "10px 14px", border: "1px solid #cccccc", borderRadius: "10px", fontSize: "13px", outline: "none", boxSizing: "border-box", marginBottom: "14px" }}
+            />
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => {
+                  const t = figmaTokenInput.trim();
+                  if (!t) return;
+                  localStorage.setItem("figma_pat", t);
+                  setFigmaTokenState(t);
+                  setShowFigmaToken(false);
+                }}
+                disabled={!figmaTokenInput.trim()}
+                style={{ flex: 1, padding: "10px", background: figmaTokenInput.trim() ? "#7740c8" : "#cccccc", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "13px", fontWeight: 700, cursor: figmaTokenInput.trim() ? "pointer" : "not-allowed" }}
+              >저장</button>
+              {figmaToken && (
+                <button
+                  onClick={() => { localStorage.removeItem("figma_pat"); setFigmaTokenState(""); setShowFigmaToken(false); }}
+                  style={{ padding: "10px 16px", background: "transparent", border: "1px solid #dddddd", borderRadius: "10px", color: "#888888", fontSize: "13px", cursor: "pointer" }}
+                >삭제</button>
+              )}
+              <button
+                onClick={() => setShowFigmaToken(false)}
+                style={{ padding: "10px 16px", background: "transparent", border: "none", color: "#aaaaaa", fontSize: "13px", cursor: "pointer" }}
+              >취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
         style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#f5f5f5", fontFamily: "'Pretendard', sans-serif", color: "#111111", position: "relative" }}
@@ -977,6 +1032,15 @@ export default function App() {
             <span style={{ fontSize: "11px" }}>🧪</span> 크래시 테스트
           </button>}
           {testCrash && <CrashTrigger />}
+          <button
+            onClick={() => { setFigmaTokenInput(figmaToken); setShowFigmaToken(true); }}
+            title="Figma Personal Access Token 설정"
+            style={{ padding: "5px 10px", background: figmaToken ? "rgba(119,64,200,0.08)" : "transparent", border: `1px solid ${figmaToken ? "#7740c8" : "#e5e5e5"}`, borderRadius: "8px", color: figmaToken ? "#7740c8" : "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#7740c8"; e.currentTarget.style.color = "#7740c8"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = figmaToken ? "#7740c8" : "#e5e5e5"; e.currentTarget.style.color = figmaToken ? "#7740c8" : "#aaaaaa"; }}
+          >
+            🎨 {figmaToken ? "Figma ✓" : "Figma"}
+          </button>
           <button onClick={() => setShowProxySettings(true)}
             title={hasProxy ? "로컬 프록시 연결됨" : "로컬 프록시 설정"}
             style={{ padding: "5px 10px", background: hasProxy ? "rgba(5,150,105,0.08)" : "transparent", border: `1px solid ${hasProxy ? "#059669" : "#e5e5e5"}`, borderRadius: "8px", color: hasProxy ? "#059669" : "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
