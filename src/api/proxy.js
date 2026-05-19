@@ -18,6 +18,20 @@ export async function chatAPI(body) {
   return resp.json();
 }
 
+// 멀티모달(이미지) 지원용 — 로컬 프록시 우회, Vercel API 직접 호출
+export async function chatAPIMultimodal(body) {
+  const resp = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
 export async function streamChatAPI(body, onChunk, signal) {
   const proxyUrl = getProxyUrl();
   const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : '/api/chat';

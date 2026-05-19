@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { chatAPI } from "../api/proxy";
+import { chatAPIMultimodal } from "../api/proxy";
 
 const FIGMA_TOKEN_KEY = "figma_pat";
 const MAX_ITER = 3;
@@ -19,8 +19,9 @@ function parseFigmaUrl(url) {
 }
 
 // ── 이미지 압축 (Claude API body 크기 제한 대응) ─────────────────────────────
-function resizeToJpeg(base64, maxWidth = 800, quality = 0.82) {
-  return new Promise((resolve) => {
+// srcType: "png" | "jpeg" — 입력 이미지 포맷 (기본 png)
+function resizeToJpeg(base64, maxWidth = 800, quality = 0.82, srcType = "png") {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const scale = Math.min(1, maxWidth / img.width);
@@ -30,7 +31,8 @@ function resizeToJpeg(base64, maxWidth = 800, quality = 0.82) {
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL("image/jpeg", quality).split(",")[1]);
     };
-    img.src = `data:image/png;base64,${base64}`;
+    img.onerror = () => reject(new Error("이미지 변환 실패"));
+    img.src = `data:image/${srcType};base64,${base64}`;
   });
 }
 
@@ -105,11 +107,11 @@ async function screenshotHtml(htmlCode) {
 // ── Claude 멀티모달 비교 + 수정 ───────────────────────────────────────────────
 async function compareAndFix(figmaB64, renderedB64, currentHtml, iter) {
   const [fJpeg, rJpeg] = await Promise.all([
-    resizeToJpeg(figmaB64),
-    resizeToJpeg(renderedB64),
+    resizeToJpeg(figmaB64, 800, 0.82, "png"),
+    resizeToJpeg(renderedB64, 800, 0.82, "jpeg"),
   ]);
 
-  const result = await chatAPI({
+  const result = await chatAPIMultimodal({
     model: "claude-sonnet-4-6",
     max_tokens: 5000,
     messages: [{
@@ -145,8 +147,8 @@ ${currentHtml}`,
 
 // ── 초기 HTML 생성 (Figma 이미지 참조) ───────────────────────────────────────
 async function generateInitialHtml(figmaB64) {
-  const jpeg = await resizeToJpeg(figmaB64);
-  const result = await chatAPI({
+  const jpeg = await resizeToJpeg(figmaB64, 800, 0.82, "png");
+  const result = await chatAPIMultimodal({
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [{
