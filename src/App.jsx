@@ -101,7 +101,7 @@ export default function App() {
   const [showFigmaToken, setShowFigmaToken] = useState(false);
   const [figmaToken, setFigmaTokenState] = useState(() => {
     const stored = localStorage.getItem("figma_pat");
-    if (stored) return stored;
+    if (stored !== null) return stored; // "" 포함 — 사용자가 명시적으로 비운 경우도 유지
     const envToken = import.meta.env.VITE_FIGMA_TOKEN;
     if (envToken) { localStorage.setItem("figma_pat", envToken); return envToken; }
     return "";
@@ -971,7 +971,7 @@ export default function App() {
               >저장</button>
               {figmaToken && (
                 <button
-                  onClick={() => { localStorage.removeItem("figma_pat"); setFigmaTokenState(""); setShowFigmaToken(false); }}
+                  onClick={() => { localStorage.setItem("figma_pat", ""); setFigmaTokenState(""); setShowFigmaToken(false); }}
                   style={{ padding: "10px 16px", background: "transparent", border: "1px solid #dddddd", borderRadius: "10px", color: "#888888", fontSize: "13px", cursor: "pointer" }}
                 >삭제</button>
               )}
