@@ -226,6 +226,70 @@ function nodeToSpec(node, depth = 0) {
   return lines.join("\n");
 }
 
+// ── React 코드 → iframe HTML 변환 ────────────────────────────────────────────
+const YDS_TOKENS_JSON = JSON.stringify({
+  metaTokens: {
+    typography: { meta_sf_10_r:{size:10,weight:400,lineHeight:14},meta_sf_10_b:{size:10,weight:700,lineHeight:14},meta_sf_12_r:{size:12,weight:400,lineHeight:16},meta_sf_12_b:{size:12,weight:700,lineHeight:16},meta_sf_13_r:{size:13,weight:400,lineHeight:18},meta_sf_13_b:{size:13,weight:700,lineHeight:18},meta_sf_14_r:{size:14,weight:400,lineHeight:19},meta_sf_14_b:{size:14,weight:700,lineHeight:19},meta_sf_16_r:{size:16,weight:400,lineHeight:22},meta_sf_16_b:{size:16,weight:700,lineHeight:22},meta_sf_18_r:{size:18,weight:400,lineHeight:24},meta_sf_18_b:{size:18,weight:700,lineHeight:24},meta_sf_20_r:{size:20,weight:400,lineHeight:27},meta_sf_20_b:{size:20,weight:700,lineHeight:27},meta_sf_24_r:{size:24,weight:400,lineHeight:32},meta_sf_24_b:{size:24,weight:700,lineHeight:32} },
+    spacing: { meta_s1:2,meta_s2:4,meta_s3:6,meta_s4:8,meta_s5:10,meta_s6:12,meta_s7:16,meta_s8:20,meta_s9:24,meta_s10:28,meta_s11:32,meta_s12:36,meta_s13:40 },
+    radius: { rfull:360,meta_r0:0,meta_r1:4,meta_r2:8,meta_r3:10,meta_r4:12,meta_r5:16,meta_r6:20 },
+    elevation: { meta_level_0:{css:"none"},meta_level_1:{css:"0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08)"},meta_level_2:{css:"0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"} },
+  },
+  colors: {
+    foundation: { primary:{value:"#fa0050"},primary_i:{value:"#ff3072"},secondary:{value:"#0c74e4"},secondary_i:{value:"#1f8bff"},green:{value:"#05947f"},yellow:{value:"#ffcb2e"},white:{value:"#ffffff"},black:{value:"#000000"} },
+    light: { primary_a:{value:"#fa0050"},primary_a_100:{value:"#feccdc"},primary_b:{value:"#28343c"},primary_b_100:{value:"#dee5ea"},accent:{value:"#0c80e4"},accent_100:{value:"#c5e2fb"},ygy_green:{value:"#05947f"},ygy_orange:{value:"#f04600"} },
+    gray: { gray800:{value:"#333333"},gray600:{value:"#666666"},gray400:{value:"#999999"},gray250:{value:"#bfbfbf"},gray100:{value:"#e5e5e5"},gray50:{value:"#f2f2f2"},gray25:{value:"#f6f6f6"} },
+    background: { primary:{value:"#ffffff"},bottom:{value:"#f2f2f2"},dim1:{value:"#000000e5"},dim2:{value:"#00000099"} },
+    variant: { primary25:{value:"#fff5f8"},primary50:{value:"#ffe6ee"},primary800:{value:"#640020"},secondary25:{value:"#f0f7fa"},green25:{value:"#f0f7f6"},red25:{value:"#fef4f4"},yellow25:{value:"#fff9f0"} },
+  },
+});
+
+function buildReactPreviewHtml(code, formatId) {
+  // 컴포넌트명 추출 (export default function Xxx 또는 마지막 function 선언)
+  const nameMatch = code.match(/export\s+default\s+function\s+(\w+)/) || code.match(/function\s+(\w+)\s*\(/g);
+  const compName = nameMatch ? (nameMatch[1] || nameMatch[0]?.match(/function\s+(\w+)/)?.[1]) : null;
+
+  // export default 제거 (UMD 환경에서 에러 방지)
+  const cleanCode = code
+    .replace(/^import\s+.*?;?\s*$/gm, "")   // import 문 제거
+    .replace(/export\s+default\s+/g, "")     // export default 제거
+    .replace(/export\s+\{[^}]*\}/g, "");     // export { } 제거
+
+  const tailwindScript = formatId === "react-tailwind"
+    ? `<script src="https://cdn.tailwindcss.com"></script>` : "";
+
+  const ydsSetup = formatId === "react-yds"
+    ? `<script>const _t = ${YDS_TOKENS_JSON}; window.metaTokens = _t.metaTokens; window.colors = _t.colors;</script>` : "";
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+${tailwindScript}
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+${ydsSetup}
+<style>*{box-sizing:border-box;}body{margin:0;padding:16px;background:#f5f5f5;font-family:'Pretendard',sans-serif;}</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+${formatId === "react-yds" ? "const { metaTokens, colors } = window;" : ""}
+${cleanCode}
+
+const _comp = typeof ${compName} !== 'undefined' ? ${compName}
+  : typeof Component !== 'undefined' ? Component
+  : typeof App !== 'undefined' ? App
+  : typeof Preview !== 'undefined' ? Preview
+  : () => React.createElement('div', null, '컴포넌트를 찾을 수 없습니다.');
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(_comp));
+</script>
+</body>
+</html>`;
+}
+
 // ── 코드 생성 (스트리밍) ──────────────────────────────────────────────────────
 async function generateCode(spec, formatId, onChunk) {
   const formatLabel = FORMATS.find(f => f.id === formatId)?.label || formatId;
@@ -413,8 +477,13 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, iterations, onRe
           <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", background: "#f8fff8", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>
             {fmt?.label?.toUpperCase()} 결과
           </div>
-          {isHtml ? (
-            <iframe srcDoc={code} style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }} sandbox="allow-scripts" title="preview" />
+          {(isHtml || ["react-tailwind","react-inline","react-yds"].includes(formatId)) ? (
+            <iframe
+              srcDoc={isHtml ? code : buildReactPreviewHtml(code, formatId)}
+              style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }}
+              sandbox="allow-scripts"
+              title="preview"
+            />
           ) : (
             <pre style={{ flex: 1, margin: 0, padding: "14px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
               {code}
@@ -593,8 +662,13 @@ export default function FigmaPreviewBubble({ url }) {
           {code && (
             <div style={{ padding: "8px 14px", borderBottom: "1px solid #eeeeee" }}>
               <div style={{ fontSize: "10px", color: "#aaaaaa", marginBottom: "6px" }}>생성 중...</div>
-              {formatId === "html-css" ? (
-                <iframe srcDoc={code} style={{ width: "100%", height: "300px", border: "1px solid #eeeeee", borderRadius: "8px", display: "block" }} sandbox="allow-scripts" title="preview in progress" />
+              {["html-css","react-tailwind","react-inline","react-yds"].includes(formatId) ? (
+                <iframe
+                  srcDoc={formatId === "html-css" ? code : buildReactPreviewHtml(code, formatId)}
+                  style={{ width: "100%", height: "300px", border: "1px solid #eeeeee", borderRadius: "8px", display: "block" }}
+                  sandbox="allow-scripts"
+                  title="preview in progress"
+                />
               ) : (
                 <pre style={{ margin: 0, padding: "12px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", borderRadius: "8px", overflow: "auto", maxHeight: "300px", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5 }}>
                   {code}
