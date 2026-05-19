@@ -4,6 +4,83 @@ import { chatAPI, streamChatAPI } from "../api/proxy";
 const FIGMA_TOKEN_KEY = "figma_pat";
 const MAX_ITER = 2;
 
+// ── 포맷 정의 ─────────────────────────────────────────────────────────────────
+const FORMATS = [
+  { id: "html-css",        label: "HTML/CSS",         lang: "html" },
+  { id: "react-tailwind",  label: "React + Tailwind",  lang: "jsx" },
+  { id: "react-inline",    label: "React + Inline",    lang: "jsx" },
+  { id: "react-yds",       label: "React + YDS",       lang: "jsx" },
+  { id: "swiftui",         label: "SwiftUI",           lang: "swift" },
+  { id: "compose",         label: "Compose",           lang: "kotlin" },
+];
+
+const FORMAT_PROMPT = {
+  "html-css": `구현 규칙:
+- <!DOCTYPE html>부터 시작하는 완전한 단일 HTML 파일
+- Pretendard 폰트: <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+- 스펙의 색상·크기·폰트·간격을 최대한 정확하게 구현
+- 모든 스타일은 <style> 태그 사용
+- 한국어 현실적 콘텐츠
+- body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
+- 이미지: https://picsum.photos/{w}/{h}?random={n}
+- HTML 코드만 반환, 마크다운·설명 없음`,
+
+  "react-tailwind": `구현 규칙:
+- React 함수형 컴포넌트, 파일명 Component.jsx
+- Tailwind CSS 클래스만 사용 (스타일 속성 직접 작성 금지)
+- 스펙의 색상은 Tailwind 가장 근접한 클래스 또는 arbitrary value 사용 (예: bg-[#FF5733])
+- 폰트: font-['Pretendard']
+- 한국어 현실적 콘텐츠
+- 이미지: https://picsum.photos/{w}/{h}?random={n}
+- JSX 코드만 반환, 마크다운·설명 없음`,
+
+  "react-inline": `구현 규칙:
+- React 함수형 컴포넌트, 파일명 Component.jsx
+- 모든 스타일은 style={{}} inline 객체 사용
+- 스펙의 색상·크기·폰트·간격을 픽셀 단위로 정확하게 구현
+- 폰트: fontFamily: "'Pretendard', sans-serif"
+- 한국어 현실적 콘텐츠
+- 이미지: https://picsum.photos/{w}/{h}?random={n}
+- JSX 코드만 반환, 마크다운·설명 없음`,
+
+  "react-yds": `구현 규칙:
+- React 함수형 컴포넌트, 파일명 Component.jsx
+- YDS(Yogiyo Design System) 토큰 사용:
+  - 타이포: meta_sf_title_1, meta_sf_body_1, meta_sf_caption_1 등
+  - 컬러: token.color.light.primary, token.color.light.gray100 등
+  - 스페이싱: meta_s1(4px)~meta_s13(48px)
+  - 라디우스: meta_r0~meta_r6, rfull
+- 스펙에 없는 토큰은 nearest value로 추정
+- 한국어 현실적 콘텐츠
+- JSX 코드만 반환, 마크다운·설명 없음`,
+
+  "swiftui": `구현 규칙:
+- SwiftUI View struct
+- 스펙의 색상은 Color(red:green:blue:) 또는 Color(hex:) extension 사용
+- 폰트: .custom("Pretendard", size:) 또는 .system(size:weight:)
+- 스펙 수치를 최대한 정확하게 반영
+- 한국어 현실적 콘텐츠
+- Swift 코드만 반환, 마크다운·설명 없음`,
+
+  "compose": `구현 규칙:
+- Jetpack Compose @Composable 함수
+- Material3 컴포넌트 우선 사용
+- 스펙의 색상은 Color(0xFF...) 형식
+- 폰트: FontFamily, FontWeight 스펙 수치 반영
+- 스펙 수치(dp, sp) 최대한 정확하게 반영
+- 한국어 현실적 콘텐츠
+- Kotlin 코드만 반환, 마크다운·설명 없음`,
+};
+
+const FORMAT_VALIDATE = {
+  "html-css":       (s) => s.toLowerCase().includes("<!doctype") || s.toLowerCase().includes("<html"),
+  "react-tailwind": (s) => s.includes("export") || s.includes("function") || s.includes("=>"),
+  "react-inline":   (s) => s.includes("export") || s.includes("function") || s.includes("=>"),
+  "react-yds":      (s) => s.includes("export") || s.includes("function") || s.includes("=>"),
+  "swiftui":        (s) => s.includes("struct") || s.includes("View") || s.includes("body"),
+  "compose":        (s) => s.includes("@Composable") || s.includes("fun "),
+};
+
 // ── URL 파싱 ──────────────────────────────────────────────────────────────────
 function parseFigmaUrl(url) {
   try {
@@ -18,7 +95,7 @@ function parseFigmaUrl(url) {
   } catch { return null; }
 }
 
-// ── Figma 이미지 URL (표시용 — 다운로드/인코딩 없음) ─────────────────────────
+// ── Figma 이미지 URL (표시용) ─────────────────────────────────────────────────
 async function fetchFigmaImageUrl(fileKey, nodeId, token) {
   const resp = await fetch(
     `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=1`,
@@ -32,7 +109,7 @@ async function fetchFigmaImageUrl(fileKey, nodeId, token) {
   return imgUrl;
 }
 
-// ── Figma 노드 구조 데이터 가져오기 ──────────────────────────────────────────
+// ── Figma 노드 구조 ───────────────────────────────────────────────────────────
 async function fetchFigmaNodeData(fileKey, nodeId, token) {
   const resp = await fetch(
     `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`,
@@ -46,7 +123,7 @@ async function fetchFigmaNodeData(fileKey, nodeId, token) {
   return nodes[nodeKey]?.document;
 }
 
-// ── RGBA 색상 → hex/rgba ──────────────────────────────────────────────────────
+// ── 색상 변환 ─────────────────────────────────────────────────────────────────
 function colorStr(c) {
   if (!c) return "transparent";
   const r = Math.round((c.r || 0) * 255);
@@ -57,17 +134,15 @@ function colorStr(c) {
   return `rgba(${r},${g},${b},${a.toFixed(2)})`;
 }
 
-// ── Figma 노드 → 디자인 스펙 텍스트 (Claude 프롬프트용) ──────────────────────
+// ── Figma 노드 → 디자인 스펙 텍스트 ─────────────────────────────────────────
 function nodeToSpec(node, depth = 0) {
   if (!node || depth > 5) return "";
   const indent = "  ".repeat(depth);
   const lines = [];
-
   const bb = node.absoluteBoundingBox;
   const size = bb ? ` (${Math.round(bb.width)}×${Math.round(bb.height)}px)` : "";
   lines.push(`${indent}[${node.type}] "${node.name}"${size}`);
 
-  // 레이아웃
   if (node.layoutMode && node.layoutMode !== "NONE") {
     const dir = node.layoutMode === "HORIZONTAL" ? "row" : "column";
     const pad = node.paddingTop !== undefined
@@ -78,35 +153,29 @@ function nodeToSpec(node, depth = 0) {
     lines.push(`${indent}  flex:${dir}${pad}${gap}${main}${cross}`);
   }
 
-  // 배경색
   const solidFills = (node.fills || []).filter(f => f.visible !== false && f.type === "SOLID");
   if (solidFills.length) lines.push(`${indent}  background:${solidFills.map(f => colorStr(f.color)).join(", ")}`);
 
-  // 테두리
   const solidStrokes = (node.strokes || []).filter(s => s.type === "SOLID");
   if (solidStrokes.length) lines.push(`${indent}  border:${solidStrokes.map(s => `${colorStr(s.color)} ${node.strokeWeight || 1}px`).join(", ")}`);
 
-  // 모서리 반경
   if (node.cornerRadius) lines.push(`${indent}  borderRadius:${node.cornerRadius}px`);
 
-  // 그림자
   (node.effects || []).filter(e => e.visible !== false && e.type === "DROP_SHADOW").forEach(e => {
     lines.push(`${indent}  shadow:${e.offset?.x || 0}px ${e.offset?.y || 0}px ${e.radius || 0}px ${colorStr(e.color)}`);
   });
 
-  // 텍스트
   if (node.type === "TEXT") {
     const s = node.style || {};
     lines.push(`${indent}  text:"${(node.characters || "").slice(0, 80)}"`);
     lines.push(`${indent}  font:${s.fontFamily || "unknown"} weight:${s.fontWeight || 400} size:${s.fontSize || 14}px`);
     if (s.lineHeightPx) lines.push(`${indent}  lineHeight:${Math.round(s.lineHeightPx)}px`);
     if (s.letterSpacing) lines.push(`${indent}  letterSpacing:${s.letterSpacing}px`);
-    const textColor = solidFills[0];
-    if (textColor) lines.push(`${indent}  color:${colorStr(textColor.color)}`);
+    const tc = solidFills[0];
+    if (tc) lines.push(`${indent}  color:${colorStr(tc.color)}`);
     if (s.textAlignHorizontal) lines.push(`${indent}  textAlign:${s.textAlignHorizontal}`);
   }
 
-  // 자식 노드 재귀
   (node.children || []).forEach(child => {
     const childSpec = nodeToSpec(child, depth + 1);
     if (childSpec) lines.push(childSpec);
@@ -115,91 +184,107 @@ function nodeToSpec(node, depth = 0) {
   return lines.join("\n");
 }
 
-// ── 초기 HTML 생성 (프록시 스트리밍 — 크레딧 없음) ───────────────────────────
-async function generateInitialHtml(spec, onChunk) {
+// ── 코드 생성 (스트리밍) ──────────────────────────────────────────────────────
+async function generateCode(spec, formatId, onChunk) {
+  const formatLabel = FORMATS.find(f => f.id === formatId)?.label || formatId;
   let full = "";
   await streamChatAPI({
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [{
       role: "user",
-      content: `다음 Figma 디자인 스펙을 self-contained HTML로 구현해 주세요.
+      content: `다음 Figma 디자인 스펙을 ${formatLabel} 코드로 구현해 주세요.
 
 === Figma 디자인 스펙 ===
 ${spec}
 =========================
 
-구현 규칙:
-- <!DOCTYPE html>부터 시작하는 완전한 단일 HTML 파일
-- Pretendard 폰트: <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
-- 스펙의 색상·크기·폰트·간격을 최대한 정확하게 구현
-- 모든 스타일은 <style> 태그 사용
-- 한국어 현실적 콘텐츠 (스펙의 text 내용 그대로 사용)
-- body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
-- 이미지 플레이스홀더: https://picsum.photos/{w}/{h}?random={n}
-- HTML 코드만 반환, 마크다운·설명 없음`,
+${FORMAT_PROMPT[formatId]}`,
     }],
   }, (delta) => {
     full += delta;
     onChunk(full);
   });
 
-  const html = full.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-  if (!html.toLowerCase().includes("<!doctype") && !html.toLowerCase().includes("<html")) {
-    throw new Error(`HTML 생성 실패: ${html.slice(0, 200)}`);
+  const code = full.replace(/^```[\w]*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  const validate = FORMAT_VALIDATE[formatId];
+  if (validate && !validate(code)) {
+    throw new Error(`코드 생성 실패: ${code.slice(0, 200)}`);
   }
-  return html;
+  return code;
 }
 
-// ── 스펙 기반 비교/수정 (프록시 — 크레딧 없음) ───────────────────────────────
-async function compareAndFix(spec, currentHtml, iter) {
+// ── 검증/수정 ─────────────────────────────────────────────────────────────────
+async function compareAndFix(spec, currentCode, formatId, iter) {
+  const formatLabel = FORMATS.find(f => f.id === formatId)?.label || formatId;
   const result = await chatAPI({
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [{
       role: "user",
-      content: `[검증 ${iter}/${MAX_ITER}회차] Figma 스펙과 현재 HTML을 비교해 주세요.
+      content: `[검증 ${iter}/${MAX_ITER}회차] Figma 스펙과 현재 ${formatLabel} 코드를 비교해 주세요.
 
 === Figma 원본 스펙 ===
 ${spec}
 ======================
 
-=== 현재 HTML ===
-${currentHtml.slice(0, 8000)}
+=== 현재 코드 ===
+${currentCode.slice(0, 8000)}
 ================
 
 스펙과의 차이(색상·폰트·크기·간격·정렬·보더·그림자)를 분석하고:
 - 차이가 없거나 미미하면 첫 줄에 DONE 만 작성
-- 차이가 있으면 수정된 전체 HTML만 반환 (설명·마크다운 없음)`,
+- 차이가 있으면 수정된 전체 코드만 반환 (설명·마크다운 없음)`,
     }],
   });
 
   const text = (result.content?.[0]?.text || "").trim();
-  if (text.startsWith("DONE")) return { done: true, html: currentHtml };
+  if (text.startsWith("DONE")) return { done: true, code: currentCode };
 
-  let html = text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-  if (!html.toLowerCase().includes("<!doctype") && !html.toLowerCase().includes("<html")) {
-    return { done: true, html: currentHtml };
-  }
-  return { done: false, html };
+  const code = text.replace(/^```[\w]*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  const validate = FORMAT_VALIDATE[formatId];
+  if (validate && !validate(code)) return { done: true, code: currentCode };
+  return { done: false, code };
 }
 
-// ── 상태 표시 바 ──────────────────────────────────────────────────────────────
-const PHASES = {
-  figma:    { label: "Figma 디자인 읽기",    icon: "🎨" },
-  generate: { label: "HTML 컴포넌트 생성",   icon: "⚙️" },
-  compare:  { label: "스펙 대조 검증",       icon: "🔍" },
-  done:     { label: "완료",                icon: "✅" },
-};
+// ── 포맷 선택기 ───────────────────────────────────────────────────────────────
+function FormatSelector({ value, onChange, disabled }) {
+  return (
+    <div style={{ display: "flex", gap: "5px", flexWrap: "wrap", padding: "10px 14px", borderBottom: "1px solid #eeeeee", background: "#fafafa" }}>
+      {FORMATS.map(f => (
+        <button
+          key={f.id}
+          onClick={() => onChange(f.id)}
+          disabled={disabled}
+          style={{
+            padding: "4px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 600,
+            cursor: disabled ? "default" : "pointer", transition: "all 0.15s",
+            background: value === f.id ? "#7740c8" : "#ffffff",
+            color: value === f.id ? "#ffffff" : "#666666",
+            border: `1px solid ${value === f.id ? "#7740c8" : "#dddddd"}`,
+          }}
+        >
+          {f.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-function StatusBar({ phase, iteration, elapsed }) {
+// ── 상태 바 ───────────────────────────────────────────────────────────────────
+function StatusBar({ phase, iteration, elapsed, formatId }) {
+  const formatLabel = FORMATS.find(f => f.id === formatId)?.label || "";
+  const PHASES = {
+    figma:    { label: "Figma 디자인 읽기",              icon: "🎨" },
+    generate: { label: `${formatLabel} 코드 생성 중`,   icon: "⚙️" },
+    compare:  { label: "스펙 대조 검증",                 icon: "🔍" },
+    done:     { label: "완료",                           icon: "✅" },
+  };
   const p = PHASES[phase] || {};
   return (
     <div style={{ padding: "10px 16px", background: "#fafafa", borderBottom: "1px solid #eeeeee", display: "flex", alignItems: "center", gap: "10px" }}>
       <div style={{ display: "flex", gap: "4px" }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
-        ))}
+        {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />)}
       </div>
       <span style={{ fontSize: "12px", color: "#7740c8", fontWeight: 600 }}>{p.icon} {p.label}</span>
       <span style={{ fontSize: "11px", color: "#bbbbbb", marginLeft: "auto" }}>
@@ -210,21 +295,25 @@ function StatusBar({ phase, iteration, elapsed }) {
   );
 }
 
-// ── 완료 결과 ─────────────────────────────────────────────────────────────────
-function PreviewResult({ figmaImgUrl, htmlCode, iterations, onRerun }) {
+// ── 결과 뷰어 ─────────────────────────────────────────────────────────────────
+function PreviewResult({ figmaImgUrl, code, formatId, iterations, onRerun, onChangeFormat }) {
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const isHtml = formatId === "html-css";
+  const converged = iterations[iterations.length - 1]?.done;
+  const fmt = FORMATS.find(f => f.id === formatId);
 
   const copy = () => {
-    navigator.clipboard.writeText(htmlCode);
+    navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
 
-  const converged = iterations[iterations.length - 1]?.done;
-
   return (
     <div>
+      {/* 포맷 선택 */}
+      <FormatSelector value={formatId} onChange={onChangeFormat} disabled={false} />
+
       {/* 검증 배지 */}
       <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid #eeeeee", background: converged ? "#f0fff4" : "#fffbf0" }}>
         <span style={{ fontSize: "11px", fontWeight: 600, color: converged ? "#338833" : "#b07000" }}>
@@ -239,42 +328,49 @@ function PreviewResult({ figmaImgUrl, htmlCode, iterations, onRerun }) {
         </div>
       </div>
 
-      {/* 원본 vs 결과 */}
+      {/* 프리뷰 영역 */}
       <div style={{ display: "flex", borderBottom: "1px solid #eeeeee" }}>
+        {/* Figma 원본 */}
         {figmaImgUrl && (
           <div style={{ flex: 1, borderRight: "1px solid #eeeeee", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#9970d8", background: "#faf8ff", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>FIGMA 원본</div>
             <img src={figmaImgUrl} alt="Figma" style={{ width: "100%", display: "block" }} crossOrigin="anonymous" />
           </div>
         )}
+        {/* 결과 */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", background: "#f8fff8", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>렌더링 결과</div>
-          <iframe
-            srcDoc={htmlCode}
-            style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }}
-            sandbox="allow-scripts"
-            title="Figma preview"
-          />
+          <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", background: "#f8fff8", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>
+            {fmt?.label?.toUpperCase()} 결과
+          </div>
+          {isHtml ? (
+            <iframe srcDoc={code} style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }} sandbox="allow-scripts" title="preview" />
+          ) : (
+            <pre style={{ flex: 1, margin: 0, padding: "14px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
+              {code}
+            </pre>
+          )}
         </div>
       </div>
 
       {/* 액션 */}
       <div style={{ padding: "10px 14px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-        <button onClick={copy} style={{ padding: "5px 14px", background: copied ? "#f0fff4" : "#f5f5f5", border: `1px solid ${copied ? "#88cc88" : "#dddddd"}`, borderRadius: "12px", fontSize: "11px", color: copied ? "#338833" : "#555", cursor: "pointer", fontWeight: 600, transition: "all 0.2s" }}>
+        <button onClick={copy} style={{ padding: "5px 14px", background: copied ? "#f0fff4" : "#f5f5f5", border: `1px solid ${copied ? "#88cc88" : "#dddddd"}`, borderRadius: "12px", fontSize: "11px", color: copied ? "#338833" : "#555", cursor: "pointer", fontWeight: 600 }}>
           {copied ? "✓ 복사됨" : "코드 복사"}
         </button>
-        <button onClick={() => setShowCode(v => !v)} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
-          {showCode ? "코드 숨기기" : "코드 보기"}
-        </button>
+        {isHtml && (
+          <button onClick={() => setShowCode(v => !v)} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
+            {showCode ? "코드 숨기기" : "코드 보기"}
+          </button>
+        )}
         <button onClick={onRerun} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
           ↺ 재실행
         </button>
       </div>
 
-      {showCode && (
+      {isHtml && showCode && (
         <div style={{ padding: "0 14px 14px" }}>
           <pre style={{ background: "#111111", borderRadius: "10px", padding: "14px", fontSize: "11px", color: "#88ff88", overflow: "auto", maxHeight: "320px", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5 }}>
-            {htmlCode}
+            {code}
           </pre>
         </div>
       )}
@@ -288,16 +384,18 @@ export default function FigmaPreviewBubble({ url }) {
   const [phase, setPhase] = useState("");
   const [iteration, setIteration] = useState(0);
   const [figmaImgUrl, setFigmaImgUrl] = useState(null);
-  const [htmlCode, setHtmlCode] = useState("");
+  const [code, setCode] = useState("");
   const [iterations, setIterations] = useState([]);
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
+  const [formatId, setFormatId] = useState("html-css");
 
   const parsed = parseFigmaUrl(url);
   const runRef = useRef(false);
   const timerRef = useRef(null);
+  const specRef = useRef("");
 
-  const run = async () => {
+  const run = async (fmtId = formatId) => {
     const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
     if (runRef.current) return;
     runRef.current = true;
@@ -305,7 +403,7 @@ export default function FigmaPreviewBubble({ url }) {
     setError("");
     setIterations([]);
     setFigmaImgUrl(null);
-    setHtmlCode("");
+    setCode("");
     setIteration(0);
     setElapsed(0);
     const startTime = Date.now();
@@ -315,34 +413,32 @@ export default function FigmaPreviewBubble({ url }) {
       if (!tok) throw new Error("Figma Personal Access Token이 필요합니다.");
       if (!parsed?.nodeId) throw new Error("URL에 node-id가 없습니다.\nFigma에서 컴포넌트를 선택한 후 URL을 복사해 주세요.");
 
-      // 1. Figma 데이터 로드
+      // 1. Figma 데이터
       setPhase("figma");
       const [imgUrl, nodeData] = await Promise.all([
         fetchFigmaImageUrl(parsed.fileKey, parsed.nodeId, tok),
         fetchFigmaNodeData(parsed.fileKey, parsed.nodeId, tok),
       ]);
       setFigmaImgUrl(imgUrl);
-
       const spec = nodeToSpec(nodeData);
+      specRef.current = spec;
 
-      // 2. HTML 생성 (프록시 스트리밍)
+      // 2. 코드 생성
       setPhase("generate");
-      let html = await generateInitialHtml(spec, (partial) => {
-        if (partial.toLowerCase().includes("<!doctype") || partial.toLowerCase().includes("<html")) {
-          setHtmlCode(partial.replace(/^```html?\n?/i, ""));
-        }
+      let currentCode = await generateCode(spec, fmtId, (partial) => {
+        setCode(partial.replace(/^```[\w]*\n?/i, ""));
       });
-      setHtmlCode(html);
+      setCode(currentCode);
 
       // 3. 검증 루프
       for (let i = 1; i <= MAX_ITER; i++) {
         setIteration(i);
         setPhase("compare");
-        const result = await compareAndFix(spec, html, i);
+        const result = await compareAndFix(spec, currentCode, fmtId, i);
         setIterations(prev => [...prev, { iteration: i, done: result.done }]);
         if (result.done) break;
-        html = result.html;
-        setHtmlCode(html);
+        currentCode = result.code;
+        setCode(currentCode);
       }
 
       setPhase("done");
@@ -354,6 +450,14 @@ export default function FigmaPreviewBubble({ url }) {
       runRef.current = false;
       clearInterval(timerRef.current);
     }
+  };
+
+  // 포맷 변경 시 재실행
+  const handleChangeFormat = (newFmt) => {
+    setFormatId(newFmt);
+    setStatus("idle");
+    runRef.current = false;
+    run(newFmt);
   };
 
   useEffect(() => {
@@ -375,47 +479,50 @@ export default function FigmaPreviewBubble({ url }) {
 
       {/* idle */}
       {status === "idle" && (
-        <div style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: "12px", background: "#fffbf0", borderBottom: "1px solid #f0e8cc" }}>
-          {!localStorage.getItem(FIGMA_TOKEN_KEY) ? (
-            <>
-              <span style={{ fontSize: "18px" }}>⚠️</span>
-              <div style={{ fontSize: "12px", color: "#a07000", lineHeight: 1.7 }}>
-                상단 헤더의 <strong>🎨 Figma</strong> 버튼에서 토큰을 먼저 설정해 주세요.<br />
-                설정 후 이 URL을 다시 붙여넣으면 자동으로 시작됩니다.
-              </div>
-            </>
-          ) : !parsed?.nodeId ? (
-            <>
-              <span style={{ fontSize: "18px" }}>⚠️</span>
-              <div style={{ fontSize: "12px", color: "#a07000", lineHeight: 1.7 }}>
-                URL에 node-id가 없습니다.<br />
-                Figma에서 컴포넌트를 <strong>선택</strong>한 후 URL을 복사해 주세요.
-              </div>
-            </>
-          ) : (
-            <button onClick={run} style={{ padding: "8px 20px", background: "#7740c8", border: "none", borderRadius: "16px", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-              ▶ 시작
-            </button>
-          )}
+        <div>
+          <FormatSelector value={formatId} onChange={setFormatId} disabled={false} />
+          <div style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: "12px", background: "#fffbf0" }}>
+            {!localStorage.getItem(FIGMA_TOKEN_KEY) ? (
+              <>
+                <span style={{ fontSize: "18px" }}>⚠️</span>
+                <div style={{ fontSize: "12px", color: "#a07000", lineHeight: 1.7 }}>
+                  상단 헤더의 <strong>🎨 Figma</strong> 버튼에서 토큰을 먼저 설정해 주세요.
+                </div>
+              </>
+            ) : !parsed?.nodeId ? (
+              <>
+                <span style={{ fontSize: "18px" }}>⚠️</span>
+                <div style={{ fontSize: "12px", color: "#a07000", lineHeight: 1.7 }}>
+                  URL에 node-id가 없습니다.<br />Figma에서 컴포넌트를 <strong>선택</strong>한 후 URL을 복사해 주세요.
+                </div>
+              </>
+            ) : (
+              <button onClick={() => run()} style={{ padding: "8px 20px", background: "#7740c8", border: "none", borderRadius: "16px", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+                ▶ 시작
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {/* 실행 중 */}
       {status === "running" && (
         <div>
-          <StatusBar phase={phase} iteration={iteration} elapsed={elapsed} />
-          {htmlCode && (
+          <FormatSelector value={formatId} onChange={() => {}} disabled={true} />
+          <StatusBar phase={phase} iteration={iteration} elapsed={elapsed} formatId={formatId} />
+          {code && (
             <div style={{ padding: "8px 14px", borderBottom: "1px solid #eeeeee" }}>
               <div style={{ fontSize: "10px", color: "#aaaaaa", marginBottom: "6px" }}>생성 중...</div>
-              <iframe
-                srcDoc={htmlCode}
-                style={{ width: "100%", height: "300px", border: "1px solid #eeeeee", borderRadius: "8px", display: "block" }}
-                sandbox="allow-scripts"
-                title="preview in progress"
-              />
+              {formatId === "html-css" ? (
+                <iframe srcDoc={code} style={{ width: "100%", height: "300px", border: "1px solid #eeeeee", borderRadius: "8px", display: "block" }} sandbox="allow-scripts" title="preview in progress" />
+              ) : (
+                <pre style={{ margin: 0, padding: "12px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", borderRadius: "8px", overflow: "auto", maxHeight: "300px", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5 }}>
+                  {code}
+                </pre>
+              )}
             </div>
           )}
-          {!htmlCode && (
+          {!code && (
             <div style={{ padding: "40px", textAlign: "center" }}>
               <div style={{ display: "flex", justifyContent: "center", gap: "5px" }}>
                 {[0,1,2].map(i => <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />)}
@@ -429,9 +536,11 @@ export default function FigmaPreviewBubble({ url }) {
       {status === "done" && (
         <PreviewResult
           figmaImgUrl={figmaImgUrl}
-          htmlCode={htmlCode}
+          code={code}
+          formatId={formatId}
           iterations={iterations}
           onRerun={() => { setStatus("idle"); runRef.current = false; run(); }}
+          onChangeFormat={handleChangeFormat}
         />
       )}
 
@@ -449,9 +558,12 @@ export default function FigmaPreviewBubble({ url }) {
               우측 상단 프록시 버튼에서 로컬 프록시를 먼저 연결해 주세요.
             </div>
           )}
+          <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginTop: "8px" }}>
+            <FormatSelector value={formatId} onChange={(f) => { setFormatId(f); }} disabled={false} />
+          </div>
           <button
             onClick={() => { setStatus("idle"); runRef.current = false; run(); }}
-            style={{ padding: "7px 18px", background: "#f5f5f5", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", cursor: "pointer" }}
+            style={{ marginTop: "12px", padding: "7px 18px", background: "#f5f5f5", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", cursor: "pointer" }}
           >
             ↺ 다시 시도
           </button>
