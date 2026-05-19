@@ -44,15 +44,57 @@ const FORMAT_PROMPT = {
 - JSX 코드만 반환, 마크다운·설명 없음`,
 
   "react-yds": `구현 규칙:
-- React 함수형 컴포넌트, 파일명 Component.jsx
-- YDS(Yogiyo Design System) 토큰 사용:
-  - 타이포: meta_sf_title_1, meta_sf_body_1, meta_sf_caption_1 등
-  - 컬러: token.color.light.primary, token.color.light.gray100 등
-  - 스페이싱: meta_s1(4px)~meta_s13(48px)
-  - 라디우스: meta_r0~meta_r6, rfull
-- 스펙에 없는 토큰은 nearest value로 추정
+- React 함수형 컴포넌트 (export default function ComponentName)
+- 반드시 아래 import 문 사용:
+  import { colors, metaTokens } from "./tokens";
+- 모든 스타일은 style={{}} inline 객체. 값은 반드시 토큰에서 참조.
 - 한국어 현실적 콘텐츠
-- JSX 코드만 반환, 마크다운·설명 없음`,
+- JSX 코드만 반환, 마크다운·설명 없음
+
+=== YDS 2.0 토큰 참조 ===
+
+[컬러] colors.xxx.yyy.value 형태로 사용
+foundation.primary=#fa0050 (요기요 레드/CTA), foundation.primary_i=#ff3072
+foundation.secondary=#0c74e4 (파랑), foundation.secondary_i=#1f8bff
+foundation.green=#05947f, foundation.yellow=#ffcb2e, foundation.white=#fff, foundation.black=#000
+light.primary_a=#fa0050, light.primary_a_100=#feccdc
+light.primary_b=#28343c, light.primary_b_100=#dee5ea
+light.accent=#0c80e4, light.accent_100=#c5e2fb
+light.ygy_green=#05947f, light.ygy_orange=#f04600
+gray.gray800=#333333(본문), gray.gray600=#666666, gray.gray400=#999999
+gray.gray250=#bfbfbf, gray.gray100=#e5e5e5, gray.gray50=#f2f2f2, gray.gray25=#f6f6f6
+background.primary=#ffffff(기본 배경), background.bottom=#f2f2f2
+background.dim1=#000000e5, background.dim2=#00000099
+variant.primary25=#fff5f8, variant.primary50=#ffe6ee, variant.primary800=#640020
+variant.secondary25=#f0f7fa, variant.green25=#f0f7f6, variant.red25=#fef4f4
+
+[타이포] metaTokens.typography.xxx → { size, weight, lineHeight }
+meta_sf_10_r: 10/400/14, meta_sf_10_b: 10/700/14
+meta_sf_12_r: 12/400/16, meta_sf_12_b: 12/700/16
+meta_sf_13_r: 13/400/18, meta_sf_13_b: 13/700/18
+meta_sf_14_r: 14/400/19(기본), meta_sf_14_b: 14/700/19
+meta_sf_16_r: 16/400/22, meta_sf_16_b: 16/700/22
+meta_sf_18_b: 18/700/24, meta_sf_20_b: 20/700/27
+meta_sf_24_b: 24/700/32, meta_sf_32_b: 32/700/43
+→ 사용법: fontSize:metaTokens.typography.meta_sf_14_r.size, fontWeight:..weight, lineHeight:..lineHeight+"px"
+
+[스페이싱] metaTokens.spacing.meta_sN (px 단위)
+meta_s1:2, meta_s2:4, meta_s3:6, meta_s4:8, meta_s5:10, meta_s6:12
+meta_s7:16, meta_s8:20, meta_s9:24, meta_s10:28, meta_s11:32, meta_s12:36, meta_s13:40
+→ 사용법: padding:metaTokens.spacing.meta_s4 (px 불필요, 숫자값)
+
+[라디우스] metaTokens.radius.xxx (px 단위 숫자)
+meta_r0:0, meta_r1:4, meta_r2:8, meta_r3:10, meta_r4:12, meta_r5:16, meta_r6:20, rfull:360
+→ 사용법: borderRadius:metaTokens.radius.meta_r4
+
+[그림자] metaTokens.elevation.xxx.css (CSS string)
+meta_level_0: none
+meta_level_1: "0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08)"
+meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
+→ 사용법: boxShadow:metaTokens.elevation.meta_level_1.css
+
+[폰트] fontFamily: "'SD Neo Gothic', 'Pretendard', sans-serif"
+=========================`,
 
   "swiftui": `구현 규칙:
 - SwiftUI View struct
@@ -295,11 +337,31 @@ function StatusBar({ phase, iteration, elapsed, formatId }) {
   );
 }
 
+// ── Supabase에 컴포넌트 저장 (스토리북 브리지) ───────────────────────────────
+async function saveToStorybook(code, figmaUrl) {
+  try {
+    await fetch("/api/save-context", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "figma_component",
+        title: "figma_component_latest",
+        content: JSON.stringify({ code, figmaUrl, savedAt: new Date().toISOString() }),
+        tags: ["figma", "react-yds", "live"],
+      }),
+    });
+    return true;
+  } catch { return false; }
+}
+
 // ── 결과 뷰어 ─────────────────────────────────────────────────────────────────
-function PreviewResult({ figmaImgUrl, code, formatId, iterations, onRerun, onChangeFormat }) {
+function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, iterations, onRerun, onChangeFormat }) {
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
   const isHtml = formatId === "html-css";
+  const isYds = formatId === "react-yds";
   const converged = iterations[iterations.length - 1]?.done;
   const fmt = FORMATS.find(f => f.id === formatId);
 
@@ -307,6 +369,15 @@ function PreviewResult({ figmaImgUrl, code, formatId, iterations, onRerun, onCha
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
+  };
+
+  const sendToStorybook = async () => {
+    setSending(true);
+    await saveToStorybook(code, figmaUrl);
+    setSending(false);
+    setSent(true);
+    setTimeout(() => setSent(false), 3000);
+    window.open("https://storybook-livid-chi.vercel.app#figma-live", "_blank");
   };
 
   return (
@@ -357,6 +428,15 @@ function PreviewResult({ figmaImgUrl, code, formatId, iterations, onRerun, onCha
         <button onClick={copy} style={{ padding: "5px 14px", background: copied ? "#f0fff4" : "#f5f5f5", border: `1px solid ${copied ? "#88cc88" : "#dddddd"}`, borderRadius: "12px", fontSize: "11px", color: copied ? "#338833" : "#555", cursor: "pointer", fontWeight: 600 }}>
           {copied ? "✓ 복사됨" : "코드 복사"}
         </button>
+        {isYds && (
+          <button
+            onClick={sendToStorybook}
+            disabled={sending}
+            style={{ padding: "5px 14px", background: sent ? "#f0fff4" : "#7740c8", border: `1px solid ${sent ? "#88cc88" : "#7740c8"}`, borderRadius: "12px", fontSize: "11px", color: sent ? "#338833" : "#fff", cursor: sending ? "default" : "pointer", fontWeight: 600, opacity: sending ? 0.7 : 1 }}
+          >
+            {sent ? "✓ 스토리북 열림" : sending ? "전송 중..." : "📖 스토리북에서 보기"}
+          </button>
+        )}
         {isHtml && (
           <button onClick={() => setShowCode(v => !v)} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
             {showCode ? "코드 숨기기" : "코드 보기"}
@@ -536,6 +616,7 @@ export default function FigmaPreviewBubble({ url }) {
       {status === "done" && (
         <PreviewResult
           figmaImgUrl={figmaImgUrl}
+          figmaUrl={url}
           code={code}
           formatId={formatId}
           iterations={iterations}
