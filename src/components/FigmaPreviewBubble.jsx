@@ -18,6 +18,22 @@ function parseFigmaUrl(url) {
   } catch { return null; }
 }
 
+// ── 이미지 압축 (Claude API body 크기 제한 대응) ─────────────────────────────
+function resizeToJpeg(base64, maxWidth = 800, quality = 0.82) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality).split(",")[1]);
+    };
+    img.src = `data:image/png;base64,${base64}`;
+  });
+}
+
 // ── html2canvas 동적 로드 ─────────────────────────────────────────────────────
 async function loadHtml2Canvas() {
   if (window.html2canvas) return window.html2canvas;
@@ -33,7 +49,7 @@ async function loadHtml2Canvas() {
 // ── Figma 원본 → base64 ───────────────────────────────────────────────────────
 async function fetchFigmaBase64(fileKey, nodeId, token) {
   const resp = await fetch(
-    `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
+    `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=1`,
     { headers: { "X-Figma-Token": token } }
   );
   if (!resp.ok) throw new Error(`Figma API ${resp.status} — 토큰을 확인해 주세요.`);
@@ -80,7 +96,7 @@ async function screenshotHtml(htmlCode) {
       scale: 1,
       logging: false,
     });
-    return canvas.toDataURL("image/png").split(",")[1];
+    return canvas.toDataURL("image/jpeg", 0.82).split(",")[1];
   } finally {
     document.body.removeChild(wrapper);
   }
@@ -88,6 +104,11 @@ async function screenshotHtml(htmlCode) {
 
 // ── Claude 멀티모달 비교 + 수정 ───────────────────────────────────────────────
 async function compareAndFix(figmaB64, renderedB64, currentHtml, iter) {
+  const [fJpeg, rJpeg] = await Promise.all([
+    resizeToJpeg(figmaB64),
+    resizeToJpeg(renderedB64),
+  ]);
+
   const result = await chatAPI({
     model: "claude-sonnet-4-6",
     max_tokens: 5000,
@@ -105,21 +126,26 @@ async function compareAndFix(figmaB64, renderedB64, currentHtml, iter) {
 현재 HTML:
 ${currentHtml}`,
         },
-        { type: "image", source: { type: "base64", media_type: "image/png", data: figmaB64 } },
-        { type: "image", source: { type: "base64", media_type: "image/png", data: renderedB64 } },
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: fJpeg } },
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: rJpeg } },
       ],
     }],
   });
 
   const text = (result.content?.[0]?.text || "").trim();
-  if (text.startsWith("DONE")) return { done: true, html: currentHtml, diffs: null };
+  if (text.startsWith("DONE")) return { done: true, html: currentHtml };
 
-  const html = text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  let html = text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  // Claude가 HTML 대신 오류 텍스트를 반환한 경우 기존 HTML 유지
+  if (!html.toLowerCase().includes("<!doctype") && !html.toLowerCase().includes("<html")) {
+    return { done: true, html: currentHtml };
+  }
   return { done: false, html };
 }
 
 // ── 초기 HTML 생성 (Figma 이미지 참조) ───────────────────────────────────────
 async function generateInitialHtml(figmaB64) {
+  const jpeg = await resizeToJpeg(figmaB64);
   const result = await chatAPI({
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
@@ -139,13 +165,17 @@ async function generateInitialHtml(figmaB64) {
 - 이미지: https://picsum.photos/{w}/{h}?random={n}
 - HTML 코드만 반환, 마크다운 없음`,
         },
-        { type: "image", source: { type: "base64", media_type: "image/png", data: figmaB64 } },
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpeg } },
       ],
     }],
   });
 
   const text = (result.content?.[0]?.text || "").trim();
-  return text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  const html = text.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  if (!html.toLowerCase().includes("<!doctype") && !html.toLowerCase().includes("<html")) {
+    throw new Error(`HTML 생성 실패: ${html.slice(0, 100)}`);
+  }
+  return html;
 }
 
 // ── 상태 표시 바 ──────────────────────────────────────────────────────────────
