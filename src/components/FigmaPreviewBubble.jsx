@@ -35,7 +35,7 @@ async function fetchFigmaImageUrl(fileKey, nodeId, token) {
 // ── Figma 노드 구조 데이터 가져오기 ──────────────────────────────────────────
 async function fetchFigmaNodeData(fileKey, nodeId, token) {
   const resp = await fetch(
-    `https://api.figma.com/v1/nodes/${fileKey}?ids=${encodeURIComponent(nodeId)}`,
+    `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`,
     { headers: { "X-Figma-Token": token } }
   );
   if (!resp.ok) throw new Error(`Figma 노드 API ${resp.status}`);
