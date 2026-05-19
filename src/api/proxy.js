@@ -20,16 +20,26 @@ export async function chatAPI(body) {
 
 // 멀티모달(이미지) 지원용 — 로컬 프록시 우회, Vercel API 직접 호출
 export async function chatAPIMultimodal(body) {
-  const resp = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 120_000); // 2분 타임아웃
+  try {
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || err.message || `HTTP ${resp.status}`);
+    }
+    return resp.json();
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("API 타임아웃 (120초 초과)");
+    throw e;
+  } finally {
+    clearTimeout(timeout);
   }
-  return resp.json();
 }
 
 // 멀티모달 스트리밍 — 생성 과정을 실시간으로 받기

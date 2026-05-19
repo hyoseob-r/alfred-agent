@@ -145,13 +145,13 @@ ${currentHtml}`,
   return { done: false, html };
 }
 
-// ── 초기 HTML 생성 (스트리밍 — 실시간 미리보기) ──────────────────────────────
-async function generateInitialHtml(figmaB64, onChunk) {
-  const jpeg = await resizeToJpeg(figmaB64, 800, 0.82, "png");
+// ── 초기 HTML 생성 ────────────────────────────────────────────────────────────
+async function generateInitialHtml(figmaB64) {
+  const jpeg = await resizeToJpeg(figmaB64, 600, 0.75, "png");  // 더 작게
 
-  const requestBody = {
+  const result = await chatAPIMultimodal({
     model: "claude-sonnet-4-6",
-    max_tokens: 4000,
+    max_tokens: 3000,
     messages: [{
       role: "user",
       content: [
@@ -171,22 +171,14 @@ async function generateInitialHtml(figmaB64, onChunk) {
         { type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpeg } },
       ],
     }],
-  };
+  });
 
-  let full = "";
-  try {
-    full = await streamChatAPIMultimodal(requestBody, onChunk);
-  } catch (streamErr) {
-    // 스트리밍 실패 시 비스트리밍 폴백
-    console.warn("[FigmaPreview] 스트리밍 실패, 폴백 시도:", streamErr.message);
-    const result = await chatAPIMultimodal(requestBody);
-    full = result.content?.[0]?.text || "";
-    if (full) onChunk(full, full);
-  }
+  if (result?.error) throw new Error(result.error.message || JSON.stringify(result.error));
 
+  const full = result.content?.[0]?.text || "";
   const html = full.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
   if (!html.toLowerCase().includes("<!doctype") && !html.toLowerCase().includes("<html")) {
-    throw new Error(`HTML 생성 실패: ${html.slice(0, 120)}`);
+    throw new Error(`HTML 생성 실패: ${html.slice(0, 200)}`);
   }
   return html;
 }
@@ -326,15 +318,9 @@ export default function FigmaPreviewBubble({ url }) {
       const fb64 = await fetchFigmaBase64(parsed.fileKey, parsed.nodeId, tok);
       setFigmaB64(fb64);
 
-      // 2. 초기 HTML 생성 (스트리밍 — 실시간 미리보기)
+      // 2. 초기 HTML 생성
       setPhase("generate");
-      let html = await generateInitialHtml(fb64, (_, full) => {
-        // 부분 HTML이라도 <html 태그 등장하면 즉시 iframe에 반영
-        const partial = full.replace(/^```html?\n?/i, "");
-        if (partial.toLowerCase().includes("<html") || partial.toLowerCase().includes("<!doctype")) {
-          setHtmlCode(partial);
-        }
-      });
+      let html = await generateInitialHtml(fb64);
       setHtmlCode(html);
 
       // 3. 검증 루프
