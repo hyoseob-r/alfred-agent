@@ -1376,7 +1376,7 @@ export default function App() {
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} onPaste={onPaste}
                 onCompositionStart={() => { isComposingRef.current = true; }}
                 onCompositionEnd={() => { isComposingRef.current = false; }}
-                placeholder={chatMode === "agent" ? "문제나 불편함을 말씀해 주십시오..." : "메시지를 입력하세요..."}
+                placeholder={chatMode === "agent" ? "문제나 불편함을 말씀해 주십시오..." : "메시지 입력 또는 Figma URL 붙여넣기..."}
                 rows={1}
                 style={{ flex: 1, background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "12px", padding: "10px 14px", color: "#111111", fontSize: "13.5px", resize: "none", outline: "none", lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", transition: "border-color 0.2s" }}
                 onFocus={e => e.target.style.borderColor = "#aaaaaa"} onBlur={e => e.target.style.borderColor = "#cccccc"} />
