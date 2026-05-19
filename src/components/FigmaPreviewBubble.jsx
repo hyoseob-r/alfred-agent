@@ -34,7 +34,7 @@ async function loadHtml2Canvas() {
 async function fetchFigmaBase64(fileKey, nodeId, token) {
   const resp = await fetch(
     `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
-    { headers: { Authorization: `Bearer ${token}` } }
+    { headers: { "X-Figma-Token": token } }
   );
   if (!resp.ok) throw new Error(`Figma API ${resp.status} — 토큰을 확인해 주세요.`);
   const data = await resp.json();
