@@ -99,7 +99,13 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [contextBriefing, setContextBriefing] = useState(null);
   const [showFigmaToken, setShowFigmaToken] = useState(false);
-  const [figmaToken, setFigmaTokenState] = useState(localStorage.getItem("figma_pat") || "");
+  const [figmaToken, setFigmaTokenState] = useState(() => {
+    const stored = localStorage.getItem("figma_pat");
+    if (stored) return stored;
+    const envToken = import.meta.env.VITE_FIGMA_TOKEN;
+    if (envToken) { localStorage.setItem("figma_pat", envToken); return envToken; }
+    return "";
+  });
   const [figmaTokenInput, setFigmaTokenInput] = useState("");
   const [selectedModel, setSelectedModelState] = useState(getSelectedModel());
   const [dbSaving, setDbSaving] = useState(false);
