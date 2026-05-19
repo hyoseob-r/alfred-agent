@@ -1,4 +1,4 @@
-export const config = { maxDuration: 300 };
+export const runtime = 'edge';
 
 export default async function handler(req) {
   const corsHeaders = {

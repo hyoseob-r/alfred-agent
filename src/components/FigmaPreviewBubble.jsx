@@ -148,7 +148,8 @@ ${currentHtml}`,
 // ── 초기 HTML 생성 (스트리밍 — 실시간 미리보기) ──────────────────────────────
 async function generateInitialHtml(figmaB64, onChunk) {
   const jpeg = await resizeToJpeg(figmaB64, 800, 0.82, "png");
-  const full = await streamChatAPIMultimodal({
+
+  const requestBody = {
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [{
@@ -170,7 +171,18 @@ async function generateInitialHtml(figmaB64, onChunk) {
         { type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpeg } },
       ],
     }],
-  }, onChunk);
+  };
+
+  let full = "";
+  try {
+    full = await streamChatAPIMultimodal(requestBody, onChunk);
+  } catch (streamErr) {
+    // 스트리밍 실패 시 비스트리밍 폴백
+    console.warn("[FigmaPreview] 스트리밍 실패, 폴백 시도:", streamErr.message);
+    const result = await chatAPIMultimodal(requestBody);
+    full = result.content?.[0]?.text || "";
+    if (full) onChunk(full, full);
+  }
 
   const html = full.replace(/^```html?\n?/i, "").replace(/\n?```\s*$/i, "").trim();
   if (!html.toLowerCase().includes("<!doctype") && !html.toLowerCase().includes("<html")) {
@@ -188,7 +200,7 @@ const PHASES = {
   done:     { label: "검증 완료",            icon: "✅" },
 };
 
-function StatusBar({ phase, iteration }) {
+function StatusBar({ phase, iteration, elapsed }) {
   const p = PHASES[phase] || {};
   return (
     <div style={{ padding: "10px 16px", background: "#fafafa", borderBottom: "1px solid #eeeeee", display: "flex", alignItems: "center", gap: "10px" }}>
@@ -196,9 +208,10 @@ function StatusBar({ phase, iteration }) {
         {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
       </div>
       <span style={{ fontSize: "12px", color: "#7740c8", fontWeight: 600 }}>{p.icon} {p.label}</span>
-      {iteration > 0 && phase !== "done" && (
-        <span style={{ fontSize: "11px", color: "#aaaaaa", marginLeft: "auto" }}>검증 {iteration}/{MAX_ITER}회차</span>
-      )}
+      <span style={{ fontSize: "11px", color: "#bbbbbb", marginLeft: "auto" }}>
+        {elapsed > 0 && `${elapsed}s`}
+        {iteration > 0 && phase !== "done" && ` · 검증 ${iteration}/${MAX_ITER}회차`}
+      </span>
     </div>
   );
 }
@@ -284,9 +297,11 @@ export default function FigmaPreviewBubble({ url }) {
   const [htmlCode, setHtmlCode] = useState("");
   const [iterations, setIterations] = useState([]);
   const [error, setError] = useState("");
+  const [elapsed, setElapsed] = useState(0);
 
   const parsed = parseFigmaUrl(url);
   const runRef = useRef(false);
+  const timerRef = useRef(null);
 
   const run = async () => {
     const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
@@ -298,6 +313,9 @@ export default function FigmaPreviewBubble({ url }) {
     setFigmaB64(null);
     setHtmlCode("");
     setIteration(0);
+    setElapsed(0);
+    const startTime = Date.now();
+    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
 
     try {
       if (!tok) throw new Error("Figma Personal Access Token이 필요합니다.");
@@ -343,6 +361,7 @@ export default function FigmaPreviewBubble({ url }) {
       setStatus("error");
     } finally {
       runRef.current = false;
+      clearInterval(timerRef.current);
     }
   };
 
@@ -394,7 +413,7 @@ export default function FigmaPreviewBubble({ url }) {
       {/* 실행 중 */}
       {status === "running" && (
         <div>
-          <StatusBar phase={phase} iteration={iteration} />
+          <StatusBar phase={phase} iteration={iteration} elapsed={elapsed} />
           {htmlCode && (
             <div style={{ padding: "8px 14px", borderBottom: "1px solid #eeeeee" }}>
               <div style={{ fontSize: "10px", color: "#aaaaaa", marginBottom: "6px" }}>현재 생성 중...</div>

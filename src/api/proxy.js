@@ -34,37 +34,59 @@ export async function chatAPIMultimodal(body) {
 
 // 멀티모달 스트리밍 — 생성 과정을 실시간으로 받기
 export async function streamChatAPIMultimodal(body, onChunk) {
-  const resp = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, stream: true }),
-  });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000); // 90s 타임아웃
+
+  let resp;
+  try {
+    resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...body, stream: true }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeout);
+    if (e.name === "AbortError") throw new Error("스트리밍 타임아웃 (90초 초과)");
+    throw e;
   }
+
+  if (!resp.ok) {
+    clearTimeout(timeout);
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || err.message || `HTTP ${resp.status}`);
+  }
+
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let full = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const data = line.slice(6).trim();
-      if (data === "[DONE]") return full;
-      try {
-        const json = JSON.parse(data);
-        if (json.type === "content_block_delta" && json.delta?.type === "text_delta") {
-          full += json.delta.text;
-          onChunk(json.delta.text, full);
-        } else if (json.type === "message_stop") return full;
-      } catch {}
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (data === "[DONE]") return full;
+        try {
+          const json = JSON.parse(data);
+          if (json.type === "content_block_delta" && json.delta?.type === "text_delta") {
+            full += json.delta.text;
+            onChunk(json.delta.text, full);
+          } else if (json.type === "message_stop") return full;
+          else if (json.type === "error") throw new Error(json.error?.message || "API 오류");
+        } catch (parseErr) {
+          if (parseErr.message.includes("API 오류")) throw parseErr;
+        }
+      }
     }
+  } finally {
+    clearTimeout(timeout);
+    reader.releaseLock();
   }
   return full;
 }
