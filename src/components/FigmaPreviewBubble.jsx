@@ -364,13 +364,30 @@ export default function FigmaPreviewBubble({ url }) {
         </div>
       </div>
 
-      {/* node-id 없음 경고 */}
-      {!parsed?.nodeId && status === "idle" && (
-        <div style={{ padding: "20px", textAlign: "center" }}>
-          <div style={{ fontSize: "12px", color: "#cc8844", lineHeight: 1.8 }}>
-            ⚠ URL에 node-id가 없습니다.<br />
-            Figma에서 컴포넌트를 <strong>선택</strong>한 후 URL을 복사해 주세요.
-          </div>
+      {/* idle 상태 안내 */}
+      {status === "idle" && (
+        <div style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: "12px", background: "#fffbf0", borderBottom: "1px solid #f0e8cc" }}>
+          {!localStorage.getItem(FIGMA_TOKEN_KEY) ? (
+            <>
+              <span style={{ fontSize: "18px" }}>⚠️</span>
+              <div style={{ fontSize: "12px", color: "#a07000", lineHeight: 1.7 }}>
+                상단 헤더의 <strong>🎨 Figma</strong> 버튼에서 토큰을 먼저 설정해 주세요.<br />
+                설정 후 이 URL을 다시 붙여넣으면 자동으로 시작됩니다.
+              </div>
+            </>
+          ) : !parsed?.nodeId ? (
+            <>
+              <span style={{ fontSize: "18px" }}>⚠️</span>
+              <div style={{ fontSize: "12px", color: "#a07000", lineHeight: 1.7 }}>
+                URL에 node-id가 없습니다.<br />
+                Figma에서 컴포넌트를 <strong>선택</strong>한 후 URL을 복사해 주세요.
+              </div>
+            </>
+          ) : (
+            <button onClick={run} style={{ padding: "8px 20px", background: "#7740c8", border: "none", borderRadius: "16px", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
+              ▶ 시작
+            </button>
+          )}
         </div>
       )}
 
