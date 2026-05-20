@@ -187,6 +187,7 @@ export default function App() {
   }, [isOwner, messages.length]);
   const dragCounter = useRef(0);
   const saveTimerRef = useRef(null);
+  const lastSavedHashRef = useRef(null); // 변경 감지용 해시
 
   // ── Bootstrap ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -281,6 +282,9 @@ export default function App() {
     if (!started || !activeSessionId || messages.length === 0) return;
     // Council 진행 중엔 저장 스킵 — 완료 후 한 번만 저장
     if (councilRunning) return;
+    // 변경 감지 — 내용이 같으면 저장 스킵
+    const currentHash = messages.length + "_" + (messages[messages.length - 1]?.content?.slice(-40) || "");
+    if (currentHash === lastSavedHashRef.current) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       const createdAt = new Date(parseInt(activeSessionId.split('_')[1]) || Date.now());
@@ -295,6 +299,7 @@ export default function App() {
         try {
           await dbUpsertSession({ id: activeSessionId, title, stage: currentStage }, user.id);
           await dbSaveMessages(activeSessionId, messages, user.id);
+          lastSavedHashRef.current = currentHash;
           // 세션 목록은 로컬 상태로 업데이트 (DB 재조회 없음)
           setSessions(prev => {
             const exists = prev.some(s => s.id === activeSessionId);
@@ -304,7 +309,7 @@ export default function App() {
         } catch (e) { console.error("save error:", e); }
         finally { clearTimeout(giveUp); setDbSaving(false); }
       }
-    }, 5000);
+    }, 30000); // 5s → 30s: 스트리밍 중 연속 트리거 방지
     return () => clearTimeout(saveTimerRef.current);
   }, [messages, councilRunning]);
 

@@ -77,16 +77,22 @@ export async function dbUpsertSession(session, userId) {
 
 export async function dbSaveMessages(sessionId, msgs, userId) {
   const sb = await getSupabase();
-  await sb.from("messages").delete().eq("session_id", sessionId);
-  const rows = serializeMessages(msgs).map(m => ({
+  // 기존 DELETE+INSERT 대신 한 번에 처리:
+  // 1) 먼저 기존 메시지 삭제 (upsert로 대체 불가 — session_id 기준 전체 교체이므로)
+  // 단, 메시지 수가 같을 때는 삭제 없이 update만
+  const rows = serializeMessages(msgs).map((m, i) => ({
     session_id: sessionId, user_id: userId,
     role: m.role, content: m.content,
     files_meta: m.files || [],
     stage_label: m.stageLabel || null,
     stage_color: m.stageColor || null,
     stage_icon: m.stageIcon || null,
+    sort_order: i,
   }));
-  if (rows.length) await sb.from("messages").insert(rows);
+  if (!rows.length) return;
+  // DELETE + INSERT를 한 트랜잭션처럼 처리 (두 쿼리지만 불필요한 SELECT 제거)
+  await sb.from("messages").delete().eq("session_id", sessionId);
+  await sb.from("messages").insert(rows);
 }
 
 export async function dbDeleteSession(sessionId) {
@@ -156,20 +162,19 @@ export async function dbGetAgentMemory(agentId) {
   return data?.content || null;
 }
 
-export async function dbAppendAgentMemory(agentId, dateLabel, text) {
+export async function dbAppendAgentMemory(agentId, dateLabel, text, existingContent = null) {
   const sb = await getSupabase();
-  const existing = await dbGetAgentMemory(agentId);
+  // existingContent가 전달되면 SELECT 스킵 (캐시에서 사용)
+  const existing = existingContent !== null ? existingContent : await dbGetAgentMemory(agentId);
   const entries = existing ? existing.split("\n\n") : [];
   const snippet = text.slice(0, 280) + (text.length > 280 ? "…" : "");
   const newEntry = `[${dateLabel}] ${snippet}`;
   const updated = [...entries, newEntry].slice(-5).join("\n\n");
-  const { data: row } = await sb.from("context_notes")
-    .select("id").eq("type", "agent_memory").eq("title", `agent_memory_${agentId}`).maybeSingle();
-  if (row?.id) {
-    await sb.from("context_notes").update({ content: updated, updated_at: new Date().toISOString() }).eq("id", row.id);
-  } else {
-    await sb.from("context_notes").insert({ type: "agent_memory", title: `agent_memory_${agentId}`, content: updated, tags: [agentId, "memory"] });
-  }
+  // upsert: (type, title) 조합으로 충돌 처리 — SELECT + UPDATE/INSERT 2쿼리 → 1쿼리
+  await sb.from("context_notes").upsert(
+    { type: "agent_memory", title: `agent_memory_${agentId}`, content: updated, tags: [agentId, "memory"], updated_at: new Date().toISOString() },
+    { onConflict: "type,title" }
+  );
 }
 
 export async function dbGetCouncilSynthesis() {
@@ -181,13 +186,10 @@ export async function dbGetCouncilSynthesis() {
 
 export async function dbSaveCouncilSynthesis(content) {
   const sb = await getSupabase();
-  const { data: row } = await sb.from("context_notes")
-    .select("id").eq("type", "agent_memory").eq("title", "council_synthesis_latest").maybeSingle();
-  if (row?.id) {
-    await sb.from("context_notes").update({ content, updated_at: new Date().toISOString() }).eq("id", row.id);
-  } else {
-    await sb.from("context_notes").insert({ type: "agent_memory", title: "council_synthesis_latest", content, tags: ["synthesis", "memory"] });
-  }
+  await sb.from("context_notes").upsert(
+    { type: "agent_memory", title: "council_synthesis_latest", content, tags: ["synthesis", "memory"], updated_at: new Date().toISOString() },
+    { onConflict: "type,title" }
+  );
 }
 
 // ─── Agent Drift ─────────────────────────────────────────────────────────────
@@ -202,20 +204,18 @@ export async function dbGetAgentDrift(agentId) {
   return data?.content || null;
 }
 
-export async function dbSaveAgentDrift(agentId, dateLabel, driftText) {
+export async function dbSaveAgentDrift(agentId, dateLabel, driftText, existingContent = null) {
   const sb = await getSupabase();
-  const existing = await dbGetAgentDrift(agentId);
+  // existingContent가 전달되면 SELECT 스킵 (캐시에서 사용)
+  const existing = existingContent !== null ? existingContent : await dbGetAgentDrift(agentId);
   const entries = existing ? existing.split("\n\n") : [];
   const snippet = driftText.slice(0, 200) + (driftText.length > 200 ? "…" : "");
   const newEntry = `[${dateLabel}] ${snippet}`;
   const updated = [...entries, newEntry].slice(-5).join("\n\n");
-  const { data: row } = await sb.from("context_notes")
-    .select("id").eq("type", "agent_drift").eq("title", `agent_drift_${agentId}`).maybeSingle();
-  if (row?.id) {
-    await sb.from("context_notes").update({ content: updated, updated_at: new Date().toISOString() }).eq("id", row.id);
-  } else {
-    await sb.from("context_notes").insert({ type: "agent_drift", title: `agent_drift_${agentId}`, content: updated, tags: [agentId, "drift"] });
-  }
+  await sb.from("context_notes").upsert(
+    { type: "agent_drift", title: `agent_drift_${agentId}`, content: updated, tags: [agentId, "drift"], updated_at: new Date().toISOString() },
+    { onConflict: "type,title" }
+  );
 }
 
 // Auth helpers

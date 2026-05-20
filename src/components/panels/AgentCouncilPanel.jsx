@@ -165,8 +165,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       const drifts = JSON.parse(jsonMatch[0]);
       for (const [agentId, driftText] of Object.entries(drifts)) {
         if (driftText && typeof driftText === "string" && driftText.length > 5) {
-          agentDriftCacheRef.current[agentId] = undefined; // 캐시 무효화
-          dbSaveAgentDrift(agentId, dateLabel, driftText).catch(() => {});
+          const cachedDrift = agentDriftCacheRef.current[agentId] ?? null;
+          agentDriftCacheRef.current[agentId] = undefined;
+          dbSaveAgentDrift(agentId, dateLabel, driftText, cachedDrift).catch(() => {});
         }
       }
     } catch (e) {
@@ -180,8 +181,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     const dateLabel = councilId ? `${today} ${councilId} ${roundLabel}` : `${today} ${roundLabel}`;
     steps.forEach(step => {
       if ((step.status === "done" || step.status === "paused") && step.result) {
-        agentMemoryCacheRef.current[step.id] = undefined; // 캐시 무효화
-        dbAppendAgentMemory(step.id, dateLabel, step.result).catch(() => {});
+        const cachedMemory = agentMemoryCacheRef.current[step.id] ?? null;
+        agentMemoryCacheRef.current[step.id] = undefined;
+        dbAppendAgentMemory(step.id, dateLabel, step.result, cachedMemory).catch(() => {});
       }
     });
     // synthesis: Dr. Veritas 또는 마지막 완료 에이전트 발언 기반
