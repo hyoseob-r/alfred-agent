@@ -223,6 +223,15 @@ export default function App() {
               .then(r => r.json())
               .then(data => { if (data.briefing) setContextBriefing(data.briefing); })
               .catch(() => {});
+            // Figma 토큰 서버에서 자동 복원
+            if (!localStorage.getItem("figma_pat")) {
+              fetch("/api/search-context?q=figma_pat_owner")
+                .then(r => r.json())
+                .then(data => {
+                  const note = data.results?.find(r => r.title === "figma_pat_owner" && r.content);
+                  if (note?.content) { localStorage.setItem("figma_pat", note.content); setFigmaTokenState(note.content); }
+                }).catch(() => {});
+            }
             const githubLogin = u.user_metadata?.user_name || u.user_metadata?.preferred_username || "";
             if (githubLogin) {
               fetchProxyUrlFromServer(githubLogin).then(async (serverUrl) => {
@@ -970,13 +979,20 @@ export default function App() {
                   localStorage.setItem("figma_pat", t);
                   setFigmaTokenState(t);
                   setShowFigmaToken(false);
+                  // 서버에 저장 — 다음 로그인 시 자동 복원
+                  fetch("/api/save-context", { method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "user_pref", title: "figma_pat_owner", content: t, tags: ["figma"] }) }).catch(() => {});
                 }}
                 disabled={!figmaTokenInput.trim()}
                 style={{ flex: 1, padding: "10px", background: figmaTokenInput.trim() ? "#7740c8" : "#cccccc", border: "none", borderRadius: "10px", color: "#ffffff", fontSize: "13px", fontWeight: 700, cursor: figmaTokenInput.trim() ? "pointer" : "not-allowed" }}
               >저장</button>
               {figmaToken && (
                 <button
-                  onClick={() => { localStorage.setItem("figma_pat", ""); setFigmaTokenState(""); setShowFigmaToken(false); }}
+                  onClick={() => {
+                    localStorage.setItem("figma_pat", ""); setFigmaTokenState(""); setShowFigmaToken(false);
+                    fetch("/api/save-context", { method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ type: "user_pref", title: "figma_pat_owner", content: "", tags: ["figma"] }) }).catch(() => {});
+                  }}
                   style={{ padding: "10px 16px", background: "transparent", border: "1px solid #dddddd", borderRadius: "10px", color: "#888888", fontSize: "13px", cursor: "pointer" }}
                 >삭제</button>
               )}
