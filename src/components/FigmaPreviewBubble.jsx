@@ -419,25 +419,40 @@ async function saveToStorybook(code, figmaUrl) {
 }
 
 // ── 결과 뷰어 ─────────────────────────────────────────────────────────────────
-function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, iterations, onRerun, onChangeFormat }) {
+function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations, onRerun, onChangeFormat }) {
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [currentCode, setCurrentCode] = useState(code);
+  const [verifyIters, setVerifyIters] = useState([]);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
-  const converged = iterations[iterations.length - 1]?.done;
   const fmt = FORMATS.find(f => f.id === formatId);
 
+  const runVerify = async () => {
+    setVerifying(true);
+    let c = currentCode;
+    for (let i = 1; i <= MAX_ITER; i++) {
+      const result = await compareAndFix(spec, c, formatId, i);
+      setVerifyIters(prev => [...prev, { iteration: i, done: result.done }]);
+      if (result.done) break;
+      c = result.code;
+      setCurrentCode(c);
+    }
+    setVerifying(false);
+  };
+
   const copy = () => {
-    navigator.clipboard.writeText(code);
+    navigator.clipboard.writeText(currentCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
 
   const sendToStorybook = async () => {
     setSending(true);
-    await saveToStorybook(code, figmaUrl);
+    await saveToStorybook(currentCode, figmaUrl);
     setSending(false);
     setSent(true);
     setTimeout(() => setSent(false), 3000);
@@ -449,18 +464,25 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, iterations, onRe
       {/* 포맷 선택 */}
       <FormatSelector value={formatId} onChange={onChangeFormat} disabled={false} />
 
-      {/* 검증 배지 */}
-      <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid #eeeeee", background: converged ? "#f0fff4" : "#fffbf0" }}>
-        <span style={{ fontSize: "11px", fontWeight: 600, color: converged ? "#338833" : "#b07000" }}>
-          {converged ? `✅ ${iterations.length}회 검증 후 수렴` : `⚠ ${MAX_ITER}회 검증 후 종료`}
+      {/* 검증 상태 */}
+      <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid #eeeeee", background: "#fafafa" }}>
+        <span style={{ fontSize: "11px", color: "#888" }}>
+          {verifyIters.length === 0 ? "생성 완료" : verifyIters[verifyIters.length-1]?.done ? `✅ ${verifyIters.length}회 검증 수렴` : `⚠ ${verifyIters.length}회 검증 완료`}
         </span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
-          {iterations.map((it, i) => (
+        <div style={{ display: "flex", gap: "4px" }}>
+          {verifyIters.map((it, i) => (
             <span key={i} style={{ fontSize: "10px", padding: "2px 7px", borderRadius: "8px", background: it.done ? "#d0f0d8" : "#ffe8d0", color: it.done ? "#337733" : "#a06020" }}>
               {it.done ? "✓" : `${it.iteration}차`}
             </span>
           ))}
         </div>
+        <button
+          onClick={runVerify}
+          disabled={verifying}
+          style={{ marginLeft: "auto", padding: "4px 12px", background: verifying ? "#eee" : "#f0ebff", border: "1px solid #c8aaee", borderRadius: "10px", fontSize: "11px", color: verifying ? "#aaa" : "#7740c8", cursor: verifying ? "default" : "pointer", fontWeight: 600 }}
+        >
+          {verifying ? "검증 중..." : "🔍 스펙 검증"}
+        </button>
       </div>
 
       {/* 프리뷰 영역 */}
@@ -479,14 +501,14 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, iterations, onRe
           </div>
           {(isHtml || ["react-tailwind","react-inline","react-yds"].includes(formatId)) ? (
             <iframe
-              srcDoc={isHtml ? code : buildReactPreviewHtml(code, formatId)}
+              srcDoc={isHtml ? currentCode : buildReactPreviewHtml(currentCode, formatId)}
               style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }}
               sandbox="allow-scripts"
               title="preview"
             />
           ) : (
             <pre style={{ flex: 1, margin: 0, padding: "14px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
-              {code}
+              {currentCode}
             </pre>
           )}
         </div>
@@ -572,24 +594,12 @@ export default function FigmaPreviewBubble({ url }) {
       const spec = nodeToSpec(nodeData);
       specRef.current = spec;
 
-      // 2. 코드 생성
+      // 2. 코드 생성 — 완료 즉시 결과 표시
       setPhase("generate");
-      let currentCode = await generateCode(spec, fmtId, (partial) => {
+      const currentCode = await generateCode(spec, fmtId, (partial) => {
         setCode(partial.replace(/^```[\w]*\n?/i, ""));
       });
       setCode(currentCode);
-
-      // 3. 검증 루프
-      for (let i = 1; i <= MAX_ITER; i++) {
-        setIteration(i);
-        setPhase("compare");
-        const result = await compareAndFix(spec, currentCode, fmtId, i);
-        setIterations(prev => [...prev, { iteration: i, done: result.done }]);
-        if (result.done) break;
-        currentCode = result.code;
-        setCode(currentCode);
-      }
-
       setPhase("done");
       setStatus("done");
     } catch (e) {
@@ -692,6 +702,7 @@ export default function FigmaPreviewBubble({ url }) {
           figmaImgUrl={figmaImgUrl}
           figmaUrl={url}
           code={code}
+          spec={specRef.current}
           formatId={formatId}
           iterations={iterations}
           onRerun={() => { setStatus("idle"); runRef.current = false; run(); }}
