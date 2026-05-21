@@ -22,7 +22,7 @@ const FORMAT_PROMPT = {
 - 모든 스타일은 <style> 태그 사용
 - 한국어 현실적 콘텐츠
 - body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
-- 이미지: https://picsum.photos/{w}/{h}?random={n}
+- 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용 (예: <img src="https://picsum.photos/80/80?random=1">). src 없는 img 태그 금지.
 - HTML 코드만 반환, 마크다운·설명 없음`,
 
   "react-tailwind": `구현 규칙:
@@ -31,7 +31,7 @@ const FORMAT_PROMPT = {
 - 스펙의 색상은 Tailwind 가장 근접한 클래스 또는 arbitrary value 사용 (예: bg-[#FF5733])
 - 폰트: font-['Pretendard']
 - 한국어 현실적 콘텐츠
-- 이미지: https://picsum.photos/{w}/{h}?random={n}
+- 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
 - JSX 코드만 반환, 마크다운·설명 없음`,
 
   "react-inline": `구현 규칙:
@@ -40,7 +40,7 @@ const FORMAT_PROMPT = {
 - 스펙의 색상·크기·폰트·간격을 픽셀 단위로 정확하게 구현
 - 폰트: fontFamily: "'Pretendard', sans-serif"
 - 한국어 현실적 콘텐츠
-- 이미지: https://picsum.photos/{w}/{h}?random={n}
+- 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
 - JSX 코드만 반환, 마크다운·설명 없음`,
 
   "react-yds": `구현 규칙:
@@ -316,8 +316,34 @@ const _comp = typeof ${compName} !== 'undefined' ? ${compName}
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(_comp));
 </script>
+<script>
+// 깨진 이미지 자동 복구
+document.addEventListener('error', function(e) {
+  if (e.target.tagName !== 'IMG') return;
+  const w = Math.round(e.target.offsetWidth) || 80;
+  const h = Math.round(e.target.offsetHeight) || 80;
+  e.target.src = 'https://picsum.photos/' + w + '/' + h + '?random=' + Math.floor(Math.random() * 200);
+  e.target.onerror = null;
+}, true);
+</script>
 </body>
 </html>`;
+}
+
+// ── HTML에 깨진 이미지 자동 복구 스크립트 inject ─────────────────────────────
+const IMG_FALLBACK_SCRIPT = `<script>
+document.addEventListener('error',function(e){
+  if(e.target.tagName!=='IMG')return;
+  const w=Math.round(e.target.offsetWidth)||80,h=Math.round(e.target.offsetHeight)||80;
+  e.target.src='https://picsum.photos/'+w+'/'+h+'?random='+Math.floor(Math.random()*200);
+  e.target.onerror=null;
+},true);
+<\/script>`;
+
+function injectImgFallback(html) {
+  if (!html) return html;
+  if (html.includes('</body>')) return html.replace('</body>', IMG_FALLBACK_SCRIPT + '</body>');
+  return html + IMG_FALLBACK_SCRIPT;
 }
 
 // ── 코드 생성 (스트리밍) ──────────────────────────────────────────────────────
@@ -409,28 +435,42 @@ ${currentCode.slice(0, 8000)}
 // ── 프리뷰 패널 (인라인 + 전체화면 공용) ─────────────────────────────────────
 function PreviewPanels({ figmaImgUrl, currentCode, formatId, previewHtml, isHtml, isNative, fmt, expanded, onExpand, onCollapse }) {
   const previewContent = (fullscreen = false) => {
-    const minH = fullscreen ? "100%" : "360px";
+    const iframeStyle = fullscreen
+      ? { width: "100%", height: "100%", border: "none", display: "block", overflow: "auto" }
+      : { width: "100%", minHeight: "360px", border: "none", display: "block" };
+
     const getIframe = (srcDoc) => (
-      <iframe srcDoc={srcDoc} style={{ flex: 1, width: "100%", minHeight: minH, height: fullscreen ? "100%" : undefined, border: "none", display: "block" }} sandbox="allow-scripts" title="preview" />
+      <iframe
+        srcDoc={srcDoc}
+        style={iframeStyle}
+        sandbox="allow-scripts"
+        title="preview"
+        scrolling="yes"
+      />
     );
+
+    const panelStyle = fullscreen
+      ? { flex: 1, display: "flex", flexDirection: "column", overflow: "auto", minWidth: 0 }
+      : { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 };
+
     return (
-      <div style={{ display: "flex", flex: 1, overflow: fullscreen ? "hidden" : undefined, borderBottom: fullscreen ? "none" : "1px solid #eeeeee" }}>
+      <div style={{ display: "flex", flex: 1, overflow: fullscreen ? "auto" : undefined, borderBottom: fullscreen ? "none" : "1px solid #eeeeee", minHeight: 0 }}>
         {figmaImgUrl && (
-          <div style={{ flex: 1, borderRight: "1px solid #eeeeee", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ flex: 1, borderRight: "1px solid #eeeeee", display: "flex", flexDirection: "column", minWidth: 0, overflow: "auto" }}>
             <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#9970d8", background: "#faf8ff", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em", flexShrink: 0 }}>FIGMA 원본</div>
             <div style={{ flex: 1, overflow: "auto" }}>
-              <img src={figmaImgUrl} alt="Figma" style={{ width: "100%", display: "block" }} crossOrigin="anonymous" />
+              <img src={figmaImgUrl} alt="Figma" style={{ maxWidth: "100%", display: "block" }} crossOrigin="anonymous" />
             </div>
           </div>
         )}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={panelStyle}>
           <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", background: "#f8fff8", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em", flexShrink: 0 }}>
             {fmt?.label?.toUpperCase()} 결과
           </div>
           {(isHtml || ["react-tailwind","react-inline","react-yds"].includes(formatId))
-            ? getIframe(isHtml ? currentCode : buildReactPreviewHtml(currentCode, formatId))
+            ? getIframe(isHtml ? injectImgFallback(currentCode) : buildReactPreviewHtml(currentCode, formatId))
             : isNative && previewHtml
-              ? getIframe(previewHtml)
+              ? getIframe(injectImgFallback(previewHtml))
               : isNative
                 ? <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#aaa", fontSize: "12px", background: "#fafafa" }}>HTML 미리보기 생성 중...</div>
                 : <pre style={{ flex: 1, margin: 0, padding: "14px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>{currentCode}</pre>
