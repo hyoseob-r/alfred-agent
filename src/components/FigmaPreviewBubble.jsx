@@ -419,7 +419,7 @@ async function saveToStorybook(code, figmaUrl) {
 }
 
 // ── 결과 뷰어 ─────────────────────────────────────────────────────────────────
-function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations, onRerun, onChangeFormat }) {
+function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations, onRerun, onChangeFormat, previewHtml }) {
   const [copied, setCopied] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [sending, setSending] = useState(false);
@@ -429,6 +429,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const [verifyIters, setVerifyIters] = useState([]);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
+  const isNative = ["swiftui", "compose"].includes(formatId);
   const fmt = FORMATS.find(f => f.id === formatId);
 
   const runVerify = async () => {
@@ -506,6 +507,22 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
               sandbox="allow-scripts"
               title="preview"
             />
+          ) : isNative && previewHtml ? (
+            <iframe
+              srcDoc={previewHtml}
+              style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }}
+              sandbox="allow-scripts"
+              title="preview"
+            />
+          ) : isNative ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "200px", color: "#aaaaaa", fontSize: "12px", background: "#fafafa" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ display: "flex", justifyContent: "center", gap: "4px", marginBottom: "10px" }}>
+                  {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />)}
+                </div>
+                HTML 미리보기 생성 중...
+              </div>
+            </div>
           ) : (
             <pre style={{ flex: 1, margin: 0, padding: "14px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
               {currentCode}
@@ -528,9 +545,9 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
             {sent ? "✓ 스토리북 열림" : sending ? "전송 중..." : "📖 스토리북에서 보기"}
           </button>
         )}
-        {isHtml && (
+        {(isHtml || isNative) && (
           <button onClick={() => setShowCode(v => !v)} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
-            {showCode ? "코드 숨기기" : "코드 보기"}
+            {showCode ? "코드 숨기기" : `${fmt?.label} 코드 보기`}
           </button>
         )}
         <button onClick={onRerun} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
@@ -538,10 +555,10 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
         </button>
       </div>
 
-      {isHtml && showCode && (
+      {(isHtml || isNative) && showCode && (
         <div style={{ padding: "0 14px 14px" }}>
-          <pre style={{ background: "#111111", borderRadius: "10px", padding: "14px", fontSize: "11px", color: "#88ff88", overflow: "auto", maxHeight: "320px", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5 }}>
-            {code}
+          <pre style={{ background: "#111111", borderRadius: "10px", padding: "14px", fontSize: "11px", color: isNative ? "#a8d8ea" : "#88ff88", overflow: "auto", maxHeight: "320px", margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.5 }}>
+            {currentCode}
           </pre>
         </div>
       )}
@@ -560,6 +577,7 @@ export default function FigmaPreviewBubble({ url }) {
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [formatId, setFormatId] = useState("html-css");
+  const [previewHtml, setPreviewHtml] = useState("");
 
   const parsed = parseFigmaUrl(url);
   const runRef = useRef(false);
@@ -575,6 +593,7 @@ export default function FigmaPreviewBubble({ url }) {
     setIterations([]);
     setFigmaImgUrl(null);
     setCode("");
+    setPreviewHtml("");
     setIteration(0);
     setElapsed(0);
     const startTime = Date.now();
@@ -596,9 +615,23 @@ export default function FigmaPreviewBubble({ url }) {
 
       // 2. 코드 생성 — 완료 즉시 결과 표시
       setPhase("generate");
-      const currentCode = await generateCode(spec, fmtId, (partial) => {
-        setCode(partial.replace(/^```[\w]*\n?/i, ""));
-      });
+      const isNative = ["swiftui", "compose"].includes(fmtId);
+      let currentCode;
+      if (isNative) {
+        // 네이티브 코드 + HTML 미리보기 병렬 생성
+        [currentCode] = await Promise.all([
+          generateCode(spec, fmtId, (partial) => {
+            setCode(partial.replace(/^```[\w]*\n?/i, ""));
+          }),
+          generateCode(spec, "html-css", () => {})
+            .then(html => setPreviewHtml(html))
+            .catch(() => {}),
+        ]);
+      } else {
+        currentCode = await generateCode(spec, fmtId, (partial) => {
+          setCode(partial.replace(/^```[\w]*\n?/i, ""));
+        });
+      }
       setCode(currentCode);
       setPhase("done");
       setStatus("done");
@@ -705,6 +738,7 @@ export default function FigmaPreviewBubble({ url }) {
           spec={specRef.current}
           formatId={formatId}
           iterations={iterations}
+          previewHtml={previewHtml}
           onRerun={() => { setStatus("idle"); runRef.current = false; run(); }}
           onChangeFormat={handleChangeFormat}
         />
