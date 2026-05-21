@@ -741,10 +741,7 @@ export default function FigmaPreviewBubble({ url }) {
     run(newFmt);
   };
 
-  useEffect(() => {
-    const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
-    if (tok && parsed?.nodeId) run();
-  }, []);
+  useEffect(() => {}, []);
 
   return (
     <div style={{ margin: "0 0 20px 0", background: "#ffffff", border: "1px solid #e0d8f4", borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 12px rgba(120,80,200,0.07)" }}>
