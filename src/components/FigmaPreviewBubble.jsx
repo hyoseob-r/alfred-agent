@@ -320,10 +320,11 @@ ${FORMAT_PROMPT[formatId]}`,
   return code;
 }
 
-// ── 검증/수정 ─────────────────────────────────────────────────────────────────
-async function compareAndFix(spec, currentCode, formatId, iter) {
+// ── 검증/수정 (스트리밍) ──────────────────────────────────────────────────────
+async function compareAndFix(spec, currentCode, formatId, iter, onChunk) {
   const formatLabel = FORMATS.find(f => f.id === formatId)?.label || formatId;
-  const result = await chatAPI({
+  let full = "";
+  await streamChatAPI({
     model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [{
@@ -338,19 +339,41 @@ ${spec}
 ${currentCode.slice(0, 8000)}
 ================
 
-스펙과의 차이(색상·폰트·크기·간격·정렬·보더·그림자)를 분석하고:
-- 차이가 없거나 미미하면 첫 줄에 DONE 만 작성
-- 차이가 있으면 수정된 전체 코드만 반환 (설명·마크다운 없음)`,
+1단계: 스펙과의 차이(색상·폰트·크기·간격·정렬·보더·그림자)를 항목별로 간단히 설명 (예: "- 배경색: #fff → #f5f5f5 수정 필요")
+2단계:
+- 차이가 없거나 미미하면 마지막 줄에 DONE 만 작성
+- 차이가 있으면 수정된 전체 코드만 반환 (마크다운 없음)`,
     }],
+  }, (delta) => {
+    full += delta;
+    onChunk?.(delta, full);
   });
 
-  const text = (result.content?.[0]?.text || "").trim();
-  if (text.startsWith("DONE")) return { done: true, code: currentCode };
+  const text = full.trim();
+  // DONE이 포함되어 있으면 완료 (마지막 줄 또는 첫 줄)
+  const lines = text.split("\n").map(l => l.trim());
+  const hasDone = lines.some(l => l === "DONE" || l.startsWith("DONE"));
 
-  const code = text.replace(/^```[\w]*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+  if (hasDone) {
+    // DONE 앞의 분석 텍스트 추출
+    const doneIdx = lines.findIndex(l => l === "DONE" || l.startsWith("DONE"));
+    const analysis = lines.slice(0, doneIdx).join("\n").trim();
+    return { done: true, code: currentCode, analysis };
+  }
+
+  // 코드 블록 추출 (```로 감싸인 경우 처리)
+  const codeBlockMatch = text.match(/```[\w]*\n?([\s\S]*?)\n?```/);
+  const rawCode = codeBlockMatch ? codeBlockMatch[1] : text;
+
+  // 분석 텍스트는 코드 이전 부분
+  const analysis = codeBlockMatch
+    ? text.slice(0, text.indexOf("```")).trim()
+    : "";
+
+  const code = rawCode.trim();
   const validate = FORMAT_VALIDATE[formatId];
-  if (validate && !validate(code)) return { done: true, code: currentCode };
-  return { done: false, code };
+  if (validate && !validate(code)) return { done: true, code: currentCode, analysis: text };
+  return { done: false, code, analysis };
 }
 
 // ── 포맷 선택기 ───────────────────────────────────────────────────────────────
@@ -427,6 +450,8 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const [verifying, setVerifying] = useState(false);
   const [currentCode, setCurrentCode] = useState(code);
   const [verifyIters, setVerifyIters] = useState([]);
+  const [verifyLog, setVerifyLog] = useState("");
+  const [showVerifyLog, setShowVerifyLog] = useState(false);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
   const isNative = ["swiftui", "compose"].includes(formatId);
@@ -434,9 +459,37 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
 
   const runVerify = async () => {
     setVerifying(true);
+    setVerifyLog("");
+    setShowVerifyLog(true);
     let c = currentCode;
     for (let i = 1; i <= MAX_ITER; i++) {
-      const result = await compareAndFix(spec, c, formatId, i);
+      setVerifyLog(prev => prev + `▶ 검증 ${i}/${MAX_ITER}회차 분석 중...\n`);
+      let streamBuf = "";
+      const result = await compareAndFix(spec, c, formatId, i, (delta, full) => {
+        streamBuf = full;
+        setVerifyLog(prev => {
+          // 마지막 "분석 중..." 줄을 실시간 스트림으로 교체
+          const lines = prev.split("\n");
+          const headerIdx = lines.findLastIndex(l => l.startsWith(`▶ 검증 ${i}`));
+          if (headerIdx >= 0) {
+            return lines.slice(0, headerIdx + 1).join("\n") + "\n" + full;
+          }
+          return prev + full;
+        });
+      });
+      // 완료 후 분석 요약 정리
+      const summary = result.analysis
+        ? result.analysis
+        : result.done ? "✅ 스펙과 일치 — 수정 불필요" : "🔧 차이 발견, 코드 수정 완료";
+      setVerifyLog(prev => {
+        const lines = prev.split("\n");
+        const headerIdx = lines.findLastIndex(l => l.startsWith(`▶ 검증 ${i}`));
+        const header = result.done ? `✅ 검증 ${i}/${MAX_ITER}회차` : `🔧 검증 ${i}/${MAX_ITER}회차`;
+        if (headerIdx >= 0) {
+          return lines.slice(0, headerIdx).join("\n") + (headerIdx > 0 ? "\n" : "") + header + "\n" + summary + "\n";
+        }
+        return prev;
+      });
       setVerifyIters(prev => [...prev, { iteration: i, done: result.done }]);
       if (result.done) break;
       c = result.code;
@@ -482,9 +535,29 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
           disabled={verifying}
           style={{ marginLeft: "auto", padding: "4px 12px", background: verifying ? "#eee" : "#f0ebff", border: "1px solid #c8aaee", borderRadius: "10px", fontSize: "11px", color: verifying ? "#aaa" : "#7740c8", cursor: verifying ? "default" : "pointer", fontWeight: 600 }}
         >
-          {verifying ? "검증 중..." : "🔍 스펙 검증"}
+          {verifying ? "🔍 분석 중..." : "🔍 스펙 검증"}
         </button>
+        {verifyLog && (
+          <button
+            onClick={() => setShowVerifyLog(v => !v)}
+            style={{ padding: "4px 10px", background: "transparent", border: "1px solid #dddddd", borderRadius: "10px", fontSize: "10px", color: "#888", cursor: "pointer", marginLeft: "4px" }}
+          >
+            {showVerifyLog ? "로그 숨기기" : "로그 보기"}
+          </button>
+        )}
       </div>
+
+      {/* 검증 로그 */}
+      {verifyLog && showVerifyLog && (
+        <div style={{ borderBottom: "1px solid #eeeeee", background: "#0d1117" }}>
+          <div style={{ padding: "6px 14px", fontSize: "10px", fontWeight: 700, color: "#7740c8", letterSpacing: "0.08em", borderBottom: "1px solid #1e2530" }}>
+            검증 로그 {verifying && <span style={{ color: "#f0a000", marginLeft: "6px" }}>⏳ 분석 중</span>}
+          </div>
+          <pre style={{ margin: 0, padding: "12px 14px", fontSize: "11px", color: "#cdd9e5", background: "transparent", overflow: "auto", maxHeight: "220px", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.7 }}>
+            {verifyLog}
+          </pre>
+        </div>
+      )}
 
       {/* 프리뷰 영역 */}
       <div style={{ display: "flex", borderBottom: "1px solid #eeeeee" }}>
