@@ -177,7 +177,7 @@ function colorStr(c) {
 }
 
 // ── Figma 노드 → 디자인 스펙 텍스트 ─────────────────────────────────────────
-function nodeToSpec(node, depth = 0) {
+function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = false) {
   if (!node || depth > 5) return "";
   const indent = "  ".repeat(depth);
   const lines = [];
@@ -185,7 +185,9 @@ function nodeToSpec(node, depth = 0) {
   const size = bb ? ` (${Math.round(bb.width)}×${Math.round(bb.height)}px)` : "";
   lines.push(`${indent}[${node.type}] "${node.name}"${size}`);
 
-  if (node.layoutMode && node.layoutMode !== "NONE") {
+  const hasAutoLayout = !!(node.layoutMode && node.layoutMode !== "NONE");
+
+  if (hasAutoLayout) {
     const dir = node.layoutMode === "HORIZONTAL" ? "row" : "column";
     const pad = node.paddingTop !== undefined
       ? ` padding:${node.paddingTop}/${node.paddingRight}/${node.paddingBottom}/${node.paddingLeft}px` : "";
@@ -193,6 +195,20 @@ function nodeToSpec(node, depth = 0) {
     const main = node.primaryAxisAlignItems ? ` mainAxis:${node.primaryAxisAlignItems}` : "";
     const cross = node.counterAxisAlignItems ? ` crossAxis:${node.counterAxisAlignItems}` : "";
     lines.push(`${indent}  flex:${dir}${pad}${gap}${main}${cross}`);
+  }
+
+  // 절대 위치 정보 — 부모 대비 오버레이 감지
+  if (bb && parentBb) {
+    const isAbsoluteChild = node.layoutPositioning === "ABSOLUTE" || !parentHasAutoLayout;
+    if (isAbsoluteChild) {
+      const top = Math.round(bb.y - parentBb.y);
+      const left = Math.round(bb.x - parentBb.x);
+      lines.push(`${indent}  position:absolute top:${top}px left:${left}px`);
+    }
+  }
+  // 자식이 절대 위치를 가질 수 있는 컨테이너
+  if (!hasAutoLayout && (node.children || []).length > 0) {
+    lines.push(`${indent}  layout:absolute-container (use position:relative on this element)`);
   }
 
   const solidFills = (node.fills || []).filter(f => f.visible !== false && f.type === "SOLID");
@@ -219,7 +235,7 @@ function nodeToSpec(node, depth = 0) {
   }
 
   (node.children || []).forEach(child => {
-    const childSpec = nodeToSpec(child, depth + 1);
+    const childSpec = nodeToSpec(child, depth + 1, bb, hasAutoLayout);
     if (childSpec) lines.push(childSpec);
   });
 
