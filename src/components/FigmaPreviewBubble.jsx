@@ -197,6 +197,20 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
     lines.push(`${indent}  flex:${dir}${pad}${gap}${main}${cross}`);
   }
 
+  // 스크롤 방향
+  if (node.overflowDirection && node.overflowDirection !== "NONE") {
+    const scrollMap = {
+      "HORIZONTAL": "overflow-x:scroll (가로 스크롤)",
+      "VERTICAL": "overflow-y:scroll (세로 스크롤)",
+      "HORIZONTAL_AND_VERTICAL": "overflow:scroll (양방향 스크롤)",
+    };
+    lines.push(`${indent}  scroll:${scrollMap[node.overflowDirection] || node.overflowDirection}`);
+  } else if (node.clipsContent && hasAutoLayout) {
+    // clipsContent + auto-layout → 스크롤 컨테이너일 가능성
+    const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
+    lines.push(`${indent}  scroll:${dir}`);
+  }
+
   // 절대 위치 정보 — 부모 대비 오버레이 감지
   if (bb && parentBb) {
     const isAbsoluteChild = node.layoutPositioning === "ABSOLUTE" || !parentHasAutoLayout;
