@@ -406,6 +406,78 @@ ${currentCode.slice(0, 8000)}
   return { done: false, code, analysis };
 }
 
+// ── 프리뷰 패널 (인라인 + 전체화면 공용) ─────────────────────────────────────
+function PreviewPanels({ figmaImgUrl, currentCode, formatId, previewHtml, isHtml, isNative, fmt, expanded, onExpand, onCollapse }) {
+  const previewContent = (fullscreen = false) => {
+    const minH = fullscreen ? "100%" : "360px";
+    const getIframe = (srcDoc) => (
+      <iframe srcDoc={srcDoc} style={{ flex: 1, width: "100%", minHeight: minH, height: fullscreen ? "100%" : undefined, border: "none", display: "block" }} sandbox="allow-scripts" title="preview" />
+    );
+    return (
+      <div style={{ display: "flex", flex: 1, overflow: fullscreen ? "hidden" : undefined, borderBottom: fullscreen ? "none" : "1px solid #eeeeee" }}>
+        {figmaImgUrl && (
+          <div style={{ flex: 1, borderRight: "1px solid #eeeeee", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#9970d8", background: "#faf8ff", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em", flexShrink: 0 }}>FIGMA 원본</div>
+            <div style={{ flex: 1, overflow: "auto" }}>
+              <img src={figmaImgUrl} alt="Figma" style={{ width: "100%", display: "block" }} crossOrigin="anonymous" />
+            </div>
+          </div>
+        )}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", background: "#f8fff8", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em", flexShrink: 0 }}>
+            {fmt?.label?.toUpperCase()} 결과
+          </div>
+          {(isHtml || ["react-tailwind","react-inline","react-yds"].includes(formatId))
+            ? getIframe(isHtml ? currentCode : buildReactPreviewHtml(currentCode, formatId))
+            : isNative && previewHtml
+              ? getIframe(previewHtml)
+              : isNative
+                ? <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#aaa", fontSize: "12px", background: "#fafafa" }}>HTML 미리보기 생성 중...</div>
+                : <pre style={{ flex: 1, margin: 0, padding: "14px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>{currentCode}</pre>
+          }
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {/* 인라인 프리뷰 + 크게 보기 버튼 */}
+      <div style={{ position: "relative" }}>
+        {previewContent(false)}
+        <button
+          onClick={onExpand}
+          title="전체화면으로 보기"
+          style={{ position: "absolute", top: "8px", right: "8px", padding: "4px 10px", background: "rgba(255,255,255,0.9)", border: "1px solid #dddddd", borderRadius: "8px", fontSize: "10px", color: "#555", cursor: "pointer", fontWeight: 600, backdropFilter: "blur(4px)", zIndex: 10 }}
+        >
+          ⤢ 크게 보기
+        </button>
+      </div>
+
+      {/* 전체화면 오버레이 */}
+      {expanded && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#ffffff", display: "flex", flexDirection: "column" }}>
+          {/* 오버레이 헤더 */}
+          <div style={{ padding: "10px 16px", background: "#faf8ff", borderBottom: "1px solid #e0d8f4", display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#7740c8" }}>🎨 Figma 미리보기 — {fmt?.label}</span>
+            <span style={{ fontSize: "11px", color: "#aaa", flex: 1 }}>전체화면 모드</span>
+            <button
+              onClick={onCollapse}
+              style={{ padding: "5px 14px", background: "#f0ebff", border: "1px solid #c8aaee", borderRadius: "8px", fontSize: "12px", color: "#7740c8", cursor: "pointer", fontWeight: 700 }}
+            >
+              ✕ 닫기
+            </button>
+          </div>
+          {/* 전체화면 프리뷰 */}
+          <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+            {previewContent(true)}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── 포맷 선택기 ───────────────────────────────────────────────────────────────
 function FormatSelector({ value, onChange, disabled }) {
   return (
@@ -482,6 +554,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const [verifyIters, setVerifyIters] = useState([]);
   const [verifyLog, setVerifyLog] = useState("");
   const [showVerifyLog, setShowVerifyLog] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
   const isNative = ["swiftui", "compose"].includes(formatId);
@@ -551,7 +624,11 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
       {/* 검증 상태 */}
       <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid #eeeeee", background: "#fafafa" }}>
         <span style={{ fontSize: "11px", color: "#888" }}>
-          {verifyIters.length === 0 ? "생성 완료" : verifyIters[verifyIters.length-1]?.done ? `✅ ${verifyIters.length}회 검증 수렴` : `⚠ ${verifyIters.length}회 검증 완료`}
+          {verifyIters.length === 0
+            ? "생성 완료 — 🔍 스펙 검증으로 코드 자동 수정 가능"
+            : verifyIters.every(it => it.done)
+              ? `✅ ${verifyIters.length}회 검증 완료 — 수정 없음 (스펙 일치)`
+              : `🔧 ${verifyIters.length}회 검증 완료 — 코드 자동 수정됨`}
         </span>
         <div style={{ display: "flex", gap: "4px" }}>
           {verifyIters.map((it, i) => (
@@ -590,49 +667,18 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
       )}
 
       {/* 프리뷰 영역 */}
-      <div style={{ display: "flex", borderBottom: "1px solid #eeeeee" }}>
-        {/* Figma 원본 */}
-        {figmaImgUrl && (
-          <div style={{ flex: 1, borderRight: "1px solid #eeeeee", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#9970d8", background: "#faf8ff", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>FIGMA 원본</div>
-            <img src={figmaImgUrl} alt="Figma" style={{ width: "100%", display: "block" }} crossOrigin="anonymous" />
-          </div>
-        )}
-        {/* 결과 */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "6px 12px", fontSize: "10px", fontWeight: 700, color: "#448844", background: "#f8fff8", borderBottom: "1px solid #eeeeee", letterSpacing: "0.1em" }}>
-            {fmt?.label?.toUpperCase()} 결과
-          </div>
-          {(isHtml || ["react-tailwind","react-inline","react-yds"].includes(formatId)) ? (
-            <iframe
-              srcDoc={isHtml ? currentCode : buildReactPreviewHtml(currentCode, formatId)}
-              style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }}
-              sandbox="allow-scripts"
-              title="preview"
-            />
-          ) : isNative && previewHtml ? (
-            <iframe
-              srcDoc={previewHtml}
-              style={{ flex: 1, width: "100%", minHeight: "360px", border: "none", display: "block" }}
-              sandbox="allow-scripts"
-              title="preview"
-            />
-          ) : isNative ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "200px", color: "#aaaaaa", fontSize: "12px", background: "#fafafa" }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ display: "flex", justifyContent: "center", gap: "4px", marginBottom: "10px" }}>
-                  {[0,1,2].map(i => <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#7740c8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />)}
-                </div>
-                HTML 미리보기 생성 중...
-              </div>
-            </div>
-          ) : (
-            <pre style={{ flex: 1, margin: 0, padding: "14px", fontSize: "11px", background: "#1a1a2e", color: "#a8d8ea", overflow: "auto", maxHeight: "400px", whiteSpace: "pre-wrap", wordBreak: "break-all", lineHeight: 1.6 }}>
-              {currentCode}
-            </pre>
-          )}
-        </div>
-      </div>
+      <PreviewPanels
+        figmaImgUrl={figmaImgUrl}
+        currentCode={currentCode}
+        formatId={formatId}
+        previewHtml={previewHtml}
+        isHtml={isHtml}
+        isNative={isNative}
+        fmt={fmt}
+        expanded={expanded}
+        onExpand={() => setExpanded(true)}
+        onCollapse={() => setExpanded(false)}
+      />
 
       {/* 액션 */}
       <div style={{ padding: "10px 14px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
@@ -654,7 +700,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
           </button>
         )}
         <button onClick={onRerun} style={{ padding: "5px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "12px", fontSize: "11px", color: "#777", cursor: "pointer" }}>
-          ↺ 재실행
+          ↺ 처음부터 재생성
         </button>
       </div>
 
