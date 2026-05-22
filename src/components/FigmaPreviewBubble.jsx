@@ -23,6 +23,11 @@ const FORMAT_PROMPT = {
 - 한국어 현실적 콘텐츠
 - body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용 (예: <img src="https://picsum.photos/80/80?random=1">). src 없는 img 태그 금지.
+- 스크롤 규칙 (반드시 적용):
+  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; 자식은 flex-shrink:0
+  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → overflow-y:auto; -webkit-overflow-scrolling:touch
+  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → overflow:auto; -webkit-overflow-scrolling:touch
+  * 스크롤 컨테이너에 반드시 명시적 width 또는 max-width 지정
 - HTML 코드만 반환, 마크다운·설명 없음`,
 
   "react-tailwind": `구현 규칙:
@@ -32,6 +37,10 @@ const FORMAT_PROMPT = {
 - 폰트: font-['Pretendard']
 - 한국어 현실적 콘텐츠
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
+- 스크롤 규칙 (반드시 적용):
+  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → 컨테이너에 "flex overflow-x-auto", 자식에 "flex-shrink-0"
+  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → 컨테이너에 "overflow-y-auto"
+  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → 컨테이너에 "overflow-auto"
 - JSX 코드만 반환, 마크다운·설명 없음`,
 
   "react-inline": `구현 규칙:
@@ -41,6 +50,10 @@ const FORMAT_PROMPT = {
 - 폰트: fontFamily: "'Pretendard', sans-serif"
 - 한국어 현실적 콘텐츠
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
+- 스크롤 규칙 (반드시 적용):
+  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → style={{ display:"flex", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 자식: style={{ flexShrink:0 }}
+  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }}
+  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → style={{ overflow:"auto", WebkitOverflowScrolling:"touch" }}
 - JSX 코드만 반환, 마크다운·설명 없음`,
 
   "react-yds": `구현 규칙:
@@ -197,18 +210,36 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
     lines.push(`${indent}  flex:${dir}${pad}${gap}${main}${cross}`);
   }
 
-  // 스크롤 방향
+  // 스크롤 방향 — overflowDirection 또는 interactions에서 추출
+  const scrollMap = {
+    "HORIZONTAL": "overflow-x:scroll (가로 스크롤)",
+    "VERTICAL": "overflow-y:scroll (세로 스크롤)",
+    "HORIZONTAL_AND_VERTICAL": "overflow:scroll (양방향 스크롤)",
+  };
   if (node.overflowDirection && node.overflowDirection !== "NONE") {
-    const scrollMap = {
-      "HORIZONTAL": "overflow-x:scroll (가로 스크롤)",
-      "VERTICAL": "overflow-y:scroll (세로 스크롤)",
-      "HORIZONTAL_AND_VERTICAL": "overflow:scroll (양방향 스크롤)",
-    };
     lines.push(`${indent}  scroll:${scrollMap[node.overflowDirection] || node.overflowDirection}`);
   } else if (node.clipsContent && hasAutoLayout) {
-    // clipsContent + auto-layout → 스크롤 컨테이너일 가능성
+    // clipsContent + auto-layout → 스크롤 컨테이너
     const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
     lines.push(`${indent}  scroll:${dir}`);
+  }
+  // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
+  if (node.interactions) {
+    node.interactions.forEach(interaction => {
+      if (interaction.trigger?.type === "ON_SCROLL" || interaction.actions?.some(a => a.type === "SCROLL_TO")) return;
+      // scrollOverflow 속성 직접 체크
+    });
+  }
+  // scrollOverflow 속성 (Figma API 일부 버전)
+  if (node.scrollOverflow) {
+    const overflowMap = {
+      "HORIZONTAL_SCROLLING": "overflow-x:scroll (가로 스크롤)",
+      "VERTICAL_SCROLLING": "overflow-y:scroll (세로 스크롤)",
+      "HORIZONTAL_AND_VERTICAL_SCROLLING": "overflow:scroll (양방향 스크롤)",
+    };
+    if (overflowMap[node.scrollOverflow]) {
+      lines.push(`${indent}  scroll:${overflowMap[node.scrollOverflow]}`);
+    }
   }
 
   // 절대 위치 정보 — 부모 대비 오버레이 감지
