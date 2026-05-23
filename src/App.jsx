@@ -657,6 +657,20 @@ export default function App() {
       return;
     }
 
+    // 3D 오브젝트 렌더러 트리거 — "3d:" 또는 "/3d " 로 시작
+    const threeMatch = userText.match(/^(?:3d:|\/3d\s+)(.+)/is);
+    if (threeMatch) {
+      const threePrompt = threeMatch[1].trim();
+      const refFile = files.find(f => f.type === "image");
+      const referenceImage = refFile ? `data:${refFile.mediaType};base64,${refFile.base64}` : null;
+      setMessages(prev => [
+        ...prev,
+        { role: "user", content: userText, files },
+        { isThreeRenderer: true, threePrompt, threeReferenceImage: referenceImage },
+      ]);
+      return;
+    }
+
     // 비로그인 질문 저장
     if (!user && userText) {
       fetch("/api/save-context", {

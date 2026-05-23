@@ -6,6 +6,7 @@ import { DocActionBar, M3ActionBar } from "./ActionBars";
 import ComparePanel from "./panels/ComparePanel";
 import UTSimPanel from "./panels/UTSimPanel";
 import FigmaPreviewBubble from "./FigmaPreviewBubble";
+import ThreeJSRenderer from "./ThreeJSRenderer";
 
 function exportPDF(content, mode) {
   const fontSize = mode === "1pager" ? "10px" : "12px";
@@ -189,6 +190,10 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
 
   if (msg.isFigmaPreview) {
     return <FigmaPreviewBubble url={msg.figmaUrl} />;
+  }
+
+  if (msg.isThreeRenderer) {
+    return <ThreeJSRenderer prompt={msg.threePrompt} referenceImage={msg.threeReferenceImage} />;
   }
 
   return (
