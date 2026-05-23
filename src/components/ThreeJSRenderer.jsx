@@ -102,24 +102,41 @@ async function generateThreeCode(prompt, onChunk) {
 설명: ${prompt}
 
 === 구현 규칙 (반드시 준수) ===
-- Three.js r134 (window.THREE 사용 가능, import 금지)
-- THREE.OrbitControls 사용: new THREE.OrbitControls(camera, renderer.domElement)
-- 반드시 포함:
-  1. scene = new THREE.Scene()
-  2. camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
-  3. renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
-  4. renderer.setSize(window.innerWidth, window.innerHeight)
-  5. renderer.setClearColor(0x111827)
-  6. document.body.appendChild(renderer.domElement)
-  7. controls = new THREE.OrbitControls(camera, renderer.domElement)
-  8. controls.enableDamping = true
-  9. 조명: AmbientLight(0xffffff, 0.6) + DirectionalLight(0xffffff, 0.8) 최소 2개
-  10. 애니메이션 루프: function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); } animate();
-  11. window.addEventListener('resize', function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); })
-  12. scene 변수를 window.__threeScene 에도 할당: window.__threeScene = scene
-- 오브젝트: scene 중심(0,0,0) 근처에 배치, 카메라는 z=5 정도
-- 재질: MeshStandardMaterial 또는 MeshPhongMaterial (광택/반사 포함)
-- 복잡도: 기하형태 조합으로 설명한 오브젝트를 최대한 유사하게 구현
+- Three.js r134 기본 번들 (window.THREE)만 사용 — import 금지
+- THREE.OrbitControls 사용 가능: new THREE.OrbitControls(camera, renderer.domElement)
+
+❌ 절대 사용 금지 (r134 기본 번들에 없음):
+  - THREE.RoomEnvironment, THREE.PMREMGenerator 환경맵 설정
+  - THREE.EffectComposer, THREE.RenderPass, THREE.UnrealBloomPass 등 후처리
+  - THREE.GLTFLoader, THREE.OBJLoader 등 로더 (CDN 미포함)
+  - THREE.Sky, THREE.Water, THREE.Reflector 등 examples 전용 클래스
+  → 위 클래스들은 r134 기본 번들에 없어서 런타임 오류 발생
+
+✅ 사용 가능한 것만:
+  - THREE.Scene, THREE.PerspectiveCamera, THREE.WebGLRenderer
+  - THREE.Mesh, THREE.Group, THREE.Object3D
+  - 지오메트리: BoxGeometry, SphereGeometry, CylinderGeometry, TorusGeometry, TorusKnotGeometry, ConeGeometry, PlaneGeometry, RingGeometry, TubeGeometry, LatheGeometry, ShapeGeometry, ExtrudeGeometry, BufferGeometry
+  - 재질: MeshStandardMaterial, MeshPhongMaterial, MeshLambertMaterial, MeshBasicMaterial, MeshToonMaterial
+  - 조명: AmbientLight, DirectionalLight, PointLight, SpotLight, HemisphereLight
+  - THREE.Color, THREE.Vector3, THREE.Matrix4, THREE.Euler, THREE.Quaternion
+  - THREE.OrbitControls (별도 CDN에서 로드됨)
+
+반드시 포함:
+  1. var scene = new THREE.Scene(); window.__threeScene = scene;
+  2. var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  3. var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  4. renderer.setSize(window.innerWidth, window.innerHeight);
+  5. renderer.setClearColor(0x111827);
+  6. document.body.appendChild(renderer.domElement);
+  7. var controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
+  8. 조명 최소 2개: AmbientLight(0xffffff, 0.5) + DirectionalLight(0xffffff, 1.0)
+  9. camera.position.z = 5; (오브젝트 크기에 맞게 조정)
+  10. function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); } animate();
+  11. window.addEventListener('resize', function() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+- 오브젝트: scene 중심(0,0,0) 근처에 배치
+- 재질: MeshStandardMaterial 또는 MeshPhongMaterial 사용 (광택 포함)
+- 기하형태 조합으로 설명한 오브젝트를 최대한 유사하게 구현
 - JS 코드만 반환 (HTML/마크다운/설명 없음, 코드 블록도 없음)
 ================================`,
     }],
