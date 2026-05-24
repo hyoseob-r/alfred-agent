@@ -167,7 +167,7 @@ async function fetchFigmaImageUrl(fileKey, nodeId, token) {
 // ── Figma 노드 구조 ───────────────────────────────────────────────────────────
 async function fetchFigmaNodeData(fileKey, nodeId, token) {
   const resp = await fetch(
-    `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`,
+    `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
     { headers: { "X-Figma-Token": token } }
   );
   if (!resp.ok) throw new Error(`Figma 노드 API ${resp.status}`);
@@ -175,7 +175,22 @@ async function fetchFigmaNodeData(fileKey, nodeId, token) {
   const nodes = data.nodes;
   if (!nodes) throw new Error("Figma 노드 데이터 없음");
   const nodeKey = Object.keys(nodes)[0];
-  return nodes[nodeKey]?.document;
+  const doc = nodes[nodeKey]?.document;
+  // 디버그: 스크롤 관련 필드 확인
+  if (doc) {
+    console.log("[Figma] overflowDirection:", doc.overflowDirection);
+    console.log("[Figma] scrollOverflow:", doc.scrollOverflow);
+    console.log("[Figma] clipsContent:", doc.clipsContent);
+    console.log("[Figma] layoutMode:", doc.layoutMode);
+    console.log("[Figma] primaryAxisSizingMode:", doc.primaryAxisSizingMode);
+    console.log("[Figma] overflowDirection raw node:", JSON.stringify({
+      overflowDirection: doc.overflowDirection,
+      scrollOverflow: doc.scrollOverflow,
+      clipsContent: doc.clipsContent,
+      layoutMode: doc.layoutMode,
+    }));
+  }
+  return doc;
 }
 
 // ── 색상 변환 ─────────────────────────────────────────────────────────────────
@@ -222,6 +237,14 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
     // clipsContent + auto-layout → 스크롤 컨테이너
     const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
     lines.push(`${indent}  scroll:${dir}`);
+  } else if (
+    hasAutoLayout &&
+    node.layoutMode === "HORIZONTAL" &&
+    node.primaryAxisSizingMode === "FIXED" &&
+    (node.children || []).length > 2
+  ) {
+    // 휴리스틱: HORIZONTAL auto-layout + 고정 너비 + 자식 3개 이상 → 스윔레인(가로 스크롤) 가능성 높음
+    lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤 — 휴리스틱 감지)`);
   }
   // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
   if (node.interactions) {
