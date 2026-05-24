@@ -5,8 +5,16 @@
  * - getSupabase() / isOwner 패턴은 alfred-agent와 동일
  */
 import { useEffect, useRef, useState, useCallback } from "react";
-import lottie from "lottie-web";
 import { getSupabase } from "../api/supabase";
+
+// lottie-web 동적 로드 (번들 분리 — 초기 로딩 지연 방지)
+let _lottie = null;
+async function getLottie() {
+  if (_lottie) return _lottie;
+  const mod = await import("lottie-web");
+  _lottie = mod.default;
+  return _lottie;
+}
 
 const MAX_UNDO = 50;
 const UNDO_TTL_MS = 1000 * 60 * 60 * 24;
@@ -436,7 +444,9 @@ export default function LottieStudio({ user, isOwner, onClose }) {
     const { data, frame, play } = mountTrigger;
     if (animRef.current) { animRef.current.destroy(); animRef.current = null; }
     lottieRef.current.innerHTML = "";
-    const a = lottie.loadAnimation({ container: lottieRef.current, renderer: "svg", loop: isLoopingRef.current, autoplay: false, animationData: JSON.parse(JSON.stringify(data)) });
+    let a;
+    getLottie().then((lottieLib) => {
+    a = lottieLib.loadAnimation({ container: lottieRef.current, renderer: "svg", loop: isLoopingRef.current, autoplay: false, animationData: JSON.parse(JSON.stringify(data)) });
     a.addEventListener("enterFrame", () => {
       const c = Math.round(a.currentFrame), t = Math.round(a.totalFrames);
       setFrameInfo({ cur: c, total: t, pct: t > 0 ? (c / t) * 100 : 0 });
@@ -445,6 +455,7 @@ export default function LottieStudio({ user, isOwner, onClose }) {
     if (frame > 0) a.goToAndStop(frame, true);
     if (play) { a.play(); setIsPlaying(true); } else setIsPlaying(false);
     animRef.current = a;
+    });
   }, [mountTrigger]);
 
   const showToast = (msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 2400); };
