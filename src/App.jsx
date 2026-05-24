@@ -91,7 +91,12 @@ export default function App() {
   const [councilSessions, setCouncilSessions] = useState([]);
   const [selectedCouncil, setSelectedCouncil] = useState(null);
   const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
-  const handleSignOut = () => { localStorage.clear(); window.location.href = window.location.origin; };
+  const handleSignOut = () => {
+    const figmaPat = localStorage.getItem("figma_pat");
+    localStorage.clear();
+    if (figmaPat) localStorage.setItem("figma_pat", figmaPat);
+    window.location.href = window.location.origin;
+  };
   const handleCouncilUpdated = (updated) => {
     setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c));
     setSelectedCouncil(updated);
