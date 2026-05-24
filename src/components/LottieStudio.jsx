@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getSupabase } from "../api/supabase";
+import LottieConverter from "./LottieConverter";
 
 // lottie-web 동적 로드 (번들 분리 — 초기 로딩 지연 방지)
 let _lottie = null;
@@ -417,6 +418,7 @@ export default function LottieStudio({ user, isOwner, onClose }) {
   const [frameInfo, setFrameInfo] = useState({ cur: 0, total: 0, pct: 0 });
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [toast, setToast] = useState("");
+  const [showConverter, setShowConverter] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [mountTrigger, setMountTrigger] = useState(null);
   const [undoStack, setUndoStack] = useState([]);
@@ -566,6 +568,10 @@ export default function LottieStudio({ user, isOwner, onClose }) {
 
   const hasAnimation = !!animData;
 
+  if (showConverter) {
+    return <LottieConverter onClose={() => setShowConverter(false)} />;
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9998, background: "#0d1117", display: "flex", flexDirection: "column", fontFamily: "'Pretendard', sans-serif" }}>
       {/* 헤더 */}
@@ -576,6 +582,7 @@ export default function LottieStudio({ user, isOwner, onClose }) {
         {isSaving && <span style={{ fontSize: "10px", color: "#555" }}>저장 중...</span>}
         <div style={{ flex: 1 }} />
         <button onClick={resetAll} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#555", fontSize: "11px", cursor: "pointer" }}>↺ 초기화</button>
+        <button onClick={() => setShowConverter(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #2a2a3e", borderRadius: "8px", color: "#888", fontSize: "11px", cursor: "pointer" }}>WebP 변환</button>
         <button onClick={onClose} style={{ padding: "5px 14px", background: "#1e1e3e", border: "1px solid #3a3a6e", borderRadius: "8px", color: "#a080e0", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>✕ 닫기</button>
       </div>
 
