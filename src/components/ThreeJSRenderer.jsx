@@ -44,6 +44,16 @@ ${code}
 
     document.getElementById('status').textContent = '완료';
 
+    // 후처리 품질 설정 (사용자 코드 실행 후)
+    try {
+      if (window.renderer) {
+        window.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        window.renderer.toneMappingExposure = 1.2;
+        window.renderer.outputEncoding = THREE.sRGBEncoding;
+        window.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      }
+    } catch(e) {}
+
     // 2.5초 후 자동 캡처 (검증용)
     setTimeout(function() {
       try {
@@ -167,67 +177,99 @@ async function generateThreeCode(prompt, onChunk) {
     max_tokens: 4000,
     messages: [{
       role: "user",
-      content: `다음 설명에 맞는 3D 오브젝트를 Three.js r134 코드로 구현해 주세요.
+      content: `다음 설명에 맞는 3D 오브젝트를 Three.js r134로 구현해 주세요. 퀄리티를 최우선으로.
 
 설명: ${prompt}
 
-=== 구현 규칙 (반드시 준수) ===
-- Three.js r134 기본 번들 (window.THREE)만 사용 — import 금지
-- THREE.OrbitControls 사용 가능 (별도 CDN 로드됨)
+=== 엄격한 API 제한 ===
+Three.js r134 기본 번들(window.THREE) + THREE.OrbitControls 만 사용. import 금지.
 
-❌ 절대 사용 금지 (기본 번들에 없어 런타임 오류 발생):
-  THREE.RoomEnvironment, THREE.PMREMGenerator 환경맵,
-  THREE.EffectComposer/RenderPass/UnrealBloomPass 등 후처리,
-  THREE.GLTFLoader/OBJLoader 등 로더,
-  THREE.Sky, THREE.Water, THREE.Reflector 등 examples 전용 클래스
+❌ 런타임 오류 유발 — 절대 금지:
+  RoomEnvironment, PMREMGenerator, EffectComposer, RenderPass, UnrealBloomPass,
+  GLTFLoader, OBJLoader, Sky, Water, Reflector, SubsurfaceScatteringShader
 
-✅ 사용 가능한 것만:
-  Geometry: Box, Sphere, Cylinder, Torus, TorusKnot, Cone, Plane, Ring, Tube, Lathe, Shape, Extrude, BufferGeometry
-  Material: MeshStandardMaterial, MeshPhongMaterial, MeshLambertMaterial, MeshBasicMaterial, MeshToonMaterial
-  Light: AmbientLight, DirectionalLight, PointLight, SpotLight, HemisphereLight
-  기타: Scene, PerspectiveCamera, WebGLRenderer, Mesh, Group, Object3D, Color, Vector3, Euler, Quaternion
+✅ 사용 가능 Geometry:
+  BoxGeometry, SphereGeometry, CylinderGeometry, TorusGeometry, TorusKnotGeometry,
+  ConeGeometry, PlaneGeometry, RingGeometry, TubeGeometry, LatheGeometry,
+  ShapeGeometry, ExtrudeGeometry, IcosahedronGeometry, OctahedronGeometry,
+  TetrahedronGeometry, DodecahedronGeometry, CapsuleGeometry, BufferGeometry
 
-반드시 포함 (이 순서대로, 변수명 동일하게):
-  var scene = new THREE.Scene();
-  window.__threeScene = scene;
-  var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-  var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+✅ 사용 가능 Material:
+  MeshStandardMaterial (권장), MeshPhongMaterial, MeshLambertMaterial,
+  MeshBasicMaterial, MeshToonMaterial, MeshDepthMaterial, ShaderMaterial
+
+✅ 사용 가능 Light:
+  AmbientLight, HemisphereLight, DirectionalLight, PointLight, SpotLight, RectAreaLight
+
+=== 필수 보일러플레이트 (정확히 이 변수명 사용) ===
+var scene = new THREE.Scene();
+window.__threeScene = scene;
+var camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.01, 1000);
+var renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x111827, 1);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+var controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.04;
+controls.minDistance = 0.5; controls.maxDistance = 50;
+window.addEventListener('resize', function() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio || 1);
-  renderer.setClearColor(0x111827, 1);
-  renderer.shadowMap.enabled = true;
-  document.body.appendChild(renderer.domElement);
-  var controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  // 조명 최소 2개:
-  var ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
-  var dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-  dirLight.position.set(5, 10, 7.5);
-  dirLight.castShadow = true;
-  scene.add(dirLight);
-  // 카메라 위치 (오브젝트 크기에 맞게 조정):
-  camera.position.set(0, 1.5, 5);
-  camera.lookAt(0, 0, 0);
-  // 애니메이션 루프:
-  function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-  }
-  animate();
-  // 리사이즈:
-  window.addEventListener('resize', function() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+});
 
-- 오브젝트를 scene 중심(0,0,0) 근처에 배치
-- MeshStandardMaterial 우선 사용 (metalness/roughness로 재질감 표현)
-- 기하형태 조합으로 설명한 오브젝트를 최대한 유사하게 구현
-- JS 코드만 반환 (HTML/마크다운/설명/코드블록 없음)
+=== 퀄리티 규칙 (반드시 준수) ===
+
+1. 조명 — 3포인트 + 보조광:
+   - HemisphereLight(0xffffff, 0x334455, 0.6)  ← 스카이/그라운드 환경광
+   - DirectionalLight(0xfff5e0, 2.0) position(5,8,5) castShadow=true ← 키라이트
+   - DirectionalLight(0x4488ff, 0.6) position(-6,3,-4) ← 필라이트 (청색 반사)
+   - PointLight(0xff9900, 0.5) position(0,2,3) ← 림라이트
+   - shadowMap.mapSize.width = shadowMap.mapSize.height = 2048
+
+2. 재질 — MeshStandardMaterial 기본:
+   - metalness/roughness를 오브젝트 특성에 맞게 세밀하게 지정
+   - 금속: metalness:0.9, roughness:0.1~0.3
+   - 플라스틱: metalness:0.0, roughness:0.4~0.6
+   - 나무: metalness:0.0, roughness:0.8
+   - 유리/보석: metalness:0.1, roughness:0.0, transparent:true, opacity:0.6~0.8
+   - 세라믹: metalness:0.0, roughness:0.2~0.4
+   - envMapIntensity:1.0 항상 지정
+
+3. 디테일 — 여러 파트로 구성:
+   - 단일 구/박스 금지. 최소 3~8개 파트 조합으로 오브젝트 형태 구현
+   - LatheGeometry로 병/꽃병/컵 실루엣 구현 가능
+   - ExtrudeGeometry로 두께 있는 평면 형태 구현
+   - 오브젝트에 어울리는 받침/그림자 플레인 추가
+     var floorGeo = new THREE.PlaneGeometry(8,8);
+     var floorMat = new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:0.9,metalness:0.1});
+     var floor = new THREE.Mesh(floorGeo, floorMat); floor.rotation.x=-Math.PI/2;
+     floor.position.y = -오브젝트최저점; floor.receiveShadow=true; scene.add(floor);
+
+4. 카메라 — 오브젝트 크기에 맞게 조정:
+   camera.position.set(2, 2, 4);  ← 약간 위에서 내려다보는 시점
+   controls.target.set(0, 오브젝트중심Y, 0);
+   controls.update();
+
+5. 애니메이션 — 자연스럽게:
+   var clock = new THREE.Clock();
+   function animate() {
+     requestAnimationFrame(animate);
+     var t = clock.getElapsedTime();
+     오브젝트.rotation.y = t * 0.4;  // 천천히 회전
+     controls.update();
+     renderer.render(scene, camera);
+   }
+   animate();
+
+6. 추가 디테일 (가능하면):
+   - 오브젝트 특성에 맞는 파티클/장식 효과
+   - 유리/보석류: 내부 구조 표현 (작은 내부 geometry)
+   - 금속류: 표면 긁힘 표현 (roughness variation)
+
+JS 코드만 반환. 마크다운/설명/코드블록 없음.
 ================================`,
     }],
   }, (delta) => {
