@@ -11,7 +11,7 @@ async function getLottie() {
 }
 
 // ── WebP RIFF 파서 — 단일 프레임 WebP에서 VP8/VP8L 청크 추출 ──────────────────
-function extractVP8Chunk(buffer) {
+export function extractVP8Chunk(buffer) {
   const view = new DataView(buffer);
   const tag = (o) => String.fromCharCode(view.getUint8(o), view.getUint8(o+1), view.getUint8(o+2), view.getUint8(o+3));
 
@@ -60,7 +60,7 @@ function concat(arrays) {
 }
 
 // ── Animated WebP RIFF 조립 ───────────────────────────────────────────────────
-function buildAnimatedWebP(frames, width, height) {
+export function buildAnimatedWebP(frames, width, height) {
   // VP8X 청크: animated flag + canvas 크기
   const vp8x = new Uint8Array(10);
   new DataView(vp8x.buffer).setUint32(0, 0x00000002, true); // flags: animation bit
