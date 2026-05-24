@@ -240,11 +240,11 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   } else if (
     hasAutoLayout &&
     node.layoutMode === "HORIZONTAL" &&
-    node.primaryAxisSizingMode === "FIXED" &&
-    (node.children || []).length > 2
+    (node.children || []).length >= 3
   ) {
-    // 휴리스틱: HORIZONTAL auto-layout + 고정 너비 + 자식 3개 이상 → 스윔레인(가로 스크롤) 가능성 높음
-    lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤 — 휴리스틱 감지)`);
+    // 휴리스틱: HORIZONTAL auto-layout + 자식 3개 이상 → 스윔레인(가로 스크롤) 가능성 높음
+    // (Figma nodes API는 overflowDirection을 반환하지 않음)
+    lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤 — 스윔레인)`);
   }
   // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
   if (node.interactions) {
