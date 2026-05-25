@@ -263,16 +263,6 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
     const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
     lines.push(`${indent}  scroll:${dir}`);
     nodeIsScrolling = true;
-  } else if (
-    !parentIsScrolling &&
-    hasAutoLayout &&
-    node.layoutMode === "HORIZONTAL" &&
-    (node.children || []).length >= 3
-  ) {
-    // 휴리스틱: HORIZONTAL auto-layout + 자식 3개 이상 → 스윔레인(가로 스크롤) 가능성 높음
-    // 단, 부모가 이미 스크롤 컨테이너면 억제 (자식은 content일 뿐)
-    lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤 — 스윔레인)`);
-    nodeIsScrolling = true;
   }
   // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
   if (node.interactions) {
