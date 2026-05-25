@@ -416,10 +416,15 @@ document.addEventListener('error',function(e){
 },true);
 <\/script>`;
 
+const SCROLL_FIX_STYLE = `<style>html,body{overflow-x:auto!important;}</style>`;
+
 function injectImgFallback(html) {
   if (!html) return html;
-  if (html.includes('</body>')) return html.replace('</body>', IMG_FALLBACK_SCRIPT + '</body>');
-  return html + IMG_FALLBACK_SCRIPT;
+  const withScroll = html.includes('</head>')
+    ? html.replace('</head>', SCROLL_FIX_STYLE + '</head>')
+    : SCROLL_FIX_STYLE + html;
+  if (withScroll.includes('</body>')) return withScroll.replace('</body>', IMG_FALLBACK_SCRIPT + '</body>');
+  return withScroll + IMG_FALLBACK_SCRIPT;
 }
 
 // ── 코드 생성 (스트리밍) ──────────────────────────────────────────────────────
