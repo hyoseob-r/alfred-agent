@@ -123,7 +123,11 @@ meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
   [엘리베이션] level1: shadow(color:.black.opacity(0.10), radius:8, x:0, y:1) / level2: shadow(color:.black.opacity(0.24), radius:12, x:0, y:2)
 - 색상은 Color(hex:) extension 또는 Color(red:green:blue:) 사용
 - 스크롤 규칙 (반드시 적용):
-  * scroll:overflow-x:scroll 또는 "가로 스크롤" → ScrollView(.horizontal, showsIndicators: false) { HStack { ... } }
+  * scroll:overflow-x:scroll 또는 "가로 스크롤" →
+    ScrollView(.horizontal, showsIndicators: false) {
+      HStack(spacing: X) { /* 아이템들 */ }
+    }
+    ⚠️ HStack에 .frame(maxWidth: .infinity) 절대 금지 — 붙이면 스크롤 깨짐. HStack은 고유 컨텐츠 너비 그대로 유지.
   * scroll:overflow-y:scroll 또는 "세로 스크롤" → ScrollView(.vertical) { VStack { ... } }
   * scroll:overflow:scroll 또는 "양방향 스크롤" → ScrollView([.horizontal, .vertical]) { ... }
 - Swift 코드만 반환, 마크다운·설명 없음`,
