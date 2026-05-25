@@ -229,8 +229,11 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   // 스크롤 방향 — overflowDirection 또는 interactions에서 추출
   const scrollMap = {
     "HORIZONTAL": "overflow-x:scroll (가로 스크롤)",
+    "HORIZONTAL_SCROLLING": "overflow-x:scroll (가로 스크롤)",
     "VERTICAL": "overflow-y:scroll (세로 스크롤)",
+    "VERTICAL_SCROLLING": "overflow-y:scroll (세로 스크롤)",
     "HORIZONTAL_AND_VERTICAL": "overflow:scroll (양방향 스크롤)",
+    "HORIZONTAL_AND_VERTICAL_SCROLLING": "overflow:scroll (양방향 스크롤)",
   };
   if (node.overflowDirection && node.overflowDirection !== "NONE") {
     lines.push(`${indent}  scroll:${scrollMap[node.overflowDirection] || node.overflowDirection}`);
