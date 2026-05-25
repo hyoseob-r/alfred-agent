@@ -115,6 +115,10 @@ meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
 - 폰트: .custom("Pretendard", size:) 또는 .system(size:weight:)
 - 스펙 수치를 최대한 정확하게 반영
 - 한국어 현실적 콘텐츠
+- 스크롤 규칙 (반드시 적용):
+  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → ScrollView(.horizontal, showsIndicators: false) { HStack { ... } }
+  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → ScrollView(.vertical) { VStack { ... } }
+  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → ScrollView([.horizontal, .vertical]) { ... }
 - Swift 코드만 반환, 마크다운·설명 없음`,
 
   "compose": `구현 규칙:
@@ -124,6 +128,10 @@ meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
 - 폰트: FontFamily, FontWeight 스펙 수치 반영
 - 스펙 수치(dp, sp) 최대한 정확하게 반영
 - 한국어 현실적 콘텐츠
+- 스크롤 규칙 (반드시 적용):
+  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → LazyRow 또는 Row(modifier = Modifier.horizontalScroll(rememberScrollState()))
+  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → LazyColumn 또는 Column(modifier = Modifier.verticalScroll(rememberScrollState()))
+  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → Box(modifier = Modifier.horizontalScroll(...).verticalScroll(...))
 - Kotlin 코드만 반환, 마크다운·설명 없음`,
 };
 
