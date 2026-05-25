@@ -213,7 +213,7 @@ function colorStr(c) {
 }
 
 // ── Figma 노드 → 디자인 스펙 텍스트 ─────────────────────────────────────────
-function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = false) {
+function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = false, parentIsScrolling = false) {
   if (!node || depth > 5) return "";
   const indent = "  ".repeat(depth);
   const lines = [];
@@ -243,20 +243,25 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
     "HORIZONTAL_AND_VERTICAL": "overflow:scroll (양방향 스크롤)",
     "HORIZONTAL_AND_VERTICAL_SCROLLING": "overflow:scroll (양방향 스크롤)",
   };
+  let nodeIsScrolling = false;
   if (node.overflowDirection && node.overflowDirection !== "NONE") {
     lines.push(`${indent}  scroll:${scrollMap[node.overflowDirection] || node.overflowDirection}`);
+    nodeIsScrolling = true;
   } else if (node.clipsContent && hasAutoLayout) {
     // clipsContent + auto-layout → 스크롤 컨테이너
     const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
     lines.push(`${indent}  scroll:${dir}`);
+    nodeIsScrolling = true;
   } else if (
+    !parentIsScrolling &&
     hasAutoLayout &&
     node.layoutMode === "HORIZONTAL" &&
     (node.children || []).length >= 3
   ) {
     // 휴리스틱: HORIZONTAL auto-layout + 자식 3개 이상 → 스윔레인(가로 스크롤) 가능성 높음
-    // (Figma nodes API는 overflowDirection을 반환하지 않음)
+    // 단, 부모가 이미 스크롤 컨테이너면 억제 (자식은 content일 뿐)
     lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤 — 스윔레인)`);
+    nodeIsScrolling = true;
   }
   // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
   if (node.interactions) {
@@ -315,7 +320,7 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   }
 
   (node.children || []).forEach(child => {
-    const childSpec = nodeToSpec(child, depth + 1, bb, hasAutoLayout);
+    const childSpec = nodeToSpec(child, depth + 1, bb, hasAutoLayout, nodeIsScrolling);
     if (childSpec) lines.push(childSpec);
   });
 
