@@ -48,7 +48,7 @@ const FORMAT_PROMPT = {
 - 한국어 현실적 콘텐츠
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
 - 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → style={{ display:"flex", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 자식: style={{ flexShrink:0 }}
+  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 전체: style={{ flexShrink:0 }}
   * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }}
   * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → style={{ overflow:"auto", WebkitOverflowScrolling:"touch" }}
 - JSX 코드만 반환, 마크다운·설명 없음`,
@@ -61,7 +61,7 @@ const FORMAT_PROMPT = {
 - 한국어 현실적 콘텐츠
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용.
 - 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → style={{ display:"flex", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 자식: style={{ flexShrink:0 }}
+  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 전체: style={{ flexShrink:0 }}
   * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }}
   * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → style={{ overflow:"auto", WebkitOverflowScrolling:"touch" }}
 - JSX 코드만 반환, 마크다운·설명 없음
