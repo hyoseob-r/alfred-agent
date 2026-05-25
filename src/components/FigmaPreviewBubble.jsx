@@ -193,7 +193,9 @@ async function fetchFigmaNodeData(fileKey, nodeId, token) {
     `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
     { headers: { "X-Figma-Token": token } }
   );
-  if (!resp.ok) throw new Error(`Figma 노드 API ${resp.status}`);
+  if (!resp.ok) throw new Error(resp.status === 403
+    ? `Figma 토큰이 만료되었거나 권한이 없습니다 (403).\n우상단 설정에서 PAT를 새로 발급해 업데이트해 주세요.`
+    : `Figma 노드 API ${resp.status}`);
   const data = await resp.json();
   const nodes = data.nodes;
   if (!nodes) throw new Error("Figma 노드 데이터 없음");
