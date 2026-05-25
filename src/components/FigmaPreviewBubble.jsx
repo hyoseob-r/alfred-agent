@@ -212,6 +212,7 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   const bb = node.absoluteBoundingBox;
   const size = bb ? ` (${Math.round(bb.width)}×${Math.round(bb.height)}px)` : "";
   lines.push(`${indent}[${node.type}] "${node.name}"${size}`);
+  if (depth <= 3) console.log(`[Figma spec] depth=${depth} "${node.name}" layoutMode=${node.layoutMode} overflowDirection=${node.overflowDirection} children=${node.children?.length}`);
 
   const hasAutoLayout = !!(node.layoutMode && node.layoutMode !== "NONE");
 
@@ -855,6 +856,8 @@ export default function FigmaPreviewBubble({ url }) {
       setFigmaImgUrl(imgUrl);
       const spec = nodeToSpec(nodeData);
       specRef.current = spec;
+      console.log("[Figma] spec:\n" + spec);
+      console.log("[Figma] scroll lines:", spec.split("\n").filter(l => l.includes("scroll:")));
 
       // 2. 코드 생성 — 완료 즉시 결과 표시
       setPhase("generate");
