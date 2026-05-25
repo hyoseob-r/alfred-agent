@@ -6,9 +6,6 @@ const MAX_ITER = 2;
 
 // ── 포맷 정의 ─────────────────────────────────────────────────────────────────
 const FORMATS = [
-  { id: "html-css",        label: "HTML/CSS",         lang: "html" },
-  { id: "react-tailwind",  label: "React + Tailwind",  lang: "jsx" },
-  { id: "react-inline",    label: "React + Inline",    lang: "jsx" },
   { id: "react-yds",       label: "React + YDS",       lang: "jsx" },
   { id: "swiftui",         label: "SwiftUI",           lang: "swift" },
   { id: "compose",         label: "Compose",           lang: "kotlin" },
@@ -836,7 +833,7 @@ export default function FigmaPreviewBubble({ url }) {
   const [iterations, setIterations] = useState([]);
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
-  const [formatId, setFormatId] = useState("html-css");
+  const [formatId, setFormatId] = useState("react-yds");
   const [previewHtml, setPreviewHtml] = useState("");
 
   const parsed = parseFigmaUrl(url);
@@ -964,9 +961,9 @@ export default function FigmaPreviewBubble({ url }) {
           {code && (
             <div style={{ padding: "8px 14px", borderBottom: "1px solid #eeeeee" }}>
               <div style={{ fontSize: "10px", color: "#aaaaaa", marginBottom: "6px" }}>생성 중...</div>
-              {["html-css","react-tailwind","react-inline","react-yds"].includes(formatId) ? (
+              {["react-yds"].includes(formatId) ? (
                 <iframe
-                  srcDoc={formatId === "html-css" ? code : buildReactPreviewHtml(code, formatId)}
+                  srcDoc={buildReactPreviewHtml(code, formatId)}
                   style={{ width: "100%", height: "300px", border: "1px solid #eeeeee", borderRadius: "8px", display: "block" }}
                   sandbox="allow-scripts"
                   title="preview in progress"
