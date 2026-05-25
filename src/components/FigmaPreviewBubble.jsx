@@ -108,27 +108,36 @@ meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
 
   "swiftui": `구현 규칙:
 - SwiftUI View struct
-- 스펙의 색상은 Color(red:green:blue:) 또는 Color(hex:) extension 사용
-- 폰트: .custom("Pretendard", size:) 또는 .system(size:weight:)
-- 스펙 수치를 최대한 정확하게 반영
+- 폰트: Font.custom("Pretendard", size:) 사용
 - 한국어 현실적 콘텐츠
+- YDS 토큰 매핑 (스펙 수치 대신 아래 값 우선 사용):
+  [색상] primary:#fa0050 / gray800:#333333 / gray600:#666666 / gray400:#999999 / gray100:#e5e5e5 / gray50:#f2f2f2 / white:#ffffff / black:#000000
+  [스페이싱] s1:2 s2:4 s3:6 s4:8 s5:10 s6:12 s7:16 s8:20 s9:24 s10:28 s11:32 s12:36 s13:40 (단위: CGFloat/pt)
+  [라디우스] r0:0 r1:4 r2:8 r3:10 r4:12 r5:16 r6:20 rfull:360
+  [타이포] size10/12/13/14/16/18/20/24 — weight400(regular)/700(bold) — lineHeight14/16/18/19/22/24/27/32
+  [엘리베이션] level1: shadow(color:.black.opacity(0.10), radius:8, x:0, y:1) / level2: shadow(color:.black.opacity(0.24), radius:12, x:0, y:2)
+- 색상은 Color(hex:) extension 또는 Color(red:green:blue:) 사용
 - 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → ScrollView(.horizontal, showsIndicators: false) { HStack { ... } }
-  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → ScrollView(.vertical) { VStack { ... } }
-  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → ScrollView([.horizontal, .vertical]) { ... }
+  * scroll:overflow-x:scroll 또는 "가로 스크롤" → ScrollView(.horizontal, showsIndicators: false) { HStack { ... } }
+  * scroll:overflow-y:scroll 또는 "세로 스크롤" → ScrollView(.vertical) { VStack { ... } }
+  * scroll:overflow:scroll 또는 "양방향 스크롤" → ScrollView([.horizontal, .vertical]) { ... }
 - Swift 코드만 반환, 마크다운·설명 없음`,
 
   "compose": `구현 규칙:
 - Jetpack Compose @Composable 함수
-- Material3 컴포넌트 우선 사용
-- 스펙의 색상은 Color(0xFF...) 형식
-- 폰트: FontFamily, FontWeight 스펙 수치 반영
-- 스펙 수치(dp, sp) 최대한 정확하게 반영
+- 폰트: FontFamily 커스텀(Pretendard) 또는 MaterialTheme.typography 사용
 - 한국어 현실적 콘텐츠
+- YDS 토큰 매핑 (스펙 수치 대신 아래 값 우선 사용):
+  [색상] primary:0xFFFA0050 / gray800:0xFF333333 / gray600:0xFF666666 / gray400:0xFF999999 / gray100:0xFFE5E5E5 / gray50:0xFFF2F2F2 / white:0xFFFFFFFF / black:0xFF000000
+  [스페이싱] s1:2 s2:4 s3:6 s4:8 s5:10 s6:12 s7:16 s8:20 s9:24 s10:28 s11:32 s12:36 s13:40 (단위: dp)
+  [라디우스] r0:0 r1:4 r2:8 r3:10 r4:12 r5:16 r6:20 rfull:360
+  [타이포] fontSize:10/12/13/14/16/18/20/24.sp — fontWeight:Normal(400)/Bold(700) — lineHeight:14/16/18/19/22/24/27/32.sp
+  [엘리베이션] level1: shadow elevation=4.dp / level2: shadow elevation=8.dp
+- 색상은 Color(0xFF...) 형식
 - 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → LazyRow 또는 Row(modifier = Modifier.horizontalScroll(rememberScrollState()))
-  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → LazyColumn 또는 Column(modifier = Modifier.verticalScroll(rememberScrollState()))
-  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → Box(modifier = Modifier.horizontalScroll(...).verticalScroll(...))
+  * scroll:overflow-x:scroll 또는 "가로 스크롤" → LazyRow 또는 Row(modifier = Modifier.horizontalScroll(rememberScrollState()))
+  * scroll:overflow-y:scroll 또는 "세로 스크롤" → LazyColumn 또는 Column(modifier = Modifier.verticalScroll(rememberScrollState()))
+  * scroll:overflow:scroll 또는 "양방향 스크롤" → Box(modifier = Modifier.horizontalScroll(...).verticalScroll(...))
 - Kotlin 코드만 반환, 마크다운·설명 없음`,
 };
 
