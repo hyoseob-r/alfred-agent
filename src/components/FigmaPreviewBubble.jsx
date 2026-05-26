@@ -20,11 +20,9 @@ const FORMAT_PROMPT = {
 - 한국어 현실적 콘텐츠
 - body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용 (예: <img src="https://picsum.photos/80/80?random=1">). src 없는 img 태그 금지.
-- 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; 자식은 flex-shrink:0
-  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → overflow-y:auto; -webkit-overflow-scrolling:touch
-  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → overflow:auto; -webkit-overflow-scrolling:touch
-  * 스크롤 컨테이너에 반드시 명시적 width 또는 max-width 지정
+- ‼️SCROLL-X 가 있는 요소: display:flex; flex-direction:row; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; 직접 자식: flex-shrink:0
+- ‼️SCROLL-Y 가 있는 요소: overflow-y:auto; -webkit-overflow-scrolling:touch; 고정 height 필수
+- ‼️SCROLL-XY 가 있는 요소: overflow:auto
 - HTML 코드만 반환, 마크다운·설명 없음`,
 
   "react-tailwind": `구현 규칙:
@@ -34,10 +32,9 @@ const FORMAT_PROMPT = {
 - 폰트: font-['Pretendard']
 - 한국어 현실적 콘텐츠
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
-- 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → 컨테이너에 "flex overflow-x-auto", 자식에 "flex-shrink-0"
-  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → 컨테이너에 "overflow-y-auto"
-  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → 컨테이너에 "overflow-auto"
+- ‼️SCROLL-X 가 있는 요소: className="flex overflow-x-auto" 직접 자식: className="flex-shrink-0"
+- ‼️SCROLL-Y 가 있는 요소: className="overflow-y-auto" + 고정 h-[N]
+- ‼️SCROLL-XY 가 있는 요소: className="overflow-auto"
 - JSX 코드만 반환, 마크다운·설명 없음`,
 
   "react-inline": `구현 규칙:
@@ -47,10 +44,9 @@ const FORMAT_PROMPT = {
 - 폰트: fontFamily: "'Pretendard', sans-serif"
 - 한국어 현실적 콘텐츠
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
-- 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 전체: style={{ flexShrink:0 }}
-  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }}
-  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → style={{ overflow:"auto", WebkitOverflowScrolling:"touch" }}
+- ‼️SCROLL-X 가 있는 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 모두: style={{ flexShrink:0 }}
+- ‼️SCROLL-Y 가 있는 컨테이너: style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }} + 고정 height
+- ‼️SCROLL-XY 가 있는 컨테이너: style={{ overflow:"auto" }}
 - JSX 코드만 반환, 마크다운·설명 없음`,
 
   "react-yds": `구현 규칙:
@@ -60,10 +56,9 @@ const FORMAT_PROMPT = {
 - 모든 스타일은 style={{}} inline 객체. 값은 반드시 토큰에서 참조.
 - 한국어 현실적 콘텐츠
 - 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용.
-- 스크롤 규칙 (반드시 적용):
-  * 스펙에 scroll:overflow-x:scroll 또는 "가로 스크롤" → 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 전체: style={{ flexShrink:0 }}
-  * 스펙에 scroll:overflow-y:scroll 또는 "세로 스크롤" → style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }}
-  * 스펙에 scroll:overflow:scroll 또는 "양방향 스크롤" → style={{ overflow:"auto", WebkitOverflowScrolling:"touch" }}
+- ‼️SCROLL-X 가 있는 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 모두: style={{ flexShrink:0 }}
+- ‼️SCROLL-Y 가 있는 컨테이너: style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }} + 고정 height
+- ‼️SCROLL-XY 가 있는 컨테이너: style={{ overflow:"auto" }}
 - JSX 코드만 반환, 마크다운·설명 없음
 
 === YDS 2.0 토큰 참조 ===
@@ -122,14 +117,9 @@ meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
   [타이포] size10/12/13/14/16/18/20/24 — weight400(regular)/700(bold) — lineHeight14/16/18/19/22/24/27/32
   [엘리베이션] level1: shadow(color:.black.opacity(0.10), radius:8, x:0, y:1) / level2: shadow(color:.black.opacity(0.24), radius:12, x:0, y:2)
 - 색상은 Color(hex:) extension 또는 Color(red:green:blue:) 사용
-- 스크롤 규칙 (반드시 적용):
-  * scroll:overflow-x:scroll 또는 "가로 스크롤" →
-    ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: X) { /* 아이템들 */ }
-    }
-    ⚠️ HStack에 .frame(maxWidth: .infinity) 절대 금지 — 붙이면 스크롤 깨짐. HStack은 고유 컨텐츠 너비 그대로 유지.
-  * scroll:overflow-y:scroll 또는 "세로 스크롤" → ScrollView(.vertical) { VStack { ... } }
-  * scroll:overflow:scroll 또는 "양방향 스크롤" → ScrollView([.horizontal, .vertical]) { ... }
+- ‼️SCROLL-X 가 있는 컨테이너: ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: gap) { children } } ⚠️ HStack에 .frame(maxWidth: .infinity) 금지
+- ‼️SCROLL-Y 가 있는 컨테이너: ScrollView(.vertical) { VStack { ... } }
+- ‼️SCROLL-XY 가 있는 컨테이너: ScrollView([.horizontal, .vertical]) { ... }
 - Swift 코드만 반환, 마크다운·설명 없음`,
 
   "compose": `구현 규칙:
@@ -143,10 +133,9 @@ meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
   [타이포] fontSize:10/12/13/14/16/18/20/24.sp — fontWeight:Normal(400)/Bold(700) — lineHeight:14/16/18/19/22/24/27/32.sp
   [엘리베이션] level1: shadow elevation=4.dp / level2: shadow elevation=8.dp
 - 색상은 Color(0xFF...) 형식
-- 스크롤 규칙 (반드시 적용):
-  * scroll:overflow-x:scroll 또는 "가로 스크롤" → LazyRow 또는 Row(modifier = Modifier.horizontalScroll(rememberScrollState()))
-  * scroll:overflow-y:scroll 또는 "세로 스크롤" → LazyColumn 또는 Column(modifier = Modifier.verticalScroll(rememberScrollState()))
-  * scroll:overflow:scroll 또는 "양방향 스크롤" → Box(modifier = Modifier.horizontalScroll(...).verticalScroll(...))
+- ‼️SCROLL-X 가 있는 컨테이너: Row(modifier = Modifier.horizontalScroll(rememberScrollState())) — LazyRow도 가능
+- ‼️SCROLL-Y 가 있는 컨테이너: Column(modifier = Modifier.verticalScroll(rememberScrollState())) — LazyColumn도 가능
+- ‼️SCROLL-XY 가 있는 컨테이너: Box(modifier = Modifier.horizontalScroll(...).verticalScroll(...))
 - Kotlin 코드만 반환, 마크다운·설명 없음`,
 };
 
@@ -243,50 +232,46 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
 
   if (hasAutoLayout) {
     const dir = node.layoutMode === "HORIZONTAL" ? "row" : "column";
-    const pad = node.paddingTop !== undefined
-      ? ` padding:${node.paddingTop}/${node.paddingRight}/${node.paddingBottom}/${node.paddingLeft}px` : "";
+    const pt = node.paddingTop ?? 0, pr = node.paddingRight ?? 0;
+    const pb = node.paddingBottom ?? 0, pl = node.paddingLeft ?? 0;
+    const hasPad = pt || pr || pb || pl;
+    const pad = hasPad ? ` padding:${pt}/${pr}/${pb}/${pl}px` : "";
     const gap = node.itemSpacing ? ` gap:${Math.round(node.itemSpacing)}px` : "";
     const main = node.primaryAxisAlignItems ? ` mainAxis:${node.primaryAxisAlignItems}` : "";
     const cross = node.counterAxisAlignItems ? ` crossAxis:${node.counterAxisAlignItems}` : "";
     lines.push(`${indent}  flex:${dir}${pad}${gap}${main}${cross}`);
   }
 
-  // 스크롤 방향 — overflowDirection 또는 interactions에서 추출
-  const scrollMap = {
-    "HORIZONTAL": "overflow-x:scroll (가로 스크롤)",
-    "HORIZONTAL_SCROLLING": "overflow-x:scroll (가로 스크롤)",
-    "VERTICAL": "overflow-y:scroll (세로 스크롤)",
-    "VERTICAL_SCROLLING": "overflow-y:scroll (세로 스크롤)",
-    "HORIZONTAL_AND_VERTICAL": "overflow:scroll (양방향 스크롤)",
-    "HORIZONTAL_AND_VERTICAL_SCROLLING": "overflow:scroll (양방향 스크롤)",
-  };
-  let nodeIsScrolling = false;
-  if (node.overflowDirection && node.overflowDirection !== "NONE") {
-    lines.push(`${indent}  scroll:${scrollMap[node.overflowDirection] || node.overflowDirection}`);
-    nodeIsScrolling = true;
+  // 스크롤 감지 — overflowDirection / scrollOverflow / clipsContent fallback
+  const SCROLL_H_MAP = new Set(["HORIZONTAL", "HORIZONTAL_SCROLLING"]);
+  const SCROLL_V_MAP = new Set(["VERTICAL", "VERTICAL_SCROLLING"]);
+  const SCROLL_B_MAP = new Set(["HORIZONTAL_AND_VERTICAL", "HORIZONTAL_AND_VERTICAL_SCROLLING"]);
+
+  let scrollDir = null;
+  const ovDir = node.overflowDirection;
+  const ovFlow = node.scrollOverflow;
+  if (ovDir && ovDir !== "NONE") {
+    if (SCROLL_H_MAP.has(ovDir)) scrollDir = "H";
+    else if (SCROLL_V_MAP.has(ovDir)) scrollDir = "V";
+    else if (SCROLL_B_MAP.has(ovDir)) scrollDir = "HV";
+  } else if (ovFlow) {
+    if (SCROLL_H_MAP.has(ovFlow)) scrollDir = "H";
+    else if (SCROLL_V_MAP.has(ovFlow)) scrollDir = "V";
+    else if (SCROLL_B_MAP.has(ovFlow)) scrollDir = "HV";
   } else if (node.clipsContent && hasAutoLayout) {
-    // clipsContent + auto-layout → 스크롤 컨테이너
-    const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
-    lines.push(`${indent}  scroll:${dir}`);
+    scrollDir = node.layoutMode === "HORIZONTAL" ? "H" : "V";
+  }
+
+  let nodeIsScrolling = false;
+  if (scrollDir === "H") {
+    lines.push(`${indent}  ‼️SCROLL-X: 이 컨테이너는 가로 스크롤. React→overflowX:"auto",display:"flex",flexDirection:"row",flexWrap:"nowrap" 자식→flexShrink:0 / SwiftUI→ScrollView(.horizontal){HStack{}} HStack에 .frame(maxWidth:.infinity)금지 / Compose→Row(Modifier.horizontalScroll(rememberScrollState()))`);
     nodeIsScrolling = true;
-  }
-  // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
-  if (node.interactions) {
-    node.interactions.forEach(interaction => {
-      if (interaction.trigger?.type === "ON_SCROLL" || interaction.actions?.some(a => a.type === "SCROLL_TO")) return;
-      // scrollOverflow 속성 직접 체크
-    });
-  }
-  // scrollOverflow 속성 (Figma API 일부 버전)
-  if (node.scrollOverflow) {
-    const overflowMap = {
-      "HORIZONTAL_SCROLLING": "overflow-x:scroll (가로 스크롤)",
-      "VERTICAL_SCROLLING": "overflow-y:scroll (세로 스크롤)",
-      "HORIZONTAL_AND_VERTICAL_SCROLLING": "overflow:scroll (양방향 스크롤)",
-    };
-    if (overflowMap[node.scrollOverflow]) {
-      lines.push(`${indent}  scroll:${overflowMap[node.scrollOverflow]}`);
-    }
+  } else if (scrollDir === "V") {
+    lines.push(`${indent}  ‼️SCROLL-Y: 이 컨테이너는 세로 스크롤. React→overflowY:"auto" 고정높이 / SwiftUI→ScrollView(.vertical){VStack{}} / Compose→Column(Modifier.verticalScroll(rememberScrollState()))`);
+    nodeIsScrolling = true;
+  } else if (scrollDir === "HV") {
+    lines.push(`${indent}  ‼️SCROLL-XY: 양방향 스크롤. React→overflow:"auto" / SwiftUI→ScrollView([.horizontal,.vertical]) / Compose→Row+Column scroll modifier`);
+    nodeIsScrolling = true;
   }
 
   // 절대 위치 정보 — 부모 대비 오버레이 감지
