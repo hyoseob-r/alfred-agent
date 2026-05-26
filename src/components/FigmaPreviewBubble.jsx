@@ -380,27 +380,25 @@ const _comp = typeof ${compName} !== 'undefined' ? ${compName}
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(_comp));
 </script>
 <script>
-// 렌더링 후 overflowing flex-row 컨테이너 자동 scroll 활성화
+// 렌더링 후 flex-row 컨테이너 자동 scroll 활성화
 (function autoScroll() {
   function fix() {
     document.querySelectorAll('*').forEach(function(el) {
       if (el === document.body || el === document.documentElement) return;
       var cs = window.getComputedStyle(el);
       var isRow = cs.display === 'flex' && (cs.flexDirection === 'row' || cs.flexDirection === 'row-reverse');
+      if (!isRow) return;
+      // flex-wrap:nowrap 강제 (wrap이면 overflow가 안 생겨서 측정 불가)
+      el.style.flexWrap = 'nowrap';
       var overflows = el.scrollWidth > el.clientWidth + 4;
-      if (isRow && overflows && cs.overflowX === 'visible' || cs.overflowX === 'hidden' && overflows) {
+      if (overflows) {
         el.style.overflowX = 'auto';
         el.style.webkitOverflowScrolling = 'touch';
-      }
-      if (isRow && overflows) {
-        Array.from(el.children).forEach(function(c) {
-          if (window.getComputedStyle(c).flexShrink !== '0') c.style.flexShrink = '0';
-        });
+        Array.from(el.children).forEach(function(c) { c.style.flexShrink = '0'; });
       }
     });
   }
-  [100, 400, 1000, 2000].forEach(function(t) { setTimeout(fix, t); });
-  // 이미지 로드 완료 후 재실행
+  [50, 200, 600, 1500].forEach(function(t) { setTimeout(fix, t); });
   document.addEventListener('load', function(e) { if (e.target.tagName === 'IMG') setTimeout(fix, 100); }, true);
 })();
 // 깨진 이미지 자동 복구
@@ -419,8 +417,8 @@ document.addEventListener('error', function(e) {
 // ── HTML에 깨진 이미지 자동 복구 스크립트 inject ─────────────────────────────
 const IMG_FALLBACK_SCRIPT = `<script>
 (function(){
-  function fix(){document.querySelectorAll('*').forEach(function(el){if(el===document.body||el===document.documentElement)return;var cs=window.getComputedStyle(el);var isRow=cs.display==='flex'&&(cs.flexDirection==='row'||cs.flexDirection==='row-reverse');var over=el.scrollWidth>el.clientWidth+4;if(isRow&&over){if(cs.overflowX==='visible'||cs.overflowX==='hidden'){el.style.overflowX='auto';el.style.webkitOverflowScrolling='touch';}Array.from(el.children).forEach(function(c){c.style.flexShrink='0';});}});}
-  [100,400,1000,2000].forEach(function(t){setTimeout(fix,t);});
+  function fix(){document.querySelectorAll('*').forEach(function(el){if(el===document.body||el===document.documentElement)return;var cs=window.getComputedStyle(el);var isRow=cs.display==='flex'&&(cs.flexDirection==='row'||cs.flexDirection==='row-reverse');if(!isRow)return;el.style.flexWrap='nowrap';var over=el.scrollWidth>el.clientWidth+4;if(over){el.style.overflowX='auto';el.style.webkitOverflowScrolling='touch';Array.from(el.children).forEach(function(c){c.style.flexShrink='0';});}});}
+  [50,200,600,1500].forEach(function(t){setTimeout(fix,t);});
   document.addEventListener('load',function(e){if(e.target.tagName==='IMG')setTimeout(fix,100);},true);
 })();
 document.addEventListener('error',function(e){
@@ -469,6 +467,53 @@ ${FORMAT_PROMPT[formatId]}`,
   if (validate && !validate(code)) {
     throw new Error(`코드 생성 실패: ${code.slice(0, 200)}`);
   }
+  return postProcessScroll(code, spec, formatId);
+}
+
+// ── 생성된 코드에 scroll 후처리 (AI가 빠뜨린 경우 강제 주입) ─────────────────
+function postProcessScroll(code, spec, formatId) {
+  if (!spec || !code) return code;
+  const hasScrollX = spec.includes('‼️SCROLL-X');
+  const hasScrollY = spec.includes('‼️SCROLL-Y');
+  if (!hasScrollX && !hasScrollY) return code;
+
+  if (formatId === 'swiftui') {
+    // ScrollView(.horizontal) 이 없으면 HStack을 ScrollView로 감싸기
+    if (hasScrollX && !code.includes('ScrollView(.horizontal') && !code.includes('ScrollView([.horizontal')) {
+      code = code.replace(
+        /(HStack\s*(?:\([^)]*\))?\s*\{)/g,
+        'ScrollView(.horizontal, showsIndicators: false) {\n$1'
+      );
+      // 열린 ScrollView 닫기 — 단순히 마지막 } 앞에 } 추가 (HStack 1개 가정)
+      // 더 안전하게: 각 HStack 블록 끝에 } 추가
+      code = code + '\n// ⚠️ ScrollView 닫힘 확인 필요';
+    }
+    return code;
+  }
+
+  if (formatId === 'compose') {
+    if (hasScrollX && !code.includes('horizontalScroll') && !code.includes('LazyRow')) {
+      code = code.replace(
+        /(Row\s*\()(modifier\s*=\s*Modifier)?/g,
+        (match, p1, p2) => p2
+          ? `${p1}modifier = ${p2}.horizontalScroll(rememberScrollState())`
+          : `${p1}modifier = Modifier.horizontalScroll(rememberScrollState()),`
+      );
+    }
+    return code;
+  }
+
+  // React 계열 — overflowX 없는 flex-row 컨테이너에 주입
+  if (['react-inline', 'react-yds', 'react-tailwind', 'html-css'].includes(formatId)) {
+    if (hasScrollX && !code.includes('overflowX') && !code.includes('overflow-x')) {
+      // flexDirection:"row" 또는 flex-direction:row 스타일에 overflow 추가
+      code = code
+        .replace(/flexDirection\s*:\s*["']row["']/g, 'flexDirection:"row",overflowX:"auto",flexWrap:"nowrap"')
+        .replace(/flex-direction\s*:\s*row/g, 'flex-direction:row;overflow-x:auto;flex-wrap:nowrap');
+    }
+    return code;
+  }
+
   return code;
 }
 
