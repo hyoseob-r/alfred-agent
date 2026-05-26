@@ -260,6 +260,18 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
     else if (SCROLL_B_MAP.has(ovFlow)) scrollDir = "HV";
   } else if (node.clipsContent && hasAutoLayout) {
     scrollDir = node.layoutMode === "HORIZONTAL" ? "H" : "V";
+  } else if (hasAutoLayout && bb) {
+    // 휴리스틱: 자식 총 너비/높이가 컨테이너를 초과하면 스크롤 컨테이너
+    const children = node.children || [];
+    if (children.length >= 2 && node.layoutMode === "HORIZONTAL") {
+      const totalW = children.reduce((s, c) => s + (c.absoluteBoundingBox?.width || 0), 0)
+        + (node.itemSpacing || 0) * (children.length - 1);
+      if (totalW > bb.width + 8) scrollDir = "H";
+    } else if (children.length >= 2 && node.layoutMode === "VERTICAL") {
+      const totalH = children.reduce((s, c) => s + (c.absoluteBoundingBox?.height || 0), 0)
+        + (node.itemSpacing || 0) * (children.length - 1);
+      if (totalH > bb.height + 8) scrollDir = "V";
+    }
   }
 
   let nodeIsScrolling = false;
@@ -467,53 +479,6 @@ ${FORMAT_PROMPT[formatId]}`,
   if (validate && !validate(code)) {
     throw new Error(`코드 생성 실패: ${code.slice(0, 200)}`);
   }
-  return postProcessScroll(code, spec, formatId);
-}
-
-// ── 생성된 코드에 scroll 후처리 (AI가 빠뜨린 경우 강제 주입) ─────────────────
-function postProcessScroll(code, spec, formatId) {
-  if (!spec || !code) return code;
-  const hasScrollX = spec.includes('‼️SCROLL-X');
-  const hasScrollY = spec.includes('‼️SCROLL-Y');
-  if (!hasScrollX && !hasScrollY) return code;
-
-  if (formatId === 'swiftui') {
-    // ScrollView(.horizontal) 이 없으면 HStack을 ScrollView로 감싸기
-    if (hasScrollX && !code.includes('ScrollView(.horizontal') && !code.includes('ScrollView([.horizontal')) {
-      code = code.replace(
-        /(HStack\s*(?:\([^)]*\))?\s*\{)/g,
-        'ScrollView(.horizontal, showsIndicators: false) {\n$1'
-      );
-      // 열린 ScrollView 닫기 — 단순히 마지막 } 앞에 } 추가 (HStack 1개 가정)
-      // 더 안전하게: 각 HStack 블록 끝에 } 추가
-      code = code + '\n// ⚠️ ScrollView 닫힘 확인 필요';
-    }
-    return code;
-  }
-
-  if (formatId === 'compose') {
-    if (hasScrollX && !code.includes('horizontalScroll') && !code.includes('LazyRow')) {
-      code = code.replace(
-        /(Row\s*\()(modifier\s*=\s*Modifier)?/g,
-        (match, p1, p2) => p2
-          ? `${p1}modifier = ${p2}.horizontalScroll(rememberScrollState())`
-          : `${p1}modifier = Modifier.horizontalScroll(rememberScrollState()),`
-      );
-    }
-    return code;
-  }
-
-  // React 계열 — overflowX 없는 flex-row 컨테이너에 주입
-  if (['react-inline', 'react-yds', 'react-tailwind', 'html-css'].includes(formatId)) {
-    if (hasScrollX && !code.includes('overflowX') && !code.includes('overflow-x')) {
-      // flexDirection:"row" 또는 flex-direction:row 스타일에 overflow 추가
-      code = code
-        .replace(/flexDirection\s*:\s*["']row["']/g, 'flexDirection:"row",overflowX:"auto",flexWrap:"nowrap"')
-        .replace(/flex-direction\s*:\s*row/g, 'flex-direction:row;overflow-x:auto;flex-wrap:nowrap');
-    }
-    return code;
-  }
-
   return code;
 }
 
@@ -943,7 +908,7 @@ export default function FigmaPreviewBubble({ url }) {
       const spec = nodeToSpec(nodeData);
       specRef.current = spec;
       console.log("[Figma] spec:\n" + spec);
-      console.log("[Figma] scroll lines:", spec.split("\n").filter(l => l.includes("scroll:")));
+      console.log("[Figma] scroll lines:", spec.split("\n").filter(l => l.includes("‼️SCROLL-")));
 
       // 2. 코드 생성 — 완료 즉시 결과 표시
       setPhase("generate");
