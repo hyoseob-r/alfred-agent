@@ -704,6 +704,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const [expanded, setExpanded] = useState(false);
   const [editInput, setEditInput] = useState("");
   const [editLoading, setEditLoading] = useState(false);
+  const [editStatus, setEditStatus] = useState(""); // "done" | "error" | ""
   const [localPreviewHtml, setLocalPreviewHtml] = useState(previewHtml);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
@@ -760,6 +761,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const runEdit = async () => {
     if (!editInput.trim() || editLoading) return;
     setEditLoading(true);
+    setEditStatus("");
     const instruction = editInput.trim();
     setEditInput("");
     try {
@@ -775,6 +777,9 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
       const updated = full.replace(/^```[\w]*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
       if (updated) {
         setCurrentCode(updated);
+        setShowCode(true); // 수정 후 자동으로 코드 패널 열기
+        setEditStatus("done");
+        setTimeout(() => setEditStatus(""), 3000);
         // SwiftUI/Compose: HTML 미리보기도 재생성
         if (isNative) {
           generateCode(spec, "html-css", () => {}).then(html => {
@@ -784,6 +789,8 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
       }
     } catch (e) {
       console.error("[edit]", e);
+      setEditStatus("error");
+      setTimeout(() => setEditStatus(""), 4000);
     }
     setEditLoading(false);
   };
@@ -894,7 +901,11 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
       )}
 
       {/* 코드 수정 채팅 */}
-      <div style={{ borderTop: "1px solid #eeeeee", padding: "10px 14px", display: "flex", gap: "8px", alignItems: "center", background: "#fafafa" }}>
+      <div style={{ borderTop: "1px solid #eeeeee", padding: "10px 14px", display: "flex", flexDirection: "column", gap: "6px", background: "#fafafa" }}>
+        {editStatus === "done" && <div style={{ fontSize: "11px", color: "#338833", fontWeight: 600 }}>✓ 코드 수정 완료 — 아래에서 확인하세요</div>}
+        {editStatus === "error" && <div style={{ fontSize: "11px", color: "#cc4444" }}>⚠️ 수정 실패 — 다시 시도해주세요</div>}
+      </div>
+      <div style={{ padding: "0 14px 10px", display: "flex", gap: "8px", alignItems: "center", background: "#fafafa" }}>
         <input
           value={editInput}
           onChange={e => setEditInput(e.target.value)}
