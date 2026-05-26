@@ -251,6 +251,7 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
 
   let nodeIsScrolling = false;
   if (isHScrollContainer) {
+    console.log(`[Figma] ‼️SCROLL-X detected: "${node.name}" (${bb ? Math.round(bb.width)+'×'+Math.round(bb.height) : '?'}) ovDir=${ovDir} ovFlow=${ovFlow} clipsContent=${node.clipsContent} layoutMode=${node.layoutMode}`);
     lines.push(`${indent}  ‼️SCROLL-X: 가로 스크롤 컨테이너. React→style={{overflowX:"auto",display:"flex",flexDirection:"row",flexWrap:"nowrap"}} 직접자식→flexShrink:0 / SwiftUI→ScrollView(.horizontal,showsIndicators:false){HStack{자식들}} HStack에.frame(maxWidth:.infinity)금지 / Compose→Row(modifier=Modifier.horizontalScroll(rememberScrollState()))`);
     nodeIsScrolling = true;
   }
