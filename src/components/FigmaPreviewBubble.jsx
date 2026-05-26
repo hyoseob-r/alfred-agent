@@ -704,6 +704,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const [expanded, setExpanded] = useState(false);
   const [editInput, setEditInput] = useState("");
   const [editLoading, setEditLoading] = useState(false);
+  const [localPreviewHtml, setLocalPreviewHtml] = useState(previewHtml);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
   const isNative = ["swiftui", "compose"].includes(formatId);
@@ -772,8 +773,18 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
         }],
       }, (delta) => { full += delta; });
       const updated = full.replace(/^```[\w]*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-      if (updated) setCurrentCode(updated);
-    } catch {/* ignore */}
+      if (updated) {
+        setCurrentCode(updated);
+        // SwiftUI/Compose: HTML 미리보기도 재생성
+        if (isNative) {
+          generateCode(spec, "html-css", () => {}).then(html => {
+            if (html) setLocalPreviewHtml(html);
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.error("[edit]", e);
+    }
     setEditLoading(false);
   };
 
@@ -841,7 +852,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
         figmaImgUrl={figmaImgUrl}
         currentCode={currentCode}
         formatId={formatId}
-        previewHtml={previewHtml}
+        previewHtml={localPreviewHtml}
         isHtml={isHtml}
         isNative={isNative}
         fmt={fmt}
@@ -895,7 +906,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
         <button
           onClick={runEdit}
           disabled={editLoading || !editInput.trim()}
-          style={{ padding: "7px 14px", background: editLoading ? "#eee" : "#7740c8", border: "none", borderRadius: "10px", fontSize: "11px", color: editLoading ? "#aaa" : "#fff", cursor: editLoading || !editInput.trim() ? "default" : "pointer", fontWeight: 600, flexShrink: 0 }}
+          style={{ padding: "7px 14px", background: (editLoading || !editInput.trim()) ? "#e0e0e0" : "#7740c8", border: "none", borderRadius: "10px", fontSize: "11px", color: (editLoading || !editInput.trim()) ? "#aaa" : "#fff", cursor: (editLoading || !editInput.trim()) ? "default" : "pointer", fontWeight: 600, flexShrink: 0 }}
         >
           {editLoading ? "수정 중..." : "수정"}
         </button>
