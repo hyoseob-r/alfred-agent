@@ -245,8 +245,17 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   if (!isHScrollContainer && ovFlow) {
     if (SCROLL_H_MAP.has(ovFlow) || SCROLL_B_MAP.has(ovFlow)) isHScrollContainer = true;
   }
-  if (!isHScrollContainer && node.clipsContent && hasAutoLayout && node.layoutMode === "HORIZONTAL") {
-    isHScrollContainer = true;
+  // heuristic: HORIZONTAL auto-layout + clipsContent + 자식 총너비가 컨테이너보다 클 때만
+  if (!isHScrollContainer && node.clipsContent && hasAutoLayout && node.layoutMode === "HORIZONTAL" && bb) {
+    const children = node.children || [];
+    const spacing = node.itemSpacing || 0;
+    const totalChildW = children.reduce((sum, c) => sum + (c.absoluteBoundingBox?.width || 0), 0)
+                        + Math.max(0, children.length - 1) * spacing;
+    const containerW = bb.width;
+    if (totalChildW > containerW * 1.1) {
+      console.log(`[Figma] ‼️SCROLL-X heuristic: "${node.name}" totalChildW=${Math.round(totalChildW)} containerW=${Math.round(containerW)}`);
+      isHScrollContainer = true;
+    }
   }
 
   let nodeIsScrolling = false;
