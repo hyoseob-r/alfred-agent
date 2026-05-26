@@ -363,7 +363,7 @@ ${tailwindScript}
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 ${ydsSetup}
-<style>*{box-sizing:border-box;}body{margin:0;padding:16px;background:#f5f5f5;font-family:'Pretendard',sans-serif;}</style>
+<style>*{box-sizing:border-box;}html,body{margin:0;padding:0;overflow-x:auto;background:#f5f5f5;font-family:'Pretendard',sans-serif;}body{padding:16px;}</style>
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
@@ -380,11 +380,34 @@ const _comp = typeof ${compName} !== 'undefined' ? ${compName}
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(_comp));
 </script>
 <script>
+// 렌더링 후 overflowing flex-row 컨테이너 자동 scroll 활성화
+(function autoScroll() {
+  function fix() {
+    document.querySelectorAll('*').forEach(function(el) {
+      if (el === document.body || el === document.documentElement) return;
+      var cs = window.getComputedStyle(el);
+      var isRow = cs.display === 'flex' && (cs.flexDirection === 'row' || cs.flexDirection === 'row-reverse');
+      var overflows = el.scrollWidth > el.clientWidth + 4;
+      if (isRow && overflows && cs.overflowX === 'visible' || cs.overflowX === 'hidden' && overflows) {
+        el.style.overflowX = 'auto';
+        el.style.webkitOverflowScrolling = 'touch';
+      }
+      if (isRow && overflows) {
+        Array.from(el.children).forEach(function(c) {
+          if (window.getComputedStyle(c).flexShrink !== '0') c.style.flexShrink = '0';
+        });
+      }
+    });
+  }
+  [100, 400, 1000, 2000].forEach(function(t) { setTimeout(fix, t); });
+  // 이미지 로드 완료 후 재실행
+  document.addEventListener('load', function(e) { if (e.target.tagName === 'IMG') setTimeout(fix, 100); }, true);
+})();
 // 깨진 이미지 자동 복구
 document.addEventListener('error', function(e) {
   if (e.target.tagName !== 'IMG') return;
-  const w = Math.round(e.target.offsetWidth) || 80;
-  const h = Math.round(e.target.offsetHeight) || 80;
+  var w = Math.round(e.target.offsetWidth) || 80;
+  var h = Math.round(e.target.offsetHeight) || 80;
   e.target.src = 'https://picsum.photos/' + w + '/' + h + '?random=' + Math.floor(Math.random() * 200);
   e.target.onerror = null;
 }, true);
@@ -395,6 +418,11 @@ document.addEventListener('error', function(e) {
 
 // ── HTML에 깨진 이미지 자동 복구 스크립트 inject ─────────────────────────────
 const IMG_FALLBACK_SCRIPT = `<script>
+(function(){
+  function fix(){document.querySelectorAll('*').forEach(function(el){if(el===document.body||el===document.documentElement)return;var cs=window.getComputedStyle(el);var isRow=cs.display==='flex'&&(cs.flexDirection==='row'||cs.flexDirection==='row-reverse');var over=el.scrollWidth>el.clientWidth+4;if(isRow&&over){if(cs.overflowX==='visible'||cs.overflowX==='hidden'){el.style.overflowX='auto';el.style.webkitOverflowScrolling='touch';}Array.from(el.children).forEach(function(c){c.style.flexShrink='0';});}});}
+  [100,400,1000,2000].forEach(function(t){setTimeout(fix,t);});
+  document.addEventListener('load',function(e){if(e.target.tagName==='IMG')setTimeout(fix,100);},true);
+})();
 document.addEventListener('error',function(e){
   if(e.target.tagName!=='IMG')return;
   const w=Math.round(e.target.offsetWidth)||80,h=Math.round(e.target.offsetHeight)||80;
