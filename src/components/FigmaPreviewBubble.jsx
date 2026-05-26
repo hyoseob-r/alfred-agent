@@ -195,6 +195,24 @@ async function fetchFigmaNodeData(fileKey, nodeId, token) {
   return doc;
 }
 
+// ── HORIZONTAL 노드 수집 (스크롤 후보 탐색) ──────────────────────────────────
+function collectHorizontalNodes(node, depth = 0, result = []) {
+  if (!node || depth > 6) return result;
+  if (node.layoutMode === "HORIZONTAL" && (node.children?.length ?? 0) >= 2) {
+    const bb = node.absoluteBoundingBox;
+    result.push({
+      id: node.id,
+      name: node.name,
+      width: bb ? Math.round(bb.width) : null,
+      height: bb ? Math.round(bb.height) : null,
+      childCount: node.children?.length ?? 0,
+      depth,
+    });
+  }
+  (node.children || []).forEach(c => collectHorizontalNodes(c, depth + 1, result));
+  return result;
+}
+
 // ── 색상 변환 ─────────────────────────────────────────────────────────────────
 function colorStr(c) {
   if (!c) return "transparent";
@@ -207,7 +225,7 @@ function colorStr(c) {
 }
 
 // ── Figma 노드 → 디자인 스펙 텍스트 ─────────────────────────────────────────
-function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = false, parentIsScrolling = false) {
+function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = false, parentIsScrolling = false, forcedScrollIds = new Set()) {
   if (!node || depth > 5) return "";
   const indent = "  ".repeat(depth);
   const lines = [];
@@ -244,6 +262,10 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   }
   if (!isHScrollContainer && ovFlow) {
     if (SCROLL_H_MAP.has(ovFlow) || SCROLL_B_MAP.has(ovFlow)) isHScrollContainer = true;
+  }
+  // 사용자가 수동으로 지정한 노드
+  if (!isHScrollContainer && forcedScrollIds.has(node.id)) {
+    isHScrollContainer = true;
   }
   // heuristic: HORIZONTAL auto-layout + clipsContent + 자식 총너비가 컨테이너보다 클 때만
   if (!isHScrollContainer && node.clipsContent && hasAutoLayout && node.layoutMode === "HORIZONTAL" && bb) {
@@ -303,7 +325,7 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   }
 
   (node.children || []).forEach(child => {
-    const childSpec = nodeToSpec(child, depth + 1, bb, hasAutoLayout, nodeIsScrolling);
+    const childSpec = nodeToSpec(child, depth + 1, bb, hasAutoLayout, nodeIsScrolling, forcedScrollIds);
     if (childSpec) lines.push(childSpec);
   });
 
@@ -680,6 +702,8 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const [verifyLog, setVerifyLog] = useState("");
   const [showVerifyLog, setShowVerifyLog] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [editInput, setEditInput] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
   const isNative = ["swiftui", "compose"].includes(formatId);
@@ -730,6 +754,27 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
     navigator.clipboard.writeText(currentCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
+  };
+
+  const runEdit = async () => {
+    if (!editInput.trim() || editLoading) return;
+    setEditLoading(true);
+    const instruction = editInput.trim();
+    setEditInput("");
+    try {
+      let full = "";
+      await streamChatAPI({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4000,
+        messages: [{
+          role: "user",
+          content: `아래 코드를 수정해줘. 수정 요청: "${instruction}"\n코드만 반환. 마크다운·설명 없음.\n\n${currentCode}`,
+        }],
+      }, (delta) => { full += delta; });
+      const updated = full.replace(/^```[\w]*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+      if (updated) setCurrentCode(updated);
+    } catch {/* ignore */}
+    setEditLoading(false);
   };
 
   const sendToStorybook = async () => {
@@ -836,6 +881,25 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
           </pre>
         </div>
       )}
+
+      {/* 코드 수정 채팅 */}
+      <div style={{ borderTop: "1px solid #eeeeee", padding: "10px 14px", display: "flex", gap: "8px", alignItems: "center", background: "#fafafa" }}>
+        <input
+          value={editInput}
+          onChange={e => setEditInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runEdit(); } }}
+          placeholder="수정 요청 입력 (예: 스윔레인에 가로 스크롤 추가해줘)"
+          disabled={editLoading}
+          style={{ flex: 1, padding: "7px 12px", borderRadius: "10px", border: "1px solid #ddd", fontSize: "11px", outline: "none", background: editLoading ? "#f5f5f5" : "#fff", color: "#333" }}
+        />
+        <button
+          onClick={runEdit}
+          disabled={editLoading || !editInput.trim()}
+          style={{ padding: "7px 14px", background: editLoading ? "#eee" : "#7740c8", border: "none", borderRadius: "10px", fontSize: "11px", color: editLoading ? "#aaa" : "#fff", cursor: editLoading || !editInput.trim() ? "default" : "pointer", fontWeight: 600, flexShrink: 0 }}
+        >
+          {editLoading ? "수정 중..." : "수정"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -852,20 +916,38 @@ export default function FigmaPreviewBubble({ url }) {
   const [elapsed, setElapsed] = useState(0);
   const [formatId, setFormatId] = useState("react-yds");
   const [previewHtml, setPreviewHtml] = useState("");
+  const [scrollCandidates, setScrollCandidates] = useState([]);
 
   const parsed = parseFigmaUrl(url);
   const runRef = useRef(false);
   const timerRef = useRef(null);
   const specRef = useRef("");
+  const nodeDataRef = useRef(null);
 
-  const run = async (fmtId = formatId) => {
+  const runGenerate = async (fmtId, spec) => {
+    setPhase("generate");
+    const isNative = ["swiftui", "compose"].includes(fmtId);
+    let currentCode;
+    if (isNative) {
+      [currentCode] = await Promise.all([
+        generateCode(spec, fmtId, (partial) => setCode(partial.replace(/^```[\w]*\n?/i, ""))),
+        generateCode(spec, "html-css", () => {}).then(html => setPreviewHtml(html)).catch(() => {}),
+      ]);
+    } else {
+      currentCode = await generateCode(spec, fmtId, (partial) => setCode(partial.replace(/^```[\w]*\n?/i, "")));
+    }
+    setCode(currentCode);
+    setPhase("done");
+    setStatus("done");
+  };
+
+  const run = async (fmtId = formatId, forcedScrollIds = new Set()) => {
     const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
     if (runRef.current) return;
     runRef.current = true;
     setStatus("running");
     setError("");
     setIterations([]);
-    setFigmaImgUrl(null);
     setCode("");
     setPreviewHtml("");
     setIteration(0);
@@ -877,40 +959,39 @@ export default function FigmaPreviewBubble({ url }) {
       if (!tok) throw new Error("Figma Personal Access Token이 필요합니다.");
       if (!parsed?.nodeId) throw new Error("URL에 node-id가 없습니다.\nFigma에서 컴포넌트를 선택한 후 URL을 복사해 주세요.");
 
-      // 1. Figma 데이터
+      // 1. Figma 데이터 (캐시 활용 — forcedScrollIds로 재실행 시 재요청 생략)
       setPhase("figma");
-      const [imgUrl, nodeData] = await Promise.all([
-        fetchFigmaImageUrl(parsed.fileKey, parsed.nodeId, tok),
-        fetchFigmaNodeData(parsed.fileKey, parsed.nodeId, tok),
-      ]);
-      setFigmaImgUrl(imgUrl);
-      const spec = nodeToSpec(nodeData);
+      let nodeData = nodeDataRef.current;
+      let imgUrl = figmaImgUrl;
+      if (!nodeData) {
+        [imgUrl, nodeData] = await Promise.all([
+          fetchFigmaImageUrl(parsed.fileKey, parsed.nodeId, tok),
+          fetchFigmaNodeData(parsed.fileKey, parsed.nodeId, tok),
+        ]);
+        nodeDataRef.current = nodeData;
+        setFigmaImgUrl(imgUrl);
+      }
+
+      const spec = nodeToSpec(nodeData, 0, null, false, false, forcedScrollIds);
       specRef.current = spec;
       console.log("[Figma] spec:\n" + spec);
-      console.log("[Figma] scroll lines:", spec.split("\n").filter(l => l.includes("‼️SCROLL-")));
+      const scrollLines = spec.split("\n").filter(l => l.includes("‼️SCROLL-"));
+      console.log("[Figma] scroll lines:", scrollLines);
 
-      // 2. 코드 생성 — 완료 즉시 결과 표시
-      setPhase("generate");
-      const isNative = ["swiftui", "compose"].includes(fmtId);
-      let currentCode;
-      if (isNative) {
-        // 네이티브 코드 + HTML 미리보기 병렬 생성
-        [currentCode] = await Promise.all([
-          generateCode(spec, fmtId, (partial) => {
-            setCode(partial.replace(/^```[\w]*\n?/i, ""));
-          }),
-          generateCode(spec, "html-css", () => {})
-            .then(html => setPreviewHtml(html))
-            .catch(() => {}),
-        ]);
-      } else {
-        currentCode = await generateCode(spec, fmtId, (partial) => {
-          setCode(partial.replace(/^```[\w]*\n?/i, ""));
-        });
+      // 스크롤 미감지 → 후보 제시
+      if (scrollLines.length === 0 && forcedScrollIds.size === 0) {
+        const candidates = collectHorizontalNodes(nodeData);
+        if (candidates.length > 0) {
+          setScrollCandidates(candidates);
+          setStatus("scroll-pick");
+          runRef.current = false;
+          clearInterval(timerRef.current);
+          return;
+        }
       }
-      setCode(currentCode);
-      setPhase("done");
-      setStatus("done");
+
+      // 2. 코드 생성
+      await runGenerate(fmtId, spec);
     } catch (e) {
       setError(e.message);
       setStatus("error");
@@ -966,6 +1047,32 @@ export default function FigmaPreviewBubble({ url }) {
                 ▶ 시작
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 스크롤 후보 선택 */}
+      {status === "scroll-pick" && (
+        <div style={{ padding: "18px 20px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 700, color: "#7740c8", marginBottom: "6px" }}>↔ 가로 스크롤 컨테이너를 선택해주세요</div>
+          <div style={{ fontSize: "11px", color: "#888", marginBottom: "14px" }}>자동으로 감지하지 못했어요. 아래 HORIZONTAL 레이아웃 노드 중 스윔레인/가로 스크롤 영역을 선택하면 해당 노드에 가로 스크롤을 적용해요.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {scrollCandidates.map(c => (
+              <button
+                key={c.id}
+                onClick={() => { setStatus("idle"); runRef.current = false; run(formatId, new Set([c.id])); }}
+                style={{ padding: "9px 14px", background: "#f5f0ff", border: "1px solid #c8aaee", borderRadius: "10px", fontSize: "11px", color: "#5522aa", cursor: "pointer", textAlign: "left", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "space-between" }}
+              >
+                <span>{"  ".repeat(c.depth)}"{c.name}"</span>
+                <span style={{ fontSize: "10px", color: "#9970d8", fontWeight: 400 }}>{c.width && c.height ? `${c.width}×${c.height}px` : ""} · 자식 {c.childCount}개</span>
+              </button>
+            ))}
+            <button
+              onClick={() => { setStatus("idle"); runRef.current = false; run(formatId, new Set()); }}
+              style={{ padding: "7px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "10px", fontSize: "11px", color: "#aaa", cursor: "pointer", textAlign: "left" }}
+            >
+              없음 — 가로 스크롤 없이 생성
+            </button>
           </div>
         </div>
       )}
