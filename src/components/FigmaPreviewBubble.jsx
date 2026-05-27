@@ -6,125 +6,107 @@ const MAX_ITER = 2;
 
 // ── 포맷 정의 ─────────────────────────────────────────────────────────────────
 const FORMATS = [
-  { id: "react-yds",       label: "React + YDS",       lang: "jsx" },
-  { id: "swiftui",         label: "SwiftUI",           lang: "swift" },
-  { id: "compose",         label: "Compose",           lang: "kotlin" },
+  { id: "react-yds",  label: "React + YDS",  lang: "jsx" },
+  { id: "swiftui",    label: "SwiftUI",       lang: "swift" },
+  { id: "compose",    label: "Compose",       lang: "kotlin" },
 ];
 
+const YDS_TOKENS = `
+=== YDS 2.0 디자인 토큰 (반드시 반영) ===
+
+[컬러]
+primary=#fa0050 (요기요 레드/CTA), primary_i=#ff3072
+secondary=#0c74e4 (파랑), secondary_i=#1f8bff
+green=#05947f, yellow=#ffcb2e, white=#ffffff, black=#000000
+primary_a_100=#feccdc, primary_b=#28343c, primary_b_100=#dee5ea
+accent=#0c80e4, accent_100=#c5e2fb
+ygy_green=#05947f, ygy_orange=#f04600
+gray800=#333333(본문텍스트), gray600=#666666, gray400=#999999
+gray250=#bfbfbf, gray100=#e5e5e5, gray50=#f2f2f2, gray25=#f6f6f6
+bg_primary=#ffffff, bg_bottom=#f2f2f2
+dim1=#000000e5, dim2=#00000099
+variant_primary25=#fff5f8, variant_primary50=#ffe6ee, variant_primary800=#640020
+variant_secondary25=#f0f7fa, variant_green25=#f0f7f6, variant_red25=#fef4f4
+
+[타이포그래피] size/weight/lineHeight
+10r: 10/400/14,  10b: 10/700/14
+12r: 12/400/16,  12b: 12/700/16
+13r: 13/400/18,  13b: 13/700/18
+14r: 14/400/19 (기본),  14b: 14/700/19
+16r: 16/400/22,  16b: 16/700/22
+18b: 18/700/24,  20b: 20/700/27
+24b: 24/700/32,  32b: 32/700/43
+폰트: SD Neo Gothic, Pretendard, sans-serif
+
+[스페이싱] (px)
+s1:2, s2:4, s3:6, s4:8, s5:10, s6:12
+s7:16, s8:20, s9:24, s10:28, s11:32, s12:36, s13:40
+
+[라디우스] (px)
+r0:0, r1:4, r2:8, r3:10, r4:12, r5:16, r6:20, rfull:360
+
+[그림자]
+level0: none
+level1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08)
+level2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)
+================================`;
+
+const SCROLL_RULES_REACT = `- 스크롤 규칙 (반드시 적용):
+  * scroll:overflow-x:scroll 또는 "가로 스크롤" → style={{ display:"flex", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 자식: style={{ flexShrink:0 }}
+  * scroll:overflow-y:scroll 또는 "세로 스크롤" → style={{ overflowY:"auto", WebkitOverflowScrolling:"touch" }}
+  * scroll:overflow:scroll 또는 "양방향 스크롤" → style={{ overflow:"auto" }}`;
+
 const FORMAT_PROMPT = {
-  "html-css": `구현 규칙:
-- <!DOCTYPE html>부터 시작하는 완전한 단일 HTML 파일
-- Pretendard 폰트: <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
-- 스펙의 색상·크기·폰트·간격을 최대한 정확하게 구현
-- 모든 스타일은 <style> 태그 사용
-- 한국어 현실적 콘텐츠
-- body { margin: 0; padding: 16px; background: #f5f5f5; font-family: 'Pretendard', sans-serif; }
-- 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용 (예: <img src="https://picsum.photos/80/80?random=1">). src 없는 img 태그 금지.
-- ‼️SCROLL-X 가 있는 요소: display:flex; flex-direction:row; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; 직접 자식: flex-shrink:0
-- HTML 코드만 반환, 마크다운·설명 없음`,
-
-  "react-tailwind": `구현 규칙:
-- React 함수형 컴포넌트, 파일명 Component.jsx
-- Tailwind CSS 클래스만 사용 (스타일 속성 직접 작성 금지)
-- 스펙의 색상은 Tailwind 가장 근접한 클래스 또는 arbitrary value 사용 (예: bg-[#FF5733])
-- 폰트: font-['Pretendard']
-- 한국어 현실적 콘텐츠
-- 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
-- ‼️SCROLL-X 가 있는 요소: className="flex overflow-x-auto" 직접 자식: className="flex-shrink-0"
-- JSX 코드만 반환, 마크다운·설명 없음`,
-
-  "react-inline": `구현 규칙:
-- React 함수형 컴포넌트, 파일명 Component.jsx
-- 모든 스타일은 style={{}} inline 객체 사용
-- 스펙의 색상·크기·폰트·간격을 픽셀 단위로 정확하게 구현
-- 폰트: fontFamily: "'Pretendard', sans-serif"
-- 한국어 현실적 콘텐츠
-- 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용. src 없는 img 금지.
-- ‼️SCROLL-X 가 있는 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 모두: style={{ flexShrink:0 }}
-- JSX 코드만 반환, 마크다운·설명 없음`,
-
   "react-yds": `구현 규칙:
 - React 함수형 컴포넌트 (export default function ComponentName)
-- 반드시 아래 import 문 사용:
-  import { colors, metaTokens } from "./tokens";
-- 모든 스타일은 style={{}} inline 객체. 값은 반드시 토큰에서 참조.
+- import { colors, metaTokens } from "./tokens"; 반드시 포함
+- 모든 스타일은 style={{}} inline 객체. 색상·간격·라디우스·그림자는 반드시 아래 토큰 값으로 참조.
 - 한국어 현실적 콘텐츠
-- 이미지: 반드시 https://picsum.photos/[너비]/[높이]?random=[숫자] 형식의 실제 URL 사용.
-- ‼️SCROLL-X 가 있는 컨테이너: style={{ display:"flex", flexDirection:"row", flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch" }}, 직접 자식 모두: style={{ flexShrink:0 }}
-- JSX 코드만 반환, 마크다운·설명 없음
-
-=== YDS 2.0 토큰 참조 ===
-
-[컬러] colors.xxx.yyy.value 형태로 사용
-foundation.primary=#fa0050 (요기요 레드/CTA), foundation.primary_i=#ff3072
-foundation.secondary=#0c74e4 (파랑), foundation.secondary_i=#1f8bff
-foundation.green=#05947f, foundation.yellow=#ffcb2e, foundation.white=#fff, foundation.black=#000
-light.primary_a=#fa0050, light.primary_a_100=#feccdc
-light.primary_b=#28343c, light.primary_b_100=#dee5ea
-light.accent=#0c80e4, light.accent_100=#c5e2fb
-light.ygy_green=#05947f, light.ygy_orange=#f04600
-gray.gray800=#333333(본문), gray.gray600=#666666, gray.gray400=#999999
-gray.gray250=#bfbfbf, gray.gray100=#e5e5e5, gray.gray50=#f2f2f2, gray.gray25=#f6f6f6
-background.primary=#ffffff(기본 배경), background.bottom=#f2f2f2
-background.dim1=#000000e5, background.dim2=#00000099
-variant.primary25=#fff5f8, variant.primary50=#ffe6ee, variant.primary800=#640020
-variant.secondary25=#f0f7fa, variant.green25=#f0f7f6, variant.red25=#fef4f4
-
-[타이포] metaTokens.typography.xxx → { size, weight, lineHeight }
-meta_sf_10_r: 10/400/14, meta_sf_10_b: 10/700/14
-meta_sf_12_r: 12/400/16, meta_sf_12_b: 12/700/16
-meta_sf_13_r: 13/400/18, meta_sf_13_b: 13/700/18
-meta_sf_14_r: 14/400/19(기본), meta_sf_14_b: 14/700/19
-meta_sf_16_r: 16/400/22, meta_sf_16_b: 16/700/22
-meta_sf_18_b: 18/700/24, meta_sf_20_b: 20/700/27
-meta_sf_24_b: 24/700/32, meta_sf_32_b: 32/700/43
-→ 사용법: fontSize:metaTokens.typography.meta_sf_14_r.size, fontWeight:..weight, lineHeight:..lineHeight+"px"
-
-[스페이싱] metaTokens.spacing.meta_sN (px 단위)
-meta_s1:2, meta_s2:4, meta_s3:6, meta_s4:8, meta_s5:10, meta_s6:12
-meta_s7:16, meta_s8:20, meta_s9:24, meta_s10:28, meta_s11:32, meta_s12:36, meta_s13:40
-→ 사용법: padding:metaTokens.spacing.meta_s4 (px 불필요, 숫자값)
-
-[라디우스] metaTokens.radius.xxx (px 단위 숫자)
-meta_r0:0, meta_r1:4, meta_r2:8, meta_r3:10, meta_r4:12, meta_r5:16, meta_r6:20, rfull:360
-→ 사용법: borderRadius:metaTokens.radius.meta_r4
-
-[그림자] metaTokens.elevation.xxx.css (CSS string)
-meta_level_0: none
-meta_level_1: "0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08)"
-meta_level_2: "0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12)"
-→ 사용법: boxShadow:metaTokens.elevation.meta_level_1.css
-
-[폰트] fontFamily: "'SD Neo Gothic', 'Pretendard', sans-serif"
-=========================`,
+- 이미지: https://picsum.photos/[w]/[h]?random=[n] 실제 URL 사용
+${SCROLL_RULES_REACT}
+${YDS_TOKENS}
+[React 토큰 사용법]
+색상: colors.foundation.primary.value 또는 "#fa0050" 하드코딩
+타이포: fontSize:metaTokens.typography.meta_sf_14_r.size, fontWeight:metaTokens.typography.meta_sf_14_r.weight, lineHeight:metaTokens.typography.meta_sf_14_r.lineHeight+"px"
+스페이싱: padding:metaTokens.spacing.meta_s4 (숫자, px 불필요)
+라디우스: borderRadius:metaTokens.radius.meta_r4
+그림자: boxShadow:metaTokens.elevation.meta_level_1.css
+JSX 코드만 반환, 마크다운·설명 없음`,
 
   "swiftui": `구현 규칙:
 - SwiftUI View struct
-- 폰트: Font.custom("Pretendard", size:) 사용
+- 폰트: Font.custom("Pretendard", size:) 또는 .system(size:weight:)
+- 스펙 수치를 최대한 정확하게 반영
 - 한국어 현실적 콘텐츠
-- YDS 토큰 매핑 (스펙 수치 대신 아래 값 우선 사용):
-  [색상] primary:#fa0050 / gray800:#333333 / gray600:#666666 / gray400:#999999 / gray100:#e5e5e5 / gray50:#f2f2f2 / white:#ffffff / black:#000000
-  [스페이싱] s1:2 s2:4 s3:6 s4:8 s5:10 s6:12 s7:16 s8:20 s9:24 s10:28 s11:32 s12:36 s13:40 (단위: CGFloat/pt)
-  [라디우스] r0:0 r1:4 r2:8 r3:10 r4:12 r5:16 r6:20 rfull:360
-  [타이포] size10/12/13/14/16/18/20/24 — weight400(regular)/700(bold) — lineHeight14/16/18/19/22/24/27/32
-  [엘리베이션] level1: shadow(color:.black.opacity(0.10), radius:8, x:0, y:1) / level2: shadow(color:.black.opacity(0.24), radius:12, x:0, y:2)
-- 색상은 Color(hex:) extension 또는 Color(red:green:blue:) 사용
-- ‼️SCROLL-X 가 있는 컨테이너: ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: gap) { children } } ⚠️ HStack에 .frame(maxWidth: .infinity) 금지
-- Swift 코드만 반환, 마크다운·설명 없음`,
+- 스크롤 규칙 (반드시 적용):
+  * scroll:overflow-x:scroll 또는 "가로 스크롤" → ScrollView(.horizontal, showsIndicators: false) { HStack(spacing:) { ... }.padding() }
+  * scroll:overflow-y:scroll 또는 "세로 스크롤" → ScrollView { VStack { ... } }
+  * scroll:overflow:scroll 또는 "양방향 스크롤" → ScrollView([.horizontal, .vertical]) { ... }
+${YDS_TOKENS}
+[SwiftUI 토큰 사용법]
+색상: Color(hex: "fa0050") — hex extension 직접 정의하거나 Color(red:green:blue:) 변환
+타이포: .font(.system(size: 14, weight: .regular)) — 토큰 수치 직접 사용
+스페이싱: padding(8), spacing: 16 — 토큰 수치 직접 사용
+라디우스: .cornerRadius(12) — 토큰 수치 직접 사용
+그림자: .shadow(color: Color.black.opacity(0.10), radius: 8, x: 0, y: 1)
+Swift 코드만 반환, 마크다운·설명 없음`,
 
   "compose": `구현 규칙:
 - Jetpack Compose @Composable 함수
-- 폰트: FontFamily 커스텀(Pretendard) 또는 MaterialTheme.typography 사용
+- Material3 컴포넌트 우선 사용
 - 한국어 현실적 콘텐츠
-- YDS 토큰 매핑 (스펙 수치 대신 아래 값 우선 사용):
-  [색상] primary:0xFFFA0050 / gray800:0xFF333333 / gray600:0xFF666666 / gray400:0xFF999999 / gray100:0xFFE5E5E5 / gray50:0xFFF2F2F2 / white:0xFFFFFFFF / black:0xFF000000
-  [스페이싱] s1:2 s2:4 s3:6 s4:8 s5:10 s6:12 s7:16 s8:20 s9:24 s10:28 s11:32 s12:36 s13:40 (단위: dp)
-  [라디우스] r0:0 r1:4 r2:8 r3:10 r4:12 r5:16 r6:20 rfull:360
-  [타이포] fontSize:10/12/13/14/16/18/20/24.sp — fontWeight:Normal(400)/Bold(700) — lineHeight:14/16/18/19/22/24/27/32.sp
-  [엘리베이션] level1: shadow elevation=4.dp / level2: shadow elevation=8.dp
-- 색상은 Color(0xFF...) 형식
-- ‼️SCROLL-X 가 있는 컨테이너: Row(modifier = Modifier.horizontalScroll(rememberScrollState())) — LazyRow도 가능
-- Kotlin 코드만 반환, 마크다운·설명 없음`,
+- 스크롤 규칙 (반드시 적용):
+  * scroll:overflow-x:scroll 또는 "가로 스크롤" → LazyRow(horizontalArrangement = Arrangement.spacedBy(Xdp)) 또는 Row(modifier = Modifier.horizontalScroll(rememberScrollState()))
+  * scroll:overflow-y:scroll 또는 "세로 스크롤" → LazyColumn 또는 Column(modifier = Modifier.verticalScroll(rememberScrollState()))
+  * scroll:overflow:scroll 또는 "양방향 스크롤" → Box(modifier = Modifier.horizontalScroll(...).verticalScroll(...))
+${YDS_TOKENS}
+[Compose 토큰 사용법]
+색상: Color(0xFFFA0050) — 토큰 hex 직접 사용
+타이포: fontSize = 14.sp, fontWeight = FontWeight.Normal, lineHeight = 19.sp
+스페이싱: padding(8.dp), Arrangement.spacedBy(16.dp) — 토큰 수치 직접 사용
+라디우스: RoundedCornerShape(12.dp) — 토큰 수치 직접 사용
+그림자: elevation = 4.dp (Material elevation)
+Kotlin 코드만 반환, 마크다운·설명 없음`,
 };
 
 const FORMAT_VALIDATE = {
@@ -170,9 +152,7 @@ async function fetchFigmaNodeData(fileKey, nodeId, token) {
     `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&geometry=paths`,
     { headers: { "X-Figma-Token": token } }
   );
-  if (!resp.ok) throw new Error(resp.status === 403
-    ? `Figma 토큰이 만료되었거나 권한이 없습니다 (403).\n우상단 설정에서 PAT를 새로 발급해 업데이트해 주세요.`
-    : `Figma 노드 API ${resp.status}`);
+  if (!resp.ok) throw new Error(`Figma 노드 API ${resp.status}`);
   const data = await resp.json();
   const nodes = data.nodes;
   if (!nodes) throw new Error("Figma 노드 데이터 없음");
@@ -195,24 +175,6 @@ async function fetchFigmaNodeData(fileKey, nodeId, token) {
   return doc;
 }
 
-// ── HORIZONTAL 노드 수집 (스크롤 후보 탐색) ──────────────────────────────────
-function collectHorizontalNodes(node, depth = 0, result = []) {
-  if (!node || depth > 6) return result;
-  if (node.layoutMode === "HORIZONTAL" && (node.children?.length ?? 0) >= 2) {
-    const bb = node.absoluteBoundingBox;
-    result.push({
-      id: node.id,
-      name: node.name,
-      width: bb ? Math.round(bb.width) : null,
-      height: bb ? Math.round(bb.height) : null,
-      childCount: node.children?.length ?? 0,
-      depth,
-    });
-  }
-  (node.children || []).forEach(c => collectHorizontalNodes(c, depth + 1, result));
-  return result;
-}
-
 // ── 색상 변환 ─────────────────────────────────────────────────────────────────
 function colorStr(c) {
   if (!c) return "transparent";
@@ -225,7 +187,7 @@ function colorStr(c) {
 }
 
 // ── Figma 노드 → 디자인 스펙 텍스트 ─────────────────────────────────────────
-function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = false, parentIsScrolling = false, forcedScrollIds = new Set()) {
+function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = false) {
   if (!node || depth > 5) return "";
   const indent = "  ".repeat(depth);
   const lines = [];
@@ -238,53 +200,55 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
 
   if (hasAutoLayout) {
     const dir = node.layoutMode === "HORIZONTAL" ? "row" : "column";
-    const pt = node.paddingTop ?? 0, pr = node.paddingRight ?? 0;
-    const pb = node.paddingBottom ?? 0, pl = node.paddingLeft ?? 0;
-    const hasPad = pt || pr || pb || pl;
-    const pad = hasPad ? ` padding:${pt}/${pr}/${pb}/${pl}px` : "";
+    const pad = node.paddingTop !== undefined
+      ? ` padding:${node.paddingTop}/${node.paddingRight}/${node.paddingBottom}/${node.paddingLeft}px` : "";
     const gap = node.itemSpacing ? ` gap:${Math.round(node.itemSpacing)}px` : "";
     const main = node.primaryAxisAlignItems ? ` mainAxis:${node.primaryAxisAlignItems}` : "";
     const cross = node.counterAxisAlignItems ? ` crossAxis:${node.counterAxisAlignItems}` : "";
     lines.push(`${indent}  flex:${dir}${pad}${gap}${main}${cross}`);
   }
 
-  // 스크롤 감지 — overflowDirection / scrollOverflow / clipsContent fallback
-  const SCROLL_H_MAP = new Set(["HORIZONTAL", "HORIZONTAL_SCROLLING"]);
-  const SCROLL_V_MAP = new Set(["VERTICAL", "VERTICAL_SCROLLING"]);
-  const SCROLL_B_MAP = new Set(["HORIZONTAL_AND_VERTICAL", "HORIZONTAL_AND_VERTICAL_SCROLLING"]);
-
-  // 가로 스크롤만 감지 — Figma 명시 값 기준 (세로는 기본값이므로 스펙 불필요)
-  let isHScrollContainer = false;
-  const ovDir = node.overflowDirection;
-  const ovFlow = node.scrollOverflow;
-  if (ovDir && ovDir !== "NONE") {
-    if (SCROLL_H_MAP.has(ovDir) || SCROLL_B_MAP.has(ovDir)) isHScrollContainer = true;
+  // 스크롤 방향 — overflowDirection 또는 interactions에서 추출
+  const scrollMap = {
+    "HORIZONTAL": "overflow-x:scroll (가로 스크롤)",
+    "HORIZONTAL_SCROLLING": "overflow-x:scroll (가로 스크롤)",
+    "VERTICAL": "overflow-y:scroll (세로 스크롤)",
+    "VERTICAL_SCROLLING": "overflow-y:scroll (세로 스크롤)",
+    "HORIZONTAL_AND_VERTICAL": "overflow:scroll (양방향 스크롤)",
+    "HORIZONTAL_AND_VERTICAL_SCROLLING": "overflow:scroll (양방향 스크롤)",
+  };
+  if (node.overflowDirection && node.overflowDirection !== "NONE") {
+    lines.push(`${indent}  scroll:${scrollMap[node.overflowDirection] || node.overflowDirection}`);
+  } else if (node.clipsContent && hasAutoLayout) {
+    // clipsContent + auto-layout → 스크롤 컨테이너
+    const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
+    lines.push(`${indent}  scroll:${dir}`);
+  } else if (
+    hasAutoLayout &&
+    node.layoutMode === "HORIZONTAL" &&
+    (node.children || []).length >= 3
+  ) {
+    // 휴리스틱: HORIZONTAL auto-layout + 자식 3개 이상 → 스윔레인(가로 스크롤) 가능성 높음
+    // (Figma nodes API는 overflowDirection을 반환하지 않음)
+    lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤 — 스윔레인)`);
   }
-  if (!isHScrollContainer && ovFlow) {
-    if (SCROLL_H_MAP.has(ovFlow) || SCROLL_B_MAP.has(ovFlow)) isHScrollContainer = true;
+  // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
+  if (node.interactions) {
+    node.interactions.forEach(interaction => {
+      if (interaction.trigger?.type === "ON_SCROLL" || interaction.actions?.some(a => a.type === "SCROLL_TO")) return;
+      // scrollOverflow 속성 직접 체크
+    });
   }
-  // 사용자가 수동으로 지정한 노드
-  if (!isHScrollContainer && forcedScrollIds.has(node.id)) {
-    isHScrollContainer = true;
-  }
-  // heuristic: HORIZONTAL auto-layout + clipsContent + 자식 총너비가 컨테이너보다 클 때만
-  if (!isHScrollContainer && node.clipsContent && hasAutoLayout && node.layoutMode === "HORIZONTAL" && bb) {
-    const children = node.children || [];
-    const spacing = node.itemSpacing || 0;
-    const totalChildW = children.reduce((sum, c) => sum + (c.absoluteBoundingBox?.width || 0), 0)
-                        + Math.max(0, children.length - 1) * spacing;
-    const containerW = bb.width;
-    if (totalChildW > containerW * 1.1) {
-      console.log(`[Figma] ‼️SCROLL-X heuristic: "${node.name}" totalChildW=${Math.round(totalChildW)} containerW=${Math.round(containerW)}`);
-      isHScrollContainer = true;
+  // scrollOverflow 속성 (Figma API 일부 버전)
+  if (node.scrollOverflow) {
+    const overflowMap = {
+      "HORIZONTAL_SCROLLING": "overflow-x:scroll (가로 스크롤)",
+      "VERTICAL_SCROLLING": "overflow-y:scroll (세로 스크롤)",
+      "HORIZONTAL_AND_VERTICAL_SCROLLING": "overflow:scroll (양방향 스크롤)",
+    };
+    if (overflowMap[node.scrollOverflow]) {
+      lines.push(`${indent}  scroll:${overflowMap[node.scrollOverflow]}`);
     }
-  }
-
-  let nodeIsScrolling = false;
-  if (isHScrollContainer) {
-    console.log(`[Figma] ‼️SCROLL-X detected: "${node.name}" (${bb ? Math.round(bb.width)+'×'+Math.round(bb.height) : '?'}) ovDir=${ovDir} ovFlow=${ovFlow} clipsContent=${node.clipsContent} layoutMode=${node.layoutMode}`);
-    lines.push(`${indent}  ‼️SCROLL-X: 가로 스크롤 컨테이너. React→style={{overflowX:"auto",display:"flex",flexDirection:"row",flexWrap:"nowrap"}} 직접자식→flexShrink:0 / SwiftUI→ScrollView(.horizontal,showsIndicators:false){HStack{자식들}} HStack에.frame(maxWidth:.infinity)금지 / Compose→Row(modifier=Modifier.horizontalScroll(rememberScrollState()))`);
-    nodeIsScrolling = true;
   }
 
   // 절대 위치 정보 — 부모 대비 오버레이 감지
@@ -325,7 +289,7 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   }
 
   (node.children || []).forEach(child => {
-    const childSpec = nodeToSpec(child, depth + 1, bb, hasAutoLayout, nodeIsScrolling, forcedScrollIds);
+    const childSpec = nodeToSpec(child, depth + 1, bb, hasAutoLayout);
     if (childSpec) lines.push(childSpec);
   });
 
@@ -376,7 +340,7 @@ ${tailwindScript}
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 ${ydsSetup}
-<style>*{box-sizing:border-box;}html,body{margin:0;padding:0;overflow-x:auto;background:#f5f5f5;font-family:'Pretendard',sans-serif;}body{padding:16px;}</style>
+<style>*{box-sizing:border-box;}body{margin:0;padding:16px;background:#f5f5f5;font-family:'Pretendard',sans-serif;}</style>
 </head>
 <body><div id="root"></div>
 <script type="text/babel">
@@ -393,32 +357,11 @@ const _comp = typeof ${compName} !== 'undefined' ? ${compName}
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(_comp));
 </script>
 <script>
-// 렌더링 후 flex-row 컨테이너 자동 scroll 활성화
-(function autoScroll() {
-  function fix() {
-    document.querySelectorAll('*').forEach(function(el) {
-      if (el === document.body || el === document.documentElement) return;
-      var cs = window.getComputedStyle(el);
-      var isRow = cs.display === 'flex' && (cs.flexDirection === 'row' || cs.flexDirection === 'row-reverse');
-      if (!isRow) return;
-      // flex-wrap:nowrap 강제 (wrap이면 overflow가 안 생겨서 측정 불가)
-      el.style.flexWrap = 'nowrap';
-      var overflows = el.scrollWidth > el.clientWidth + 4;
-      if (overflows) {
-        el.style.overflowX = 'auto';
-        el.style.webkitOverflowScrolling = 'touch';
-        Array.from(el.children).forEach(function(c) { c.style.flexShrink = '0'; });
-      }
-    });
-  }
-  [50, 200, 600, 1500].forEach(function(t) { setTimeout(fix, t); });
-  document.addEventListener('load', function(e) { if (e.target.tagName === 'IMG') setTimeout(fix, 100); }, true);
-})();
 // 깨진 이미지 자동 복구
 document.addEventListener('error', function(e) {
   if (e.target.tagName !== 'IMG') return;
-  var w = Math.round(e.target.offsetWidth) || 80;
-  var h = Math.round(e.target.offsetHeight) || 80;
+  const w = Math.round(e.target.offsetWidth) || 80;
+  const h = Math.round(e.target.offsetHeight) || 80;
   e.target.src = 'https://picsum.photos/' + w + '/' + h + '?random=' + Math.floor(Math.random() * 200);
   e.target.onerror = null;
 }, true);
@@ -429,11 +372,6 @@ document.addEventListener('error', function(e) {
 
 // ── HTML에 깨진 이미지 자동 복구 스크립트 inject ─────────────────────────────
 const IMG_FALLBACK_SCRIPT = `<script>
-(function(){
-  function fix(){document.querySelectorAll('*').forEach(function(el){if(el===document.body||el===document.documentElement)return;var cs=window.getComputedStyle(el);var isRow=cs.display==='flex'&&(cs.flexDirection==='row'||cs.flexDirection==='row-reverse');if(!isRow)return;el.style.flexWrap='nowrap';var over=el.scrollWidth>el.clientWidth+4;if(over){el.style.overflowX='auto';el.style.webkitOverflowScrolling='touch';Array.from(el.children).forEach(function(c){c.style.flexShrink='0';});}});}
-  [50,200,600,1500].forEach(function(t){setTimeout(fix,t);});
-  document.addEventListener('load',function(e){if(e.target.tagName==='IMG')setTimeout(fix,100);},true);
-})();
 document.addEventListener('error',function(e){
   if(e.target.tagName!=='IMG')return;
   const w=Math.round(e.target.offsetWidth)||80,h=Math.round(e.target.offsetHeight)||80;
@@ -442,15 +380,10 @@ document.addEventListener('error',function(e){
 },true);
 <\/script>`;
 
-const SCROLL_FIX_STYLE = `<style>html,body{overflow-x:auto!important;}</style>`;
-
 function injectImgFallback(html) {
   if (!html) return html;
-  const withScroll = html.includes('</head>')
-    ? html.replace('</head>', SCROLL_FIX_STYLE + '</head>')
-    : SCROLL_FIX_STYLE + html;
-  if (withScroll.includes('</body>')) return withScroll.replace('</body>', IMG_FALLBACK_SCRIPT + '</body>');
-  return withScroll + IMG_FALLBACK_SCRIPT;
+  if (html.includes('</body>')) return html.replace('</body>', IMG_FALLBACK_SCRIPT + '</body>');
+  return html + IMG_FALLBACK_SCRIPT;
 }
 
 // ── 코드 생성 (스트리밍) ──────────────────────────────────────────────────────
@@ -702,10 +635,6 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
   const [verifyLog, setVerifyLog] = useState("");
   const [showVerifyLog, setShowVerifyLog] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [editInput, setEditInput] = useState("");
-  const [editLoading, setEditLoading] = useState(false);
-  const [editStatus, setEditStatus] = useState(""); // "done" | "error" | ""
-  const [localPreviewHtml, setLocalPreviewHtml] = useState(previewHtml);
   const isHtml = formatId === "html-css";
   const isYds = formatId === "react-yds";
   const isNative = ["swiftui", "compose"].includes(formatId);
@@ -756,43 +685,6 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
     navigator.clipboard.writeText(currentCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
-  };
-
-  const runEdit = async () => {
-    if (!editInput.trim() || editLoading) return;
-    setEditLoading(true);
-    setEditStatus("");
-    const instruction = editInput.trim();
-    setEditInput("");
-    try {
-      let full = "";
-      await streamChatAPI({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4000,
-        messages: [{
-          role: "user",
-          content: `아래 코드를 수정해줘. 수정 요청: "${instruction}"\n코드만 반환. 마크다운·설명 없음.\n\n${currentCode}`,
-        }],
-      }, (delta) => { full += delta; });
-      const updated = full.replace(/^```[\w]*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
-      if (updated) {
-        setCurrentCode(updated);
-        setShowCode(true); // 수정 후 자동으로 코드 패널 열기
-        setEditStatus("done");
-        setTimeout(() => setEditStatus(""), 3000);
-        // SwiftUI/Compose: HTML 미리보기도 재생성
-        if (isNative) {
-          generateCode(spec, "html-css", () => {}).then(html => {
-            if (html) setLocalPreviewHtml(html);
-          }).catch(() => {});
-        }
-      }
-    } catch (e) {
-      console.error("[edit]", e);
-      setEditStatus("error");
-      setTimeout(() => setEditStatus(""), 4000);
-    }
-    setEditLoading(false);
   };
 
   const sendToStorybook = async () => {
@@ -859,7 +751,7 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
         figmaImgUrl={figmaImgUrl}
         currentCode={currentCode}
         formatId={formatId}
-        previewHtml={localPreviewHtml}
+        previewHtml={previewHtml}
         isHtml={isHtml}
         isNative={isNative}
         fmt={fmt}
@@ -899,29 +791,6 @@ function PreviewResult({ figmaImgUrl, figmaUrl, code, formatId, spec, iterations
           </pre>
         </div>
       )}
-
-      {/* 코드 수정 채팅 */}
-      <div style={{ borderTop: "1px solid #eeeeee", padding: "10px 14px", display: "flex", flexDirection: "column", gap: "6px", background: "#fafafa" }}>
-        {editStatus === "done" && <div style={{ fontSize: "11px", color: "#338833", fontWeight: 600 }}>✓ 코드 수정 완료 — 아래에서 확인하세요</div>}
-        {editStatus === "error" && <div style={{ fontSize: "11px", color: "#cc4444" }}>⚠️ 수정 실패 — 다시 시도해주세요</div>}
-      </div>
-      <div style={{ padding: "0 14px 10px", display: "flex", gap: "8px", alignItems: "center", background: "#fafafa" }}>
-        <input
-          value={editInput}
-          onChange={e => setEditInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); runEdit(); } }}
-          placeholder="수정 요청 입력 (예: 스윔레인에 가로 스크롤 추가해줘)"
-          disabled={editLoading}
-          style={{ flex: 1, padding: "7px 12px", borderRadius: "10px", border: "1px solid #ddd", fontSize: "11px", outline: "none", background: editLoading ? "#f5f5f5" : "#fff", color: "#333" }}
-        />
-        <button
-          onClick={runEdit}
-          disabled={editLoading || !editInput.trim()}
-          style={{ padding: "7px 14px", background: (editLoading || !editInput.trim()) ? "#e0e0e0" : "#7740c8", border: "none", borderRadius: "10px", fontSize: "11px", color: (editLoading || !editInput.trim()) ? "#aaa" : "#fff", cursor: (editLoading || !editInput.trim()) ? "default" : "pointer", fontWeight: 600, flexShrink: 0 }}
-        >
-          {editLoading ? "수정 중..." : "수정"}
-        </button>
-      </div>
     </div>
   );
 }
@@ -936,40 +805,22 @@ export default function FigmaPreviewBubble({ url }) {
   const [iterations, setIterations] = useState([]);
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
-  const [formatId, setFormatId] = useState("react-yds");
+  const [formatId, setFormatId] = useState("html-css");
   const [previewHtml, setPreviewHtml] = useState("");
-  const [scrollCandidates, setScrollCandidates] = useState([]);
 
   const parsed = parseFigmaUrl(url);
   const runRef = useRef(false);
   const timerRef = useRef(null);
   const specRef = useRef("");
-  const nodeDataRef = useRef(null);
 
-  const runGenerate = async (fmtId, spec) => {
-    setPhase("generate");
-    const isNative = ["swiftui", "compose"].includes(fmtId);
-    let currentCode;
-    if (isNative) {
-      [currentCode] = await Promise.all([
-        generateCode(spec, fmtId, (partial) => setCode(partial.replace(/^```[\w]*\n?/i, ""))),
-        generateCode(spec, "html-css", () => {}).then(html => setPreviewHtml(html)).catch(() => {}),
-      ]);
-    } else {
-      currentCode = await generateCode(spec, fmtId, (partial) => setCode(partial.replace(/^```[\w]*\n?/i, "")));
-    }
-    setCode(currentCode);
-    setPhase("done");
-    setStatus("done");
-  };
-
-  const run = async (fmtId = formatId, forcedScrollIds = new Set()) => {
+  const run = async (fmtId = formatId) => {
     const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
     if (runRef.current) return;
     runRef.current = true;
     setStatus("running");
     setError("");
     setIterations([]);
+    setFigmaImgUrl(null);
     setCode("");
     setPreviewHtml("");
     setIteration(0);
@@ -981,39 +832,40 @@ export default function FigmaPreviewBubble({ url }) {
       if (!tok) throw new Error("Figma Personal Access Token이 필요합니다.");
       if (!parsed?.nodeId) throw new Error("URL에 node-id가 없습니다.\nFigma에서 컴포넌트를 선택한 후 URL을 복사해 주세요.");
 
-      // 1. Figma 데이터 (캐시 활용 — forcedScrollIds로 재실행 시 재요청 생략)
+      // 1. Figma 데이터
       setPhase("figma");
-      let nodeData = nodeDataRef.current;
-      let imgUrl = figmaImgUrl;
-      if (!nodeData) {
-        [imgUrl, nodeData] = await Promise.all([
-          fetchFigmaImageUrl(parsed.fileKey, parsed.nodeId, tok),
-          fetchFigmaNodeData(parsed.fileKey, parsed.nodeId, tok),
-        ]);
-        nodeDataRef.current = nodeData;
-        setFigmaImgUrl(imgUrl);
-      }
-
-      const spec = nodeToSpec(nodeData, 0, null, false, false, forcedScrollIds);
+      const [imgUrl, nodeData] = await Promise.all([
+        fetchFigmaImageUrl(parsed.fileKey, parsed.nodeId, tok),
+        fetchFigmaNodeData(parsed.fileKey, parsed.nodeId, tok),
+      ]);
+      setFigmaImgUrl(imgUrl);
+      const spec = nodeToSpec(nodeData);
       specRef.current = spec;
       console.log("[Figma] spec:\n" + spec);
-      const scrollLines = spec.split("\n").filter(l => l.includes("‼️SCROLL-"));
-      console.log("[Figma] scroll lines:", scrollLines);
+      console.log("[Figma] scroll lines:", spec.split("\n").filter(l => l.includes("scroll:")));
 
-      // 스크롤 미감지 → 후보 제시
-      if (scrollLines.length === 0 && forcedScrollIds.size === 0) {
-        const candidates = collectHorizontalNodes(nodeData);
-        if (candidates.length > 0) {
-          setScrollCandidates(candidates);
-          setStatus("scroll-pick");
-          runRef.current = false;
-          clearInterval(timerRef.current);
-          return;
-        }
+      // 2. 코드 생성 — 완료 즉시 결과 표시
+      setPhase("generate");
+      const isNative = ["swiftui", "compose"].includes(fmtId);
+      let currentCode;
+      if (isNative) {
+        // 네이티브 코드 + HTML 미리보기 병렬 생성
+        [currentCode] = await Promise.all([
+          generateCode(spec, fmtId, (partial) => {
+            setCode(partial.replace(/^```[\w]*\n?/i, ""));
+          }),
+          generateCode(spec, "html-css", () => {})
+            .then(html => setPreviewHtml(html))
+            .catch(() => {}),
+        ]);
+      } else {
+        currentCode = await generateCode(spec, fmtId, (partial) => {
+          setCode(partial.replace(/^```[\w]*\n?/i, ""));
+        });
       }
-
-      // 2. 코드 생성
-      await runGenerate(fmtId, spec);
+      setCode(currentCode);
+      setPhase("done");
+      setStatus("done");
     } catch (e) {
       setError(e.message);
       setStatus("error");
@@ -1073,32 +925,6 @@ export default function FigmaPreviewBubble({ url }) {
         </div>
       )}
 
-      {/* 스크롤 후보 선택 */}
-      {status === "scroll-pick" && (
-        <div style={{ padding: "18px 20px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 700, color: "#7740c8", marginBottom: "6px" }}>↔ 가로 스크롤 컨테이너를 선택해주세요</div>
-          <div style={{ fontSize: "11px", color: "#888", marginBottom: "14px" }}>자동으로 감지하지 못했어요. 아래 HORIZONTAL 레이아웃 노드 중 스윔레인/가로 스크롤 영역을 선택하면 해당 노드에 가로 스크롤을 적용해요.</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {scrollCandidates.map(c => (
-              <button
-                key={c.id}
-                onClick={() => { setStatus("idle"); runRef.current = false; run(formatId, new Set([c.id])); }}
-                style={{ padding: "9px 14px", background: "#f5f0ff", border: "1px solid #c8aaee", borderRadius: "10px", fontSize: "11px", color: "#5522aa", cursor: "pointer", textAlign: "left", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "space-between" }}
-              >
-                <span>{"  ".repeat(c.depth)}"{c.name}"</span>
-                <span style={{ fontSize: "10px", color: "#9970d8", fontWeight: 400 }}>{c.width && c.height ? `${c.width}×${c.height}px` : ""} · 자식 {c.childCount}개</span>
-              </button>
-            ))}
-            <button
-              onClick={() => { setStatus("idle"); runRef.current = false; run(formatId, new Set()); }}
-              style={{ padding: "7px 14px", background: "transparent", border: "1px solid #dddddd", borderRadius: "10px", fontSize: "11px", color: "#aaa", cursor: "pointer", textAlign: "left" }}
-            >
-              없음 — 가로 스크롤 없이 생성
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 실행 중 */}
       {status === "running" && (
         <div>
@@ -1107,9 +933,9 @@ export default function FigmaPreviewBubble({ url }) {
           {code && (
             <div style={{ padding: "8px 14px", borderBottom: "1px solid #eeeeee" }}>
               <div style={{ fontSize: "10px", color: "#aaaaaa", marginBottom: "6px" }}>생성 중...</div>
-              {["react-yds"].includes(formatId) ? (
+              {["html-css","react-tailwind","react-inline","react-yds"].includes(formatId) ? (
                 <iframe
-                  srcDoc={buildReactPreviewHtml(code, formatId)}
+                  srcDoc={formatId === "html-css" ? code : buildReactPreviewHtml(code, formatId)}
                   style={{ width: "100%", height: "300px", border: "1px solid #eeeeee", borderRadius: "8px", display: "block" }}
                   sandbox="allow-scripts"
                   title="preview in progress"
