@@ -392,13 +392,13 @@ async function generateCode(spec, formatId, onChunk) {
     max_tokens: 4000,
     messages: [{
       role: "user",
-      content: `다음 Figma 디자인 스펙을 ${formatLabel} 코드로 구현해 주세요.
+      content: `${FORMAT_PROMPT[formatId]}
 
 === Figma 디자인 스펙 ===
 ${spec}
 =========================
 
-${FORMAT_PROMPT[formatId]}`,
+위 스펙을 ${formatLabel} 코드로 구현해줘. 코드만 반환. 설명·요약·마크다운 금지.`,
     }],
   }, (delta) => {
     full += delta;
