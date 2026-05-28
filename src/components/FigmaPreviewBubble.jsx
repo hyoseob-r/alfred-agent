@@ -59,7 +59,7 @@ const SCROLL_RULES_REACT = `- 스크롤 규칙 (반드시 적용):
 const FORMAT_PROMPT = {
   "react-yds": `구현 규칙:
 - React 함수형 컴포넌트 (export default function ComponentName)
-- import { colors, metaTokens } from "./tokens"; 반드시 포함
+- colors와 metaTokens는 전역 변수로 주입됨. import 문 작성 금지. 바로 사용 가능.
 - 모든 스타일은 style={{}} inline 객체. 색상·간격·라디우스·그림자는 반드시 아래 토큰 값으로 참조.
 - 한국어 현실적 콘텐츠
 - 이미지: https://picsum.photos/[w]/[h]?random=[n] 실제 URL 사용
@@ -71,7 +71,7 @@ ${YDS_TOKENS}
 스페이싱: padding:metaTokens.spacing.meta_s4 (숫자, px 불필요)
 라디우스: borderRadius:metaTokens.radius.meta_r4
 그림자: boxShadow:metaTokens.elevation.meta_level_1.css
-⚠️ 응답 형식: JSX 코드만 반환. 설명·요약·마크다운 코드블록 절대 금지. 첫 줄부터 바로 import로 시작.`,
+⚠️ 응답 형식: JSX 코드만 반환. 설명·주석·마크다운 절대 금지. 첫 줄: export default function`,
 
   "swiftui": `구현 규칙:
 - SwiftUI View struct
@@ -319,7 +319,14 @@ function buildReactPreviewHtml(code, formatId) {
   const cleanCode = code
     .replace(/^import\s+.*?;?\s*$/gm, "")   // import 문 제거
     .replace(/export\s+default\s+/g, "")     // export default 제거
-    .replace(/export\s+\{[^}]*\}/g, "");     // export { } 제거
+    .replace(/export\s+\{[^}]*\}/g, "")      // export { } 제거
+    .split("\n").filter(line => {             // 한국어 설명 줄 제거 (JS 문법 아닌 줄)
+      const t = line.trim();
+      if (!t || t.startsWith("//") || t.startsWith("/*") || t.startsWith("*")) return true;
+      // 한글이 포함된 줄 중 JS 키워드로 시작하지 않는 줄 제거
+      if (/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(t) && !/^(const|let|var|return|if|for|\/\/|\/\*|\*|function|class|export|import|{|}|"|'|`|\[|\(|\/\/)/.test(t)) return false;
+      return true;
+    }).join("\n");
 
   const tailwindScript = formatId === "react-tailwind"
     ? `<script src="https://cdn.tailwindcss.com"></script>` : "";
