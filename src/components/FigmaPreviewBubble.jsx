@@ -71,7 +71,7 @@ ${YDS_TOKENS}
 스페이싱: padding:metaTokens.spacing.meta_s4 (숫자, px 불필요)
 라디우스: borderRadius:metaTokens.radius.meta_r4
 그림자: boxShadow:metaTokens.elevation.meta_level_1.css
-JSX 코드만 반환, 마크다운·설명 없음`,
+⚠️ 응답 형식: JSX 코드만 반환. 설명·요약·마크다운 코드블록 절대 금지. 첫 줄부터 바로 import로 시작.`,
 
   "swiftui": `구현 규칙:
 - SwiftUI View struct
@@ -89,7 +89,7 @@ ${YDS_TOKENS}
 스페이싱: padding(8), spacing: 16 — 토큰 수치 직접 사용
 라디우스: .cornerRadius(12) — 토큰 수치 직접 사용
 그림자: .shadow(color: Color.black.opacity(0.10), radius: 8, x: 0, y: 1)
-Swift 코드만 반환, 마크다운·설명 없음`,
+⚠️ 응답 형식: Swift 코드만 반환. 설명·요약·마크다운 코드블록 절대 금지. 첫 줄부터 바로 import 또는 struct로 시작.`,
 
   "compose": `구현 규칙:
 - Jetpack Compose @Composable 함수
@@ -106,7 +106,7 @@ ${YDS_TOKENS}
 스페이싱: padding(8.dp), Arrangement.spacedBy(16.dp) — 토큰 수치 직접 사용
 라디우스: RoundedCornerShape(12.dp) — 토큰 수치 직접 사용
 그림자: elevation = 4.dp (Material elevation)
-Kotlin 코드만 반환, 마크다운·설명 없음`,
+⚠️ 응답 형식: Kotlin 코드만 반환. 설명·요약·마크다운 코드블록 절대 금지. 첫 줄부터 바로 import 또는 @Composable로 시작.`,
 };
 
 const FORMAT_VALIDATE = {
@@ -219,18 +219,15 @@ function nodeToSpec(node, depth = 0, parentBb = null, parentHasAutoLayout = fals
   };
   if (node.overflowDirection && node.overflowDirection !== "NONE") {
     lines.push(`${indent}  scroll:${scrollMap[node.overflowDirection] || node.overflowDirection}`);
-  } else if (node.clipsContent && hasAutoLayout) {
-    // clipsContent + auto-layout → 스크롤 컨테이너
-    const dir = node.layoutMode === "HORIZONTAL" ? "overflow-x:scroll (가로 스크롤)" : "overflow-y:scroll (세로 스크롤)";
-    lines.push(`${indent}  scroll:${dir}`);
-  } else if (
-    hasAutoLayout &&
-    node.layoutMode === "HORIZONTAL" &&
-    (node.children || []).length >= 3
-  ) {
-    // 휴리스틱: HORIZONTAL auto-layout + 자식 3개 이상 → 스윔레인(가로 스크롤) 가능성 높음
-    // (Figma nodes API는 overflowDirection을 반환하지 않음)
-    lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤 — 스윔레인)`);
+  } else if (node.clipsContent && hasAutoLayout && node.layoutMode === "HORIZONTAL" && bb) {
+    // heuristic: HORIZONTAL + clipsContent + 자식 총너비 > 컨테이너 너비 → 실제 가로 스크롤
+    const children = node.children || [];
+    const spacing = node.itemSpacing || 0;
+    const totalChildW = children.reduce((s, c) => s + (c.absoluteBoundingBox?.width || 0), 0)
+                        + Math.max(0, children.length - 1) * spacing;
+    if (totalChildW > bb.width * 1.1) {
+      lines.push(`${indent}  scroll:overflow-x:scroll (가로 스크롤)`);
+    }
   }
   // Figma interactions에서 scroll overflow 추출 (REST API v1 nodes 응답)
   if (node.interactions) {
