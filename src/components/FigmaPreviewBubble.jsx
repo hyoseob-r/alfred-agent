@@ -809,6 +809,7 @@ export default function FigmaPreviewBubble({ url }) {
   const runRef = useRef(false);
   const timerRef = useRef(null);
   const specRef = useRef("");
+  const codeCacheRef = useRef({}); // { [formatId]: { code, previewHtml } }
 
   const run = async (fmtId = formatId) => {
     const tok = localStorage.getItem(FIGMA_TOKEN_KEY) || "";
@@ -845,22 +846,23 @@ export default function FigmaPreviewBubble({ url }) {
       setPhase("generate");
       const isNative = ["swiftui", "compose"].includes(fmtId);
       let currentCode;
+      let generatedPreviewHtml = "";
       if (isNative) {
         // 네이티브 코드 + HTML 미리보기 병렬 생성
-        [currentCode] = await Promise.all([
+        [currentCode, generatedPreviewHtml] = await Promise.all([
           generateCode(spec, fmtId, (partial) => {
             setCode(partial.replace(/^```[\w]*\n?/i, ""));
           }),
-          generateCode(spec, "html-css", () => {})
-            .then(html => setPreviewHtml(html))
-            .catch(() => {}),
+          generateCode(spec, "html-css", () => {}).catch(() => ""),
         ]);
+        if (generatedPreviewHtml) setPreviewHtml(generatedPreviewHtml);
       } else {
         currentCode = await generateCode(spec, fmtId, (partial) => {
           setCode(partial.replace(/^```[\w]*\n?/i, ""));
         });
       }
       setCode(currentCode);
+      codeCacheRef.current[fmtId] = { code: currentCode, previewHtml: generatedPreviewHtml };
       setPhase("done");
       setStatus("done");
     } catch (e) {
@@ -872,9 +874,16 @@ export default function FigmaPreviewBubble({ url }) {
     }
   };
 
-  // 포맷 변경 시 재실행
+  // 포맷 변경 시 캐시 확인 후 재실행
   const handleChangeFormat = (newFmt) => {
     setFormatId(newFmt);
+    const cached = codeCacheRef.current[newFmt];
+    if (cached) {
+      setCode(cached.code);
+      setPreviewHtml(cached.previewHtml || "");
+      setStatus("done");
+      return;
+    }
     setStatus("idle");
     runRef.current = false;
     run(newFmt);
