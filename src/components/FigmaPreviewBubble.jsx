@@ -422,20 +422,17 @@ async function compareAndFix(spec, currentCode, formatId, iter, onChunk) {
     max_tokens: 4000,
     messages: [{
       role: "user",
-      content: `[검증 ${iter}/${MAX_ITER}회차] Figma 스펙과 현재 ${formatLabel} 코드를 비교해 주세요.
+      content: `Figma 스펙과 ${formatLabel} 코드를 비교해서:
+- 스펙과 일치하면 → DONE 한 단어만 반환
+- 차이가 있으면 → 수정된 전체 코드만 반환 (설명·마크다운 절대 금지, 첫 줄부터 바로 코드 시작)
 
-=== Figma 원본 스펙 ===
+=== Figma 스펙 ===
 ${spec}
-======================
+==================
 
 === 현재 코드 ===
 ${currentCode.slice(0, 8000)}
-================
-
-1단계: 스펙과의 차이(색상·폰트·크기·간격·정렬·보더·그림자)를 항목별로 간단히 설명 (예: "- 배경색: #fff → #f5f5f5 수정 필요")
-2단계:
-- 차이가 없거나 미미하면 마지막 줄에 DONE 만 작성
-- 차이가 있으면 수정된 전체 코드만 반환 (마크다운 없음)`,
+=================`,
     }],
   }, (delta) => {
     full += delta;
@@ -457,16 +454,12 @@ ${currentCode.slice(0, 8000)}
   // 코드 블록 추출 (```로 감싸인 경우 처리)
   const codeBlockMatch = text.match(/```[\w]*\n?([\s\S]*?)\n?```/);
   const rawCode = codeBlockMatch ? codeBlockMatch[1] : text;
-
-  // 분석 텍스트는 코드 이전 부분
-  const analysis = codeBlockMatch
-    ? text.slice(0, text.indexOf("```")).trim()
-    : "";
-
   const code = rawCode.trim();
+
+  // 코드 유효성 검사 — 실패 시 현재 코드 유지 (분석 텍스트가 코드로 들어가는 것 방지)
   const validate = FORMAT_VALIDATE[formatId];
-  if (validate && !validate(code)) return { done: true, code: currentCode, analysis: text };
-  return { done: false, code, analysis };
+  if (validate && !validate(code)) return { done: true, code: currentCode, analysis: "" };
+  return { done: false, code, analysis: "" };
 }
 
 // ── 프리뷰 패널 (인라인 + 전체화면 공용) ─────────────────────────────────────
