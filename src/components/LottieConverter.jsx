@@ -387,10 +387,14 @@ function WebpPlayer() {
 
         for (let i = 0; i < frameCount; i++) {
           const result = await decoder.decode({ frameIndex: i });
-          decoded.push({ bitmap: result.image, duration: result.image.duration ?? (1000 / 24) });
+          // VideoFrame.duration은 마이크로초(μs) 단위
+          const durationMs = (result.image.duration ?? 0) > 0
+            ? result.image.duration / 1000
+            : 1000 / 24;
+          decoded.push({ bitmap: result.image, durationMs });
         }
         setFrames(decoded);
-        setTotalDuration(decoded.reduce((s, f) => s + (f.duration / 1000), 0));
+        setTotalDuration(decoded.reduce((s, f) => s + f.durationMs / 1000, 0));
         setCurFrame(0);
         curFrameRef.current = 0;
 
@@ -399,7 +403,9 @@ function WebpPlayer() {
           const canvas = canvasRef.current;
           canvas.width = decoded[0].bitmap.displayWidth;
           canvas.height = decoded[0].bitmap.displayHeight;
-          canvas.getContext('2d').drawImage(decoded[0].bitmap, 0, 0);
+          const ctx2d = canvas.getContext('2d');
+          ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+          ctx2d.drawImage(decoded[0].bitmap, 0, 0);
         }
         decoder.close();
       } else {
@@ -428,7 +434,9 @@ function WebpPlayer() {
         lastTimeRef.current = time;
 
         if (canvasRef.current && frames[next]) {
-          canvasRef.current.getContext('2d').drawImage(frames[next].bitmap, 0, 0);
+          const ctx2d = canvasRef.current.getContext('2d');
+          ctx2d.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          ctx2d.drawImage(frames[next].bitmap, 0, 0);
         }
       }
       rafRef.current = requestAnimationFrame(loop);
@@ -449,7 +457,9 @@ function WebpPlayer() {
     curFrameRef.current = f;
     setCurFrame(f);
     if (canvasRef.current && frames[f]) {
-      canvasRef.current.getContext('2d').drawImage(frames[f].bitmap, 0, 0);
+      const ctx2d = canvasRef.current.getContext('2d');
+      ctx2d.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      ctx2d.drawImage(frames[f].bitmap, 0, 0);
     }
   };
 
