@@ -137,32 +137,29 @@ export async function convertLottieToWebp(animData, { fps = 30, scale = 1, quali
 
   const canvas = container.querySelector('canvas');
   if (!canvas) throw new Error('Canvas 엘리먼트를 찾을 수 없습니다.');
-  canvas.width  = w;
-  canvas.height = h;
-  anim.resize();
+
+  // lottie canvas renderer가 devicePixelRatio를 적용해 실제 픽셀 크기를 결정함.
+  // 강제로 canvas.width/height를 바꾸면 내부 transform matrix가 깨져서 circles → blocks 현상 발생.
+  // 실제 캔버스 픽셀 크기를 그대로 읽어서 사용한다.
+  const actualW = canvas.width;
+  const actualH = canvas.height;
 
   const ctx = canvas.getContext('2d');
 
   // 프레임별 캡처
   const frames = [];
   for (let i = 0; i < totalFrames; i++) {
-    const t         = i / fps;
-    const srcFrame  = Math.min(ip + t * srcFps, op - 0.001);
-
-    // 배경 채우기 (흰 배경으로 투명도 제거)
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
+    const t        = i / fps;
+    const srcFrame = Math.min(ip + t * srcFps, op - 0.001);
 
     anim.goToAndStop(srcFrame, true);
 
-    // 배경 다시 그리기 (lottie가 clearCanvas:true라서 배경이 날아감)
-    const imgData = ctx.getImageData(0, 0, w, h);
+    // lottie clearCanvas:true 가 canvas를 지우므로, 렌더 후 배경색만 destination-over로 합성
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-over';
     ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, w, h);
-    ctx.putImageData(imgData, 0, 0);
+    ctx.fillRect(0, 0, actualW, actualH);
+    ctx.restore();
 
     // WebP blob 캡처
     const blob = await new Promise(r => canvas.toBlob(r, 'image/webp', quality));
@@ -179,5 +176,5 @@ export async function convertLottieToWebp(animData, { fps = 30, scale = 1, quali
   anim.destroy();
   document.body.removeChild(container);
 
-  return buildAnimatedWebP(frames, w, h);
+  return buildAnimatedWebP(frames, actualW, actualH);
 }

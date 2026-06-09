@@ -6,7 +6,7 @@ import {
   getSupabase, getSession, signInWithGitHub, signInWithGoogle, signOut,
   newSessionId,
   dbLoadSessions, dbLoadMessages, dbUpsertSession, dbSaveMessages, dbDeleteSession,
-  dbLoadCouncilSessions, dbSaveCouncilSession, dbDeleteCouncilSession,
+  dbSaveCouncilSession,
 } from "./api/supabase";
 
 // Prompts
@@ -27,8 +27,6 @@ import MessageBubble from "./components/MessageBubble";
 import AppMenu from "./components/AppMenu";
 import AgentsPanel from "./components/AgentsPanel";
 import ContextAgentPanel from "./components/ContextAgentPanel";
-import HistorySidebar from "./components/HistorySidebar";
-import CouncilDetailPanel from "./components/CouncilDetailPanel";
 import PapersModal from "./components/PapersModal";
 import ContextNotesModal from "./components/ContextNotesModal";
 import AgentCouncilPanel from "./components/panels/AgentCouncilPanel";
@@ -75,8 +73,6 @@ export default function App() {
   const [started, setStarted] = useState(true);
   const [pendingImages, setPendingImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const openSidebar = () => { setSidebarOpen(true); if (user?.id) dbLoadCouncilSessions(user.id).then(setCouncilSessions); };
   const [showPapers, setShowPapers] = useState(false);
   const [showContextNotes, setShowContextNotes] = useState(false);
   const [showAgents, setShowAgents] = useState(false);
@@ -88,18 +84,11 @@ export default function App() {
   const [proxyUrl, setProxyUrl] = useState(getProxyUrl());
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
-  const [councilSessions, setCouncilSessions] = useState([]);
-  const [selectedCouncil, setSelectedCouncil] = useState(null);
-  const handleCouncilDeleted = (id) => { setCouncilSessions(prev => prev.filter(c => c.id !== id)); setSelectedCouncil(null); };
   const handleSignOut = () => {
     const figmaPat = localStorage.getItem("figma_pat");
     localStorage.clear();
     if (figmaPat) localStorage.setItem("figma_pat", figmaPat);
     window.location.href = window.location.origin;
-  };
-  const handleCouncilUpdated = (updated) => {
-    setCouncilSessions(prev => prev.map(c => c.id === updated.id ? { ...c, topic: updated.topic, summary: updated.summary, rounds: updated.rounds } : c));
-    setSelectedCouncil(updated);
   };
   const [user, setUser] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -215,12 +204,10 @@ export default function App() {
           setIsOwner(owner);
           setAuthLoading(false);
           if (owner && u?.id) {
-            const [s, cs] = await Promise.all([dbLoadSessions(u.id), dbLoadCouncilSessions(u.id)]);
+            const s = await dbLoadSessions(u.id);
             setSessions(s);
-            setCouncilSessions(cs);
           } else {
             setSessions([]);
-            setCouncilSessions([]);
             setActiveProxyUrl(null);
             setHasProxy(false);
             setProxyUrl(null);
@@ -453,7 +440,6 @@ export default function App() {
     setMessages(fixDanglingCouncilHeaders(msgs));
     setCurrentStage(s?.stage || STAGES.M1);
     setStarted(true);
-    setSidebarOpen(false);
   };
 
   const deleteSession = async (id) => {
@@ -468,7 +454,6 @@ export default function App() {
   };
 
   const newChat = () => {
-    setSidebarOpen(false);
     setStarted(false);
     setMessages([]);
     setActiveSessionId(null);
@@ -938,20 +923,7 @@ export default function App() {
 
   return (
     <>
-      <HistorySidebar
-        sessions={sessions} activeId={activeSessionId}
-        onSelect={selectSession} onNew={newChat} onDelete={deleteSession}
-        councilSessions={councilSessions} onSelectCouncil={setSelectedCouncil}
-        onDeleteCouncil={async (id) => { await dbDeleteCouncilSession(id); handleCouncilDeleted(id); }}
-        open={sidebarOpen} onClose={() => setSidebarOpen(false)}
-      />
-      {selectedCouncil && (
-        <CouncilDetailPanel
-          council={selectedCouncil} onClose={() => setSelectedCouncil(null)}
-          user={user} isOwner={isOwner}
-          onDeleted={handleCouncilDeleted} onUpdated={handleCouncilUpdated}
-        />
-      )}
+
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
       {showContextNotes && <ContextNotesModal onClose={() => setShowContextNotes(false)} />}
       {showLottie && <LottieStudio user={user} isOwner={isOwner} onClose={() => setShowLottie(false)} />}
@@ -1041,9 +1013,6 @@ export default function App() {
 
         {/* Header */}
         <div style={{ padding: "12px 20px", background: "#ffffff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", gap: "12px" }}>
-          {isOwner && <button onClick={openSidebar} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "transparent", border: "1px solid #e5e5e5", color: "#aaaaaa", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0, transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>☰</button>}
           <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "linear-gradient(135deg, #111111 0%, #c8c8e0 100%)", border: "1px solid #cccccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", flexShrink: 0 }}>A</div>
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px" }}>
             <div style={{ fontSize: "10px", color: "#bbbbbb", letterSpacing: "0.1em", display: "flex", alignItems: "center", gap: "6px" }}>
