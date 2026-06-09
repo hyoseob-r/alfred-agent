@@ -244,7 +244,9 @@ function LottieToWebp() {
       const buffer = await convertLottieToWebp(file.data, { fps, scale, bgColor }, p => setProgress(Math.round(p * 100)));
       const blob = new Blob([buffer], { type: 'image/webp' });
       setWebpSize(blob.size);
-      setWebpUrl(URL.createObjectURL(blob));
+      const reader = new FileReader();
+      reader.onload = (e) => setWebpUrl(e.target.result);
+      reader.readAsDataURL(blob);
     } catch (err) { alert('변환 실패: ' + err.message); }
     setConverting(false);
   };
