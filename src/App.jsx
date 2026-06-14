@@ -84,6 +84,7 @@ export default function App() {
   const [proxyUrl, setProxyUrl] = useState(getProxyUrl());
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
+  const [councilSessions, setCouncilSessions] = useState([]);
   const handleSignOut = () => {
     const figmaPat = localStorage.getItem("figma_pat");
     localStorage.clear();
