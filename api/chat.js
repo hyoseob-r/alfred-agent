@@ -6,20 +6,22 @@ export const config = {
   },
 };
 
+function setCors(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-claude-token');
+}
+
 export default async function handler(req, res) {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, x-claude-token',
-  };
+  setCors(res);
 
   if (req.method === 'OPTIONS') {
-    res.status(200).set(corsHeaders).end();
+    res.status(200).end();
     return;
   }
 
   if (req.method !== 'POST') {
-    res.status(405).set(corsHeaders).json({ error: 'Method not allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
     return;
   }
 
@@ -45,12 +47,11 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const data = await response.json();
-      res.status(response.status).set(corsHeaders).json(data);
+      res.status(response.status).json(data);
       return;
     }
 
     if (isStream) {
-      Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
 
@@ -65,8 +66,8 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    res.status(200).set(corsHeaders).json(data);
+    res.status(200).json(data);
   } catch (error) {
-    res.status(500).set(corsHeaders).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
