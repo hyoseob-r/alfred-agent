@@ -1,33 +1,23 @@
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '20mb',
-    },
-  },
-};
+export const runtime = 'edge';
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-claude-token');
-}
-
-export default async function handler(req, res) {
-  setCors(res);
+export default async function handler(req) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, x-claude-token',
+  };
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
-    return;
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
   }
 
   try {
-    const body = req.body;
-    const claudeToken = req.headers['x-claude-token'];
+    const body = await req.json();
+    const claudeToken = req.headers.get('x-claude-token');
     const authHeaders = claudeToken
       ? { 'Authorization': `Bearer ${claudeToken}` }
       : { 'x-api-key': process.env.ANTHROPIC_API_KEY };
@@ -47,27 +37,31 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const data = await response.json();
-      res.status(response.status).json(data);
-      return;
+      return new Response(JSON.stringify(data), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     if (isStream) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-
-      const reader = response.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        res.write(value);
-      }
-      res.end();
-      return;
+      return new Response(response.body, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          ...corsHeaders,
+        },
+      });
     }
 
     const data = await response.json();
-    res.status(200).json(data);
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 }
