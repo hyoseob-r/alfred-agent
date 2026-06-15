@@ -373,8 +373,7 @@ export default function App() {
     } catch { return null; }
   };
 
-  const callClaude = async (userText, files, history) => {
-    const buildContent = (text, fls) => {
+  const buildContent = (text, fls) => {
       if (!fls?.length) return text || "";
       const parts = [];
       fls.forEach(f => {
@@ -392,7 +391,9 @@ export default function App() {
       });
       if (text) parts.push({ type: "text", text });
       return parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts;
-    };
+  };
+
+  const callClaude = async (userText, files, history) => {
     const msgs = [
       ...history.map(m => ({ role: m.role, content: m.files?.length && m.files.some(f => f.base64 || f.text) ? buildContent(m.content, m.files) : (m.content || "") })),
       { role: "user", content: buildContent(userText, files) },
@@ -701,7 +702,12 @@ export default function App() {
         // assemble 트리거 감지
         const isAssembleTrigger = /assemble|어셈블|어쎔블|소집|council\s*시작|에이전트\s*협의|19인\s*토론|토론해보자|토론\s*해봐|토론하자|의논해보자|의논\s*해봐|다같이\s*(봐|보자|검토|얘기)|전문가\s*(불러|의견)|에이전트\s*(불러|소집)|패널\s*(불러|소집)|같이\s*(검토|봐|보자)/i.test(userText);
 
-        const history = messages.map(m => ({ role: m.role, content: m.content }));
+        const history = messages.map(m => ({
+          role: m.role,
+          content: m.files?.length && m.files.some(f => f.base64 || f.text)
+            ? buildContent(m.content, m.files)
+            : (m.content || ""),
+        }));
 
         if (isAssembleTrigger) {
           // 알프가 사회자로서 대화 맥락을 Council 브리핑으로 정리
@@ -793,7 +799,7 @@ export default function App() {
               model: selectedModel,
               max_tokens: 8000,
               system: `당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, 아이디어 검토, 질문 답변 등 무엇이든 도와드립니다. 사용자가 'assemble' 또는 '어셈블'이라고 하면 Council 19인 토론을 소집할 수 있다고 안내하십시오.${contextBriefing ? `\n\n---\n\n## 현재 진행 상황 (백로그 / 컨텍스트)\n\n${contextBriefing}` : ""}${paperContext}`,
-              messages: [...history, { role: "user", content: userText }],
+              messages: [...history, { role: "user", content: buildContent(userText, files) }],
             },
             (chunk) => {
               reply += chunk;
