@@ -103,11 +103,7 @@ export async function streamChatAPIMultimodal(body, onChunk) {
 
 export async function streamChatAPI(body, onChunk, signal) {
   const proxyUrl = getProxyUrl();
-  // Proxy strips non-text content blocks (document/image). If message has files, use Vercel API directly.
-  const hasFiles = body.messages?.some(m =>
-    Array.isArray(m.content) && m.content.some(c => c.type === 'document' || c.type === 'image')
-  );
-  const url = (proxyUrl && !hasFiles) ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : '/api/chat';
+  const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : '/api/chat';
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
