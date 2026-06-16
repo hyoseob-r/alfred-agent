@@ -92,7 +92,8 @@ export async function dbSaveMessages(sessionId, msgs, userId) {
   if (!rows.length) return;
   // DELETE + INSERT를 한 트랜잭션처럼 처리 (두 쿼리지만 불필요한 SELECT 제거)
   await sb.from("messages").delete().eq("session_id", sessionId);
-  await sb.from("messages").insert(rows);
+  const { error: insertError } = await sb.from("messages").insert(rows);
+  if (insertError) console.error("dbSaveMessages insert error:", insertError);
 }
 
 export async function dbDeleteSession(sessionId) {
