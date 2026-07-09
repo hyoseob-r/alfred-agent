@@ -26,6 +26,8 @@ curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-worklog \
 
 세션이 끝날 때도 반드시 WORKLOG 저장 후 git push.
 
+**Claude 자동 감시 의무:** 작업 완료 후 WORKLOG 저장 없이 넘어가면 사용자 요청 없이도 즉시 지적하고 직접 `save-worklog` API를 호출한다. 어느 컴퓨터, 어느 Claude 인스턴스든 동일하게 적용.
+
 ---
 
 ## 세션 시작 필수 절차 (반드시 이 순서대로)
