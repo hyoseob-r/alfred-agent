@@ -5,6 +5,29 @@
 
 ---
 
+## 🚨 절대 불가침 규칙 — WORKLOG 의무 기록
+
+**모든 작업은 예외 없이 즉시 WORKLOG에 기록한다.**
+
+- 코드 한 줄 수정 → 기록
+- 버그 수정 → 기록
+- 결정 사항 → 기록
+- 실패한 시도 → 기록
+- 다음 할 일 → 기록
+
+**이유:** 2026-04-08 이후 2026-05-20까지 커밋 수십 개가 쌓였지만 WORKLOG가 비어있어 맥락이 완전히 끊겼다. 다른 컴퓨터에서 이어받을 때 git log만으로는 "왜 했는지"를 알 수 없다.
+
+**작업 완료 즉시 실행:**
+```bash
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-worklog \
+  -H "Content-Type: application/json" \
+  -d '{"date":"YYYY-MM-DD","content":"- [완료] ...\n- [결정] ...\n- [다음] ..."}'
+```
+
+세션이 끝날 때도 반드시 WORKLOG 저장 후 git push.
+
+---
+
 ## 세션 시작 필수 절차 (반드시 이 순서대로)
 
 **Step 1 — 서버에서 전체 컨텍스트 로드**
