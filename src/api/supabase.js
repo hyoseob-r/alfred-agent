@@ -87,7 +87,6 @@ export async function dbSaveMessages(sessionId, msgs, userId) {
     stage_label: m.stageLabel || null,
     stage_color: m.stageColor || null,
     stage_icon: m.stageIcon || null,
-    sort_order: i,
   }));
   if (!rows.length) return;
   // DELETE + INSERT를 한 트랜잭션처럼 처리 (두 쿼리지만 불필요한 SELECT 제거)
