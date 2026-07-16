@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>요기요 런 — 시즌 챌린지</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const C = document.getElementById('c');
+const cx = C.getContext('2d');
+
+const W = 375, H = 667;
+C.width = W; C.height = H;
+
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  C.style.width  = W * s + 'px';
+  C.style.height = H * s + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── 상수 ──────────────────────────────────────────
+const FPS        = 60;
+const PLAYER_Y   = 500;
+const LANE_COUNT = 5;
+const LANE_W     = W / LANE_COUNT;
+
+const FOODS     = ['🍗','🍕','🍔','🌮','🥗','🍜','🍣','🧆','🥞','🌯'];
+const OBSTACLES = ['⛔','💨','🌀'];
+
+const COL = {
+  bg:      '#0a0e1a',
+  primary: '#fa0050',
+  gold:    '#f5c400',
+  green:   '#05c896',
+  white:   '#ffffff',
+  dim:     'rgba(255,255,255,0.12)',
+};
+
+// ── 상태 ──────────────────────────────────────────
+let S = 'start'; // start | play | dead | over
+let score = 0, hi = 0, lives = 3, frame = 0;
+let baseSpeed = 4, combo = 0, comboT = 0;
+let items = [], particles = [], popups = [], bgLines = [];
+
+// 배경 흐르는 선
+for (let i = 0; i < 30; i++) bgLines.push({
+  x: Math.random() * W,
+  y: Math.random() * H,
+  len: 20 + Math.random() * 60,
+  speed: 3 + Math.random() * 4,
+  alpha: 0.03 + Math.random() * 0.06,
+});
+
+// ── 플레이어 ──────────────────────────────────────
+const P = {
+  lane: 2, x: W / 2, y: PLAYER_Y,
+  vx: 0, inv: 0, shake: 0, bump: 0,
+};
+
+function playerX(lane) { return LANE_W * lane + LANE_W / 2; }
+
+// ── 입력 ──────────────────────────────────────────
+const keys = {};
+let touchSX = null;
+
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (!keys._handled) {
+    if (e.key === 'ArrowLeft')  moveLane(-1);
+    if (e.key === 'ArrowRight') moveLane(+1);
+    if ((e.key === ' ' || e.key === 'Enter') && S !== 'play') startGame();
+    keys._handled = true;
+  }
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; keys._handled = false; });
+
+C.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  touchSX = t.clientX;
+  if (S !== 'play') startGame();
+}, { passive: false });
+
+C.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (touchSX === null) return;
+  const dx = e.changedTouches[0].clientX - touchSX;
+  if (S === 'play') {
+    if (dx < -30) moveLane(-1);
+    else if (dx > 30) moveLane(+1);
+  }
+  touchSX = null;
+}, { passive: false });
+
+C.addEventListener('click', () => { if (S !== 'play') startGame(); });
+
+function moveLane(dir) {
+  if (S !== 'play') return;
+  P.lane = Math.max(0, Math.min(LANE_COUNT - 1, P.lane + dir));
+}
+
+// ── 게임 시작 ──────────────────────────────────────
+function startGame() {
+  S = 'play';
+  score = 0; lives = 3; frame = 0;
+  baseSpeed = 4; combo = 0; comboT = 0;
+  items = []; particles = []; popups = [];
+  P.lane = 2; P.x = playerX(2); P.inv = 0; P.shake = 0; P.bump = 0;
+}
+
+// ── 스폰 ──────────────────────────────────────────
+function spawn() {
+  const isObs = Math.random() < Math.min(0.2 + score / 8000, 0.45);
+  const lane  = Math.floor(Math.random() * LANE_COUNT);
+  items.push({
+    lane,
+    x: playerX(lane),
+    y: -40,
+    emoji: isObs
+      ? OBSTACLES[Math.floor(Math.random() * OBSTACLES.length)]
+      : FOODS[Math.floor(Math.random() * FOODS.length)],
+    isObs,
+    spd: baseSpeed * (0.85 + Math.random() * 0.3),
+    r: 20,
+  });
+}
+
+// ── 파티클 ────────────────────────────────────────
+function burst(x, y, col, n = 10) {
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI * 2 / n) * i;
+    const s = 2 + Math.random() * 4;
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, alpha: 1, col, sz: 3 + Math.random()*3 });
+  }
+}
+
+function popup(x, y, txt, col) {
+  popups.push({ x, y, txt, col, alpha: 1, vy: -1.8 });
+}
+
+// ── 업데이트 ──────────────────────────────────────
+function update() {
+  if (S !== 'play') return;
+  frame++;
+
+  // 속도 증가
+  baseSpeed = 4 + score / 300;
+  baseSpeed = Math.min(baseSpeed, 10);
+
+  // 플레이어 X 보간
+  const tx = playerX(P.lane);
+  P.x += (tx - P.x) * 0.18;
+  if (P.shake > 0) P.shake--;
+  if (P.bump  > 0) P.bump--;
+  if (P.inv   > 0) P.inv--;
+  if (comboT  > 0) comboT--;
+  else combo = 0;
+
+  // 스폰
+  const rate = Math.max(22, 55 - score / 120);
+  if (frame % Math.floor(rate) === 0) spawn();
+
+  // 아이템 업데이트
+  items = items.filter(it => {
+    it.y += it.spd;
+
+    const dx = Math.abs(it.x - P.x);
+    const dy = Math.abs(it.y - P.y);
+
+    if (dx < 26 && dy < 26 && P.inv === 0) {
+      if (it.isObs) {
+        lives--;
+        P.inv   = 80;
+        P.shake = 18;
+        P.bump  = 10;
+        burst(it.x, it.y, COL.primary, 12);
+        popup(P.x, P.y - 40, '💥 −1 LIFE', COL.primary);
+        if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
+      } else {
+        const pts = Math.floor(10 * (1 + combo * 0.4));
+        score += pts;
+        combo++; comboT = 70;
+        burst(it.x, it.y, COL.gold, 7);
+        popup(it.x, it.y - 10,
+          combo > 2 ? `+${pts} ×${combo}🔥` : `+${pts}`, COL.gold);
+      }
+      return false;
+    }
+    return it.y < H + 40;
+  });
+
+  // 파티클
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.alpha -= 0.025;
+    return p.alpha > 0;
+  });
+
+  // 팝업
+  popups = popups.filter(p => {
+    p.y += p.vy; p.alpha -= 0.022;
+    return p.alpha > 0;
+  });
+
+  // 배경선
+  bgLines.forEach(l => {
+    l.y += l.speed;
+    if (l.y > H + l.len) { l.y = -l.len; l.x = Math.random() * W; }
+  });
+}
+
+// ── 드로우 헬퍼 ───────────────────────────────────
+function em(e, x, y, sz) {
+  cx.font = `${sz}px serif`;
+  cx.textAlign = 'center';
+  cx.textBaseline = 'middle';
+  cx.fillText(e, x, y);
+}
+
+function txt(t, x, y, sz, col, align = 'center') {
+  cx.font = `${sz}px Pretendard, -apple-system, sans-serif`;
+  cx.fillStyle = col;
+  cx.textAlign = align;
+  cx.textBaseline = 'middle';
+  cx.fillText(t, x, y);
+}
+
+function btxt(t, x, y, sz, col, align = 'center') {
+  cx.font = `bold ${sz}px Pretendard, -apple-system, sans-serif`;
+  cx.fillStyle = col;
+  cx.textAlign = align;
+  cx.textBaseline = 'middle';
+  cx.fillText(t, x, y);
+}
+
+function rrect(x, y, w, h, r, fill, stroke, sw = 1) {
+  cx.beginPath();
+  cx.moveTo(x+r, y);
+  cx.lineTo(x+w-r, y); cx.arcTo(x+w, y, x+w, y+r, r);
+  cx.lineTo(x+w, y+h-r); cx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  cx.lineTo(x+r, y+h); cx.arcTo(x, y+h, x, y+h-r, r);
+  cx.lineTo(x, y+r); cx.arcTo(x, y, x+r, y, r);
+  cx.closePath();
+  if (fill)  { cx.fillStyle = fill; cx.fill(); }
+  if (stroke){ cx.strokeStyle = stroke; cx.lineWidth = sw; cx.stroke(); }
+}
+
+// ── 배경 ──────────────────────────────────────────
+function drawBG() {
+  cx.fillStyle = COL.bg;
+  cx.fillRect(0, 0, W, H);
+
+  // 흐르는 스피드 라인
+  bgLines.forEach(l => {
+    const g = cx.createLinearGradient(l.x, l.y - l.len, l.x, l.y);
+    g.addColorStop(0, `rgba(255,255,255,0)`);
+    g.addColorStop(1, `rgba(255,255,255,${l.alpha})`);
+    cx.strokeStyle = g;
+    cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(l.x, l.y - l.len);
+    cx.lineTo(l.x, l.y);
+    cx.stroke();
+  });
+
+  // 레인 구분선
+  cx.strokeStyle = 'rgba(255,255,255,0.04)';
+  cx.lineWidth = 1;
+  for (let i = 1; i < LANE_COUNT; i++) {
+    cx.beginPath();
+    cx.setLineDash([8, 16]);
+    cx.moveTo(LANE_W * i, 0);
+    cx.lineTo(LANE_W * i, H);
+    cx.stroke();
+  }
+  cx.setLineDash([]);
+}
+
+// ── HUD ───────────────────────────────────────────
+function drawHUD() {
+  // 상단 바
+  const g = cx.createLinearGradient(0, 0, 0, 64);
+  g.addColorStop(0, 'rgba(10,14,26,0.95)');
+  g.addColorStop(1, 'rgba(10,14,26,0)');
+  cx.fillStyle = g;
+  cx.fillRect(0, 0, W, 64);
+
+  // 점수
+  btxt(score.toLocaleString(), W/2, 20, 22, COL.gold);
+  txt('SCORE', W/2, 38, 9, 'rgba(255,255,255,0.35)');
+
+  // 라이프
+  for (let i = 0; i < 3; i++) {
+    cx.globalAlpha = i < lives ? 1 : 0.18;
+    em('❤️', W - 24 - i * 28, 22, 16);
+  }
+  cx.globalAlpha = 1;
+
+  // 하이스코어
+  if (hi > 0) txt(`HI ${hi.toLocaleString()}`, 16, 20, 10, 'rgba(255,255,255,0.3)', 'left');
+
+  // 콤보
+  if (combo > 2) {
+    const a = 0.7 + Math.sin(frame * 0.25) * 0.3;
+    cx.globalAlpha = a;
+    btxt(`🔥 ×${combo} COMBO`, W/2, 70, 13, COL.gold);
+    cx.globalAlpha = 1;
+  }
+
+  // 스피드바 (하단)
+  const pct = Math.min((baseSpeed - 4) / 6, 1);
+  cx.fillStyle = 'rgba(255,255,255,0.05)';
+  cx.fillRect(0, H - 4, W, 4);
+  if (pct > 0) {
+    const sg = cx.createLinearGradient(0, 0, W * pct, 0);
+    sg.addColorStop(0, COL.primary);
+    sg.addColorStop(1, COL.gold);
+    cx.fillStyle = sg;
+    cx.fillRect(0, H - 4, W * pct, 4);
+  }
+}
+
+// ── 플레이어 드로우 ──────────────────────────────
+function drawPlayer() {
+  const blink = P.inv > 0 && Math.floor(P.inv / 5) % 2 === 0;
+  if (blink) return;
+
+  const sx = P.shake > 0 ? (Math.random() - 0.5) * 5 : 0;
+  const sy = P.bump  > 0 ? Math.sin(P.bump * 0.4) * -6 : 0;
+  const px = P.x + sx, py = P.y + sy;
+
+  // 그림자
+  cx.globalAlpha = 0.18;
+  cx.fillStyle = '#000';
+  cx.beginPath();
+  cx.ellipse(px, py + 26, 18, 6, 0, 0, Math.PI * 2);
+  cx.fill();
+  cx.globalAlpha = 1;
+
+  // 속도 잔상
+  if (Math.abs(P.vx) > 0.5 || S === 'play') {
+    cx.globalAlpha = 0.25;
+    em('🐥', px, py + 10, 34);
+    cx.globalAlpha = 0.1;
+    em('🐥', px, py + 20, 24);
+    cx.globalAlpha = 1;
+  }
+
+  // 캐릭터
+  em('🐥', px, py, 44);
+
+  // 무적 실드
+  if (P.inv > 0) {
+    cx.strokeStyle = `rgba(250,0,80,${P.inv / 80 * 0.8})`;
+    cx.lineWidth = 2;
+    cx.beginPath();
+    cx.arc(px, py, 28, 0, Math.PI * 2);
+    cx.stroke();
+  }
+}
+
+// ── 아이템 드로우 ─────────────────────────────────
+function drawItems() {
+  items.forEach(it => {
+    const pulse = it.isObs ? 1 + Math.sin(frame * 0.18) * 0.1 : 1;
+    em(it.emoji, it.x, it.y, 32 * pulse);
+  });
+}
+
+// ── 파티클 드로우 ─────────────────────────────────
+function drawFX() {
+  particles.forEach(p => {
+    cx.globalAlpha = p.alpha;
+    cx.fillStyle = p.col;
+    cx.beginPath();
+    cx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
+    cx.fill();
+  });
+  cx.globalAlpha = 1;
+
+  popups.forEach(p => {
+    cx.globalAlpha = p.alpha;
+    btxt(p.txt, p.x, p.y, 13, p.col);
+  });
+  cx.globalAlpha = 1;
+}
+
+// ── 시작 화면 ─────────────────────────────────────
+function drawStart() {
+  // 로고 글로우
+  cx.shadowColor = COL.primary;
+  cx.shadowBlur  = 40;
+  em('🐥', W/2, 200 + Math.sin(frame * 0.04) * 6, 80);
+  cx.shadowBlur = 0;
+
+  btxt('요기요 런', W/2, 305, 32, COL.white);
+  txt('시즌 챌린지 · 고득점으로 랭킹에 도전하세요', W/2, 335, 12, 'rgba(255,255,255,0.45)');
+
+  // 미니 설명
+  rrect(40, 370, W - 80, 58, 10, 'rgba(255,255,255,0.04)');
+  txt('← → 방향키  또는  스와이프로 레인 이동', W/2, 391, 11, 'rgba(255,255,255,0.5)');
+
+  const fds = ['🍗','🍕','🍔','🌮','🥗'];
+  fds.forEach((f, i) => em(f, 80 + i * 44, 415, 22));
+  txt('음식 모으기 = 점수 UP   ⛔💨 장애물 = 라이프 DOWN', W/2, 437, 10, 'rgba(255,255,255,0.3)');
+
+  // 시작 버튼
+  const by = 520, pulse = 1 + Math.sin(frame * 0.07) * 0.025;
+  cx.save();
+  cx.translate(W/2, by); cx.scale(pulse, pulse);
+  rrect(-110, -24, 220, 48, 24, COL.primary);
+  btxt('게임 시작', 0, 0, 17, '#fff');
+  cx.restore();
+
+  if (hi > 0) {
+    em('🏆', W/2 - 55, 590, 16);
+    txt(`최고 기록  ${hi.toLocaleString()}`, W/2 + 10, 590, 13, COL.gold);
+  }
+}
+
+// ── 게임오버 화면 ─────────────────────────────────
+function drawOver() {
+  // 오버레이
+  cx.fillStyle = 'rgba(10,14,26,0.82)';
+  cx.fillRect(0, 0, W, H);
+
+  em('💀', W/2, 175, 60);
+  btxt('GAME OVER', W/2, 255, 26, COL.white);
+
+  // 점수 카드
+  rrect(50, 285, W - 100, 100, 14, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.1)', 1);
+  btxt(score.toLocaleString(), W/2, 325, 38, COL.gold);
+  txt('이번 기록', W/2, 362, 11, 'rgba(255,255,255,0.35)');
+
+  if (score > 0 && score >= hi) {
+    cx.shadowColor = COL.gold; cx.shadowBlur = 20;
+    btxt('🏆 신기록!', W/2, 400, 14, COL.gold);
+    cx.shadowBlur = 0;
+  } else if (hi > 0) {
+    txt(`최고 기록  ${hi.toLocaleString()}`, W/2, 400, 12, 'rgba(255,255,255,0.3)');
+  }
+
+  // 시즌 랭킹 연결 박스
+  rrect(40, 422, W - 80, 68, 12, 'rgba(245,196,0,0.08)', 'rgba(245,196,0,0.25)', 1);
+  em('🏅', 66, 451, 18);
+  btxt('이 점수가 시즌 랭킹에 반영됩니다', W/2 + 10, 443, 12, 'rgba(255,255,255,0.75)');
+  txt('강남구 치킨 랭킹 · 이번 달 23위 → 도전!', W/2 + 10, 465, 11, 'rgba(255,255,255,0.35)');
+  txt('혜택탭에서 순위 확인 및 쿠폰 수령 가능', W/2 + 10, 481, 10, 'rgba(245,196,0,0.5)');
+
+  // 다시 버튼
+  const by = 554, pulse = 1 + Math.sin(frame * 0.09) * 0.02;
+  cx.save();
+  cx.translate(W/2, by); cx.scale(pulse, pulse);
+  rrect(-110, -24, 220, 48, 24, COL.primary);
+  btxt('다시 도전', 0, 0, 17, '#fff');
+  cx.restore();
+}
+
+// ── 메인 루프 ─────────────────────────────────────
+function loop() {
+  frame++;
+  update();
+
+  drawBG();
+  drawItems();
+  drawFX();
+
+  if (S === 'play' || S === 'over' || S === 'dead') drawPlayer();
+
+  if (S === 'play')  drawHUD();
+  if (S === 'start') drawStart();
+  if (S === 'over')  { drawHUD(); drawOver(); }
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
