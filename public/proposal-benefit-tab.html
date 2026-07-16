@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-07-14">
+<meta name="doc-updated" content="2026-07-16">
+<meta name="doc-status" content="in-progress">
+<title>혜택탭 개선 — UV·Active 회복 전략</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --primary-600: #c8003f;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --yellow: #ffcb2e;
+    --gray-100: #e5e5e5;
+    --gray-50: #f2f2f2;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    max-width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  .header {
+    background: var(--primary);
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .trend-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .trend-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .trend-card.down {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+  }
+  .trend-card .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .trend-card.down .label { color: var(--primary); }
+  .trend-card .value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+  .trend-card.down .value { color: var(--primary); }
+  .trend-card .trend {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 4px;
+  }
+  .trend-card .sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  .problem-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .problem-block {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 20px;
+    border-top: 3px solid var(--gray-100);
+  }
+  .problem-block.a { border-top-color: var(--primary); background: var(--primary-25); }
+  .problem-block.b { border-top-color: var(--orange); background: #fff8f5; }
+  .problem-block .pb-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    color: var(--text-tertiary);
+  }
+  .problem-block.a .pb-label { color: var(--primary); }
+  .problem-block.b .pb-label { color: var(--orange); }
+  .problem-block h3 {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    line-height: 1.35;
+  }
+  .problem-block ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .problem-block ul li {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding-left: 14px;
+    position: relative;
+  }
+  .problem-block.a ul li::before { content: '·'; position: absolute; left: 0; color: var(--primary); font-weight: 700; }
+  .problem-block.b ul li::before { content: '·'; position: absolute; left: 0; color: var(--orange); font-weight: 700; }
+
+  .pillar-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .pillar-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 20px;
+  }
+  .pillar-card .p-num {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--gray-100);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .pillar-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .pillar-card p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .pillar-card .examples {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .pillar-card .ex-tag {
+    background: var(--primary-50);
+    color: var(--primary);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+  }
+
+  .phase-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .phase-item {
+    padding: 18px 20px;
+    border-right: 1px solid var(--gray-100);
+    position: relative;
+  }
+  .phase-item:last-child { border-right: none; }
+  .phase-item.current { background: var(--primary-25); }
+  .phase-item .ph-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .phase-item.current .ph-label { color: var(--primary); }
+  .phase-item h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1.35;
+  }
+  .phase-item ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .phase-item ul li {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding-left: 10px;
+    position: relative;
+    line-height: 1.4;
+  }
+  .phase-item ul li::before { content: '·'; position: absolute; left: 0; color: var(--primary); font-weight: 700; }
+  .gap-badge {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--rfull);
+    margin-bottom: 6px;
+  }
+
+  .footer-bar {
+    padding: 14px 40px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-bar span {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="header-tag">2026 · 혜택탭</div>
+    <h1>혜택탭 개선<br>UV·Active 회복 전략</h1>
+    <p>3년 연속 하락하는 혜택탭 UV — 방문 전 인식 문제와 방문 후 재방문 실패를 동시에 해소</p>
+  </div>
+
+  <div class="body">
+
+    <!-- 현황 트렌드 -->
+    <div>
+      <div class="section-title">현황 — UV·Active 지속 하락</div>
+      <div class="trend-row">
+        <div class="trend-card down">
+          <div class="label">혜택탭 UV 비율 (2024)</div>
+          <div class="value">29.8%</div>
+          <div class="sub">2024년 평균</div>
+        </div>
+        <div class="trend-card down">
+          <div class="label">혜택탭 UV 비율 (2025)</div>
+          <div class="value">23.4%</div>
+          <div class="trend">▼ -6.4%p</div>
+        </div>
+        <div class="trend-card down">
+          <div class="label">혜택탭 UV 비율 (2026)</div>
+          <div class="value">21.6%</div>
+          <div class="trend">▼ -1.8%p 추가 하락</div>
+        </div>
+        <div class="trend-card down">
+          <div class="label">Active 유저 비율</div>
+          <div class="value">10.6%</div>
+          <div class="trend">▼ 15.26% → 10.6%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 문제 정의 -->
+    <div>
+      <div class="section-title">문제 정의 — 2개 핵심 장벽</div>
+      <div class="problem-pair">
+        <div class="problem-block a">
+          <div class="pb-label">PROBLEM A · 방문 前 인식</div>
+          <h3>"어차피 내가<br>좋아하는 브랜드 없겠지"</h3>
+          <ul>
+            <li><strong>40.5%</strong>: "나에게 맞는 브랜드 없을 것 같아서" 방문 안 함</li>
+            <li><strong>37.7%</strong>: "혜택이 크지 않을 것 같아서" 방문 안 함</li>
+            <li>방문 전 낮은 기대치가 탭 진입 자체를 막음</li>
+          </ul>
+        </div>
+        <div class="problem-block b">
+          <div class="pb-label">PROBLEM B · 방문 後 재방문 실패</div>
+          <h3>첫 방문 후<br>85%가 30일 내 이탈</h3>
+          <ul>
+            <li>첫 방문 1주차 재방문율 <strong>~16%</strong> vs 앱 전체 <strong>~50%</strong></li>
+            <li><strong>30%p 격차</strong> — 혜택탭 특유의 구조적 재방문 실패</li>
+            <li>혜택 발견 → 주문 전환 연결고리 부재</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 솔루션 3축 -->
+    <div>
+      <div class="section-title">솔루션 — 3개 전략 축</div>
+      <div class="pillar-row">
+        <div class="pillar-card">
+          <div class="p-num">01</div>
+          <h3>참여욕구 자극<br>(Personalized · FOMO)</h3>
+          <p>개인화된 혜택 노출로 "나한테 맞는 혜택" 인식 형성. 한정 시간·수량 FOMO 설계로 즉각 행동 유도.</p>
+          <div class="examples">
+            <span class="ex-tag">개인화 혜택</span>
+            <span class="ex-tag">타임딜</span>
+            <span class="ex-tag">알림 트리거</span>
+          </div>
+        </div>
+        <div class="pillar-card">
+          <div class="p-num">02</div>
+          <h3>유연성<br>(Web · 어드민 제어)</h3>
+          <p>웹 기반 혜택탭으로 앱 배포 없이 실시간 콘텐츠 교체. 어드민 제어로 빠른 테스트·실험 가능.</p>
+          <div class="examples">
+            <span class="ex-tag">웹뷰 전환</span>
+            <span class="ex-tag">어드민 CMS</span>
+            <span class="ex-tag">빠른 실험</span>
+          </div>
+        </div>
+        <div class="pillar-card">
+          <div class="p-num">03</div>
+          <h3>혜택 강화<br>(실제 할인)</h3>
+          <p>체감되는 규모의 실질 혜택 제공. "혜택이 크지 않다"는 인식 전환을 위한 시그니처 혜택 설계.</p>
+          <div class="examples">
+            <span class="ex-tag">시그니처 할인</span>
+            <span class="ex-tag">첫방문 쿠폰</span>
+            <span class="ex-tag">재방문 보상</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3단계 로드맵 -->
+    <div>
+      <div class="section-title">실행 로드맵 — 3 Phase</div>
+      <div class="phase-row">
+        <div class="phase-item current">
+          <div class="gap-badge">현재</div>
+          <div class="ph-label">PHASE 1</div>
+          <h3>인프라·레이아웃<br>기반 구축</h3>
+          <ul>
+            <li>웹뷰 전환 및 어드민 CMS 개발</li>
+            <li>레이아웃 개편 (그리드 재설계)</li>
+            <li>개인화 데이터 파이프라인 구축</li>
+          </ul>
+        </div>
+        <div class="phase-item">
+          <div class="ph-label">PHASE 2</div>
+          <h3>CTR·CVR<br>최적화</h3>
+          <ul>
+            <li>개인화 혜택 노출 A/B 테스트</li>
+            <li>FOMO 배너·알림 실험</li>
+            <li>재방문 트리거 설계 검증</li>
+          </ul>
+        </div>
+        <div class="phase-item">
+          <div class="ph-label">PHASE 3</div>
+          <h3>혜택 확장<br>& 생태계</h3>
+          <ul>
+            <li>시그니처 혜택 브랜드 확대</li>
+            <li>혜택탭 ↔ 홈 연동 강화</li>
+            <li>외부 채널 유입 실험</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bar">
+    <span>요기요 혜택탭 · 혜택탭 개선 — UV·Active 회복 전략</span>
+    <span>검토용 내부 문서</span>
+  </div>
+</div>
+</body>
+</html>
