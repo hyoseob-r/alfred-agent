@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-07-16">
+<meta name="doc-updated" content="2026-07-16">
+<meta name="doc-status" content="in-progress">
+<title>요기요 시즌 랭킹 — 게이미피케이션 × 혜택탭 광고 수익화</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --gray-100: #e5e5e5;
+    --season: #0f172a;
+    --gold: #f5c400;
+    --silver: #9ca3af;
+    --bronze: #cd7c3a;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    max-width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  .header {
+    background: var(--season);
+    padding: 32px 40px 28px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,196,0,0.12) 0%, transparent 70%);
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(245,196,0,0.15);
+    border: 1px solid rgba(245,196,0,0.3);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+    color: var(--gold);
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.6;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* MVP / Post-MVP 단계 구분 배너 */
+  .phase-banner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .pb-mvp {
+    background: var(--season);
+    padding: 16px 20px;
+    position: relative;
+  }
+  .pb-post {
+    background: var(--bg-subtle);
+    padding: 16px 20px;
+    border: 1.5px solid var(--gray-100);
+    border-left: none;
+  }
+  .pb-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .pb-mvp .pb-label { color: var(--gold); }
+  .pb-post .pb-label { color: var(--text-tertiary); }
+  .pb-mvp h3 { font-size: 15px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+  .pb-post h3 { font-size: 15px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+  .pb-mvp p { font-size: 11px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+  .pb-post p { font-size: 11px; color: var(--text-tertiary); line-height: 1.5; }
+  .pb-arrow {
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #fff;
+    z-index: 1;
+    box-shadow: 0 2px 8px rgba(250,0,80,0.3);
+  }
+  .pb-logic {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: 6px;
+  }
+
+  /* MVP 섹션 */
+  .mvp-section {
+    border: 1.5px solid var(--season);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .mvp-section-header {
+    background: var(--season);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mvp-section-header span {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+  }
+  .mvp-section-body {
+    padding: 18px;
+  }
+
+  /* 지역 랭킹 구조 */
+  .region-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .region-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r3);
+    padding: 14px;
+  }
+  .region-card.active {
+    background: var(--season);
+  }
+  .region-card .rc-icon { font-size: 20px; margin-bottom: 6px; }
+  .region-card h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .region-card.active h4 { color: #fff; }
+  .region-card p {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+  }
+  .region-card.active p { color: rgba(255,255,255,0.45); }
+  .region-badge {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--season);
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: var(--rfull);
+    margin-bottom: 6px;
+  }
+
+  /* 홈 위젯 목업 */
+  .mockup-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .phone-wrap { background: var(--bg-subtle); border-radius: var(--r4); padding: 14px; }
+  .phone-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .phone-screen {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+    border: 1.5px solid var(--gray-100);
+  }
+
+  /* MVP 위젯 - 지역 기반 */
+  .season-widget {
+    background: var(--season);
+    padding: 14px 16px;
+  }
+  .sw-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .sw-title { font-size: 11px; font-weight: 800; color: #fff; }
+  .sw-d { font-size: 9px; font-weight: 700; color: var(--gold); }
+  .sw-myrank {
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sw-num { font-size: 22px; font-weight: 800; color: var(--gold); line-height: 1; min-width: 32px; }
+  .sw-info .swi-name { font-size: 11px; font-weight: 700; color: #fff; margin-bottom: 1px; }
+  .sw-info .swi-sub { font-size: 9px; color: rgba(255,255,255,0.45); }
+
+  .rank-list { padding: 8px 12px; }
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--bg-subtle);
+  }
+  .rank-row:last-child { border-bottom: none; }
+  .rr-num { font-size: 12px; font-weight: 800; min-width: 16px; text-align: center; }
+  .rr-num.gold { color: var(--gold); }
+  .rr-num.silver { color: var(--silver); }
+  .rr-num.bronze { color: var(--bronze); }
+  .rr-num.me { color: var(--primary); }
+  .rr-avatar {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--bg-subtle);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; flex-shrink: 0;
+  }
+  .rr-avatar.me-av { background: var(--primary-50); border: 1px solid var(--primary); }
+  .rr-name { font-size: 11px; color: var(--text-primary); flex: 1; }
+  .rr-name.me-n { color: var(--primary); font-weight: 700; }
+  .rr-cnt { font-size: 10px; color: var(--text-tertiary); }
+  .rr-gap { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
+  .rr-gap.d { background: var(--primary-50); color: var(--primary); }
+  .rr-gap.s { background: #d4f0e8; color: var(--green); }
+
+  /* 알림 */
+  .notif-list { padding: 8px; display: grid; gap: 5px; }
+  .notif-card {
+    border-radius: 8px; padding: 9px 10px;
+    display: flex; gap: 7px; align-items: flex-start;
+  }
+  .notif-card.alert { background: var(--primary-25); border: 1px solid var(--primary-100); }
+  .notif-card.good { background: #f0f9f0; border: 1px solid #b2dfb2; }
+  .notif-card.info { background: var(--bg-subtle); }
+  .notif-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .nt-title { font-size: 11px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; color: var(--text-primary); }
+  .notif-card.alert .nt-title { color: var(--primary); }
+  .notif-card.good .nt-title { color: var(--green); }
+  .nt-sub { font-size: 10px; color: var(--text-secondary); line-height: 1.4; }
+
+  /* 시즌 타임라인 */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .tl-item {
+    padding: 16px;
+    border-right: 1px solid var(--gray-100);
+    position: relative;
+  }
+  .tl-item:last-child { border-right: none; }
+  .tl-item.climax { background: var(--primary-25); }
+  .tl-period { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 5px; }
+  .tl-item.climax .tl-period { color: var(--primary); }
+  .tl-item h4 { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 5px; line-height: 1.35; }
+  .tl-item p { font-size: 10px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* Post-MVP 섹션 */
+  .post-section {
+    border: 1.5px solid var(--gray-100);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .post-section-header {
+    background: var(--bg-subtle);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .post-section-header span {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 0.08em;
+  }
+  .post-section-body {
+    padding: 18px;
+  }
+
+  .post-upgrade-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .post-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r3);
+    padding: 14px 16px;
+  }
+  .post-card .pc-icon { font-size: 18px; margin-bottom: 6px; }
+  .post-card h4 { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .post-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+  .post-card .before-after {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 6px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .ba-box {
+    background: #fff;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 10px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .ba-box.before { color: var(--text-tertiary); }
+  .ba-box.after { color: var(--primary); font-weight: 700; border: 1px solid var(--primary-100); }
+  .ba-arrow { font-size: 12px; color: var(--primary); text-align: center; }
+
+  /* 플라이휠 */
+  .flywheel {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+    gap: 0;
+    align-items: center;
+  }
+  .fw-node {
+    background: var(--bg-subtle);
+    border-radius: var(--r3);
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .fw-node.accent {
+    background: var(--season);
+  }
+  .fw-node.revenue {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    border: 1.5px solid var(--gold);
+  }
+  .fw-node .fn-icon { font-size: 20px; margin-bottom: 6px; }
+  .fw-node h4 { font-size: 11px; font-weight: 800; color: var(--text-primary); margin-bottom: 3px; line-height: 1.3; }
+  .fw-node.accent h4 { color: #fff; }
+  .fw-node.revenue h4 { color: var(--gold); }
+  .fw-node p { font-size: 9px; color: var(--text-tertiary); line-height: 1.4; }
+  .fw-node.accent p { color: rgba(255,255,255,0.45); }
+  .fw-node.revenue p { color: rgba(255,255,255,0.5); }
+  .fw-arrow { font-size: 16px; color: var(--primary); text-align: center; padding: 0 4px; font-weight: 800; }
+
+  /* KPI */
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kpi-card { border-radius: var(--r4); padding: 16px 18px; }
+  .kpi-card.p { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .kpi-card.s { background: var(--bg-subtle); }
+  .kpi-card.g { background: #fefce8; border: 1.5px solid #fde68a; }
+  .kpi-card .k-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; color: var(--text-tertiary); }
+  .kpi-card.p .k-label { color: var(--primary); }
+  .kpi-card.g .k-label { color: #92400e; }
+  .kpi-card h3 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .kpi-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+
+  .footer-bar {
+    padding: 14px 40px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-bar span { font-size: 11px; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-tag">💰 수익성 증대 · 게이미피케이션 × 혜택탭 광고</div>
+    <h1>요기요 시즌 랭킹<br>게임으로 리텐션 끌어올려 혜택탭 광고 수익화</h1>
+    <p>시즌 랭킹으로 재방문 빈도를 높이고 → 혜택탭 UV를 회복시킨 뒤 → 혜택탭 광고 인벤토리를 수익으로 전환하는 3단계 플라이휠</p>
+  </div>
+
+  <div class="body">
+
+    <!-- 수익 플라이휠 -->
+    <div>
+      <div class="section-title">수익 플라이휠 — 왜 수익성 증대인가</div>
+      <div class="flywheel">
+        <div class="fw-node accent">
+          <div class="fn-icon">🏆</div>
+          <h4>시즌 랭킹<br>게이미피케이션</h4>
+          <p>구 단위 경쟁<br>추월 알림 · 월간 리셋</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">🔄</div>
+          <h4>재방문 빈도<br>증가</h4>
+          <p>알림 → 앱 재진입<br>주문 외 방문 발생</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">📊</div>
+          <h4>혜택탭 UV<br>회복</h4>
+          <p>랭킹 확인 동선이<br>혜택탭으로 연결</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node revenue">
+          <div class="fn-icon">💰</div>
+          <h4>혜택탭 광고<br>수익 증대</h4>
+          <p>UV 증가 = 광고<br>노출 인벤토리 ↑</p>
+        </div>
+      </div>
+      <div style="margin-top: 10px; padding: 10px 14px; background: #fefce8; border: 1px solid #fde68a; border-radius: 8px; font-size: 11px; color: #92400e; line-height: 1.6;">
+        <strong>핵심 논리:</strong> 게이미피케이션 자체가 목적이 아닙니다. 리텐션이 오르면 혜택탭 UV가 오르고, 혜택탭 UV가 오르면 광고 노출이 늘어납니다. <strong>시즌 랭킹은 혜택탭 광고 수익을 끌어올리는 트래픽 엔진</strong>입니다.
+      </div>
+    </div>
+
+    <!-- MVP / Post-MVP 단계 -->
+    <div>
+      <div class="section-title">2단계 로드맵</div>
+      <div class="phase-banner">
+        <div class="pb-mvp">
+          <div class="pb-arrow">→</div>
+          <div class="pb-label">MVP · 지금 할 수 있는 것</div>
+          <h3>지역 기반 익명 랭킹</h3>
+          <p>소셜 그래프 없이 시작. 동네·구 단위 익명 경쟁. 개발 리소스 최소화.</p>
+        </div>
+        <div class="pb-post">
+          <div class="pb-label">POST-MVP · 검증 후 확장</div>
+          <h3>친구 추가 → 아는 사람과 경쟁</h3>
+          <p>게임이 검증되면 자연스럽게 "친구와 하고 싶다"는 니즈 발생. 그때 친구 기능 붙임.</p>
+          <div class="pb-logic">게임 검증 → 친구 기능 설득 → 더 강한 리텐션</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MVP 섹션 -->
+    <div class="mvp-section">
+      <div class="mvp-section-header">
+        <span>MVP — 지역 기반 시즌 랭킹</span>
+      </div>
+      <div class="mvp-section-body">
+
+        <!-- 지역 단위 설계 -->
+        <div style="margin-bottom: 16px;">
+          <div class="section-title">경쟁 단위 — 지역 × 카테고리</div>
+          <div class="region-grid">
+            <div class="region-card active">
+              <div class="region-badge">경쟁 단위</div>
+              <div class="rc-icon">📍</div>
+              <h4>구(區) 단위</h4>
+              <p>강남구 치킨 랭킹, 마포구 샐러드 랭킹. 범위가 좁을수록 1위 가능성 높아져 참여 동기 ↑</p>
+            </div>
+            <div class="region-card">
+              <div class="rc-icon">🍗</div>
+              <h4>카테고리 선택</h4>
+              <p>치킨·샐러드·라멘 등 카테고리별 독립 리그. 자기 강점 카테고리 골라서 참여.</p>
+            </div>
+            <div class="region-card">
+              <div class="rc-icon">👤</div>
+              <h4>익명 경쟁</h4>
+              <p>닉네임만 공개. 신원 노출 없이 경쟁. Post-MVP에서 친구와 연결 시 실명 전환.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 홈 위젯 + 알림 -->
+        <div style="margin-bottom: 16px;">
+          <div class="section-title">화면 구성</div>
+          <div class="mockup-pair">
+            <div class="phone-wrap">
+              <div class="phone-label">홈 위젯 — 지역 랭킹</div>
+              <div class="phone-screen">
+                <div class="season-widget">
+                  <div class="sw-top">
+                    <div class="sw-title">🏆 강남구 치킨 랭킹</div>
+                    <div class="sw-d">D-12 종료</div>
+                  </div>
+                  <div class="sw-myrank">
+                    <div class="sw-num">23위</div>
+                    <div class="sw-info">
+                      <div class="swi-name">나 (이번 달 7회)</div>
+                      <div class="swi-sub">상위 18% · 1위까지 5회</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="rank-list">
+                  <div class="rank-row">
+                    <div class="rr-num gold">1</div>
+                    <div class="rr-avatar">🐔</div>
+                    <div class="rr-name">치킨마니아</div>
+                    <div class="rr-cnt">24회</div>
+                  </div>
+                  <div class="rank-row">
+                    <div class="rr-num silver">2</div>
+                    <div class="rr-avatar">🍗</div>
+                    <div class="rr-name">야식러버</div>
+                    <div class="rr-cnt">19회</div>
+                  </div>
+                  <div class="rank-row">
+                    <div class="rr-num me">23</div>
+                    <div class="rr-avatar me-av">나</div>
+                    <div class="rr-name me-n">나</div>
+                    <div class="rr-cnt">7회</div>
+                    <div class="rr-gap d">-5↑</div>
+                  </div>
+                  <div class="rank-row">
+                    <div class="rr-num" style="color:var(--text-tertiary)">24</div>
+                    <div class="rr-avatar">😴</div>
+                    <div class="rr-name">배달왕</div>
+                    <div class="rr-cnt">6회</div>
+                    <div class="rr-gap s">+1↓</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="phone-wrap">
+              <div class="phone-label">추월 알림</div>
+              <div class="phone-screen">
+                <div class="notif-list">
+                  <div class="notif-card alert">
+                    <div class="notif-icon">🔥</div>
+                    <div>
+                      <div class="nt-title">24위 배달왕이 바짝 따라왔어요</div>
+                      <div class="nt-sub">강남구 치킨 · 1회 차이. 지금 주문하면 격차 벌릴 수 있어요.</div>
+                    </div>
+                  </div>
+                  <div class="notif-card alert">
+                    <div class="notif-icon">⚠️</div>
+                    <div>
+                      <div class="nt-title">시즌 D-3 · 순위 변동 많아요</div>
+                      <div class="nt-sub">막판 스퍼트 중. 23위 → 20위 진입까지 2회 남음.</div>
+                    </div>
+                  </div>
+                  <div class="notif-card good">
+                    <div class="notif-icon">👑</div>
+                    <div>
+                      <div class="nt-title">이번 달 강남구 치킨 TOP 20!</div>
+                      <div class="nt-sub">상위 15% 달성. 실버 보상 쿠폰 지급 예정.</div>
+                    </div>
+                  </div>
+                  <div class="notif-card info">
+                    <div class="notif-icon">🔄</div>
+                    <div>
+                      <div class="nt-title">8월 시즌 시작! 리셋됐어요</div>
+                      <div class="nt-sub">이번 달은 1위 해볼까요? 지금 바로 시작.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 시즌 타임라인 -->
+        <div>
+          <div class="section-title">월간 시즌 구조</div>
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-period">WEEK 1 · 개막</div>
+              <h4>리셋 & 초기 경쟁</h4>
+              <p>월초 전원 0에서 출발. "이번 달은 내가 1위" 초기 동기 형성.</p>
+            </div>
+            <div class="tl-item">
+              <div class="tl-period">WEEK 2–3 · 추격전</div>
+              <h4>격차 가시화</h4>
+              <p>랭킹 벌어지기 시작. 추월 알림 본격 발동. 재방문 빈도 최고조.</p>
+            </div>
+            <div class="tl-item climax">
+              <div class="tl-period">WEEK 4 · 클라이맥스</div>
+              <h4>막판 스퍼트</h4>
+              <p>D-7·D-3·D-1 카운트다운. 순위 변동 가장 많은 주. 긴장감 극대화.</p>
+            </div>
+            <div class="tl-item">
+              <div class="tl-period">MONTH END · 정산</div>
+              <h4>보상 & 리셋 예고</h4>
+              <p>순위별 쿠폰 지급. 다음 시즌 예고 알림. 새 판 기대감 형성.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Post-MVP 섹션 -->
+    <div class="post-section">
+      <div class="post-section-header">
+        <span>POST-MVP — 게임 검증 후 친구 기반 업그레이드</span>
+      </div>
+      <div class="post-section-body">
+        <div style="margin-bottom: 12px; padding: 12px 16px; background: var(--primary-25); border: 1.5px solid var(--primary-100); border-radius: var(--r3);">
+          <span style="font-size: 11px; color: var(--primary); font-weight: 700;">설득 논리 — </span>
+          <span style="font-size: 11px; color: var(--text-secondary);">"지역 랭킹이 잘 되니까 친구와 하고 싶다는 요청이 생겼다. 친구 추가 기능 붙이자." 게임 데이터가 친구 기능 개발의 근거가 됨.</span>
+        </div>
+        <div class="post-upgrade-grid">
+          <div class="post-card">
+            <div class="pc-icon">👥</div>
+            <h4>익명 → 친구 랭킹 전환</h4>
+            <p>지역 랭킹 + 친구 탭 추가. 같은 게임에 친구 레이어만 얹는 구조라 개발 공수 최소.</p>
+            <div class="before-after">
+              <div class="ba-box before">강남구<br>익명 경쟁</div>
+              <div class="ba-arrow">→</div>
+              <div class="ba-box after">친구 중<br>내 순위</div>
+            </div>
+          </div>
+          <div class="post-card">
+            <div class="pc-icon">🔔</div>
+            <h4>추월 알림의 강도 상승</h4>
+            <p>"모르는 사람에게 추월당함" → "친구 OOO에게 추월당함". 자존심이 걸리는 정도가 완전히 달라짐.</p>
+            <div class="before-after">
+              <div class="ba-box before">배달왕이<br>앞질렀어요</div>
+              <div class="ba-arrow">→</div>
+              <div class="ba-box after">김민준이<br>앞질렀어요</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">성공 지표 — 수익 중심</div>
+      <div class="kpi-row">
+        <div class="kpi-card p">
+          <div class="k-label">PRIMARY · 수익</div>
+          <h3>혜택탭 광고 수익 증가율</h3>
+          <p>시즌 랭킹 도입 전후 혜택탭 광고 노출수 및 수익 변화. 시즌 기간 중 vs 비시즌 대비.</p>
+        </div>
+        <div class="kpi-card s">
+          <div class="k-label">SECONDARY · 트래픽</div>
+          <h3>혜택탭 UV · 체류시간</h3>
+          <p>랭킹 참여 유저의 혜택탭 방문 빈도 및 체류시간. UV 회복 목표: 직전 분기 대비 +15%p.</p>
+        </div>
+        <div class="kpi-card g">
+          <div class="k-label">LEADING · 게임 건강도</div>
+          <h3>시즌 참여율 · 재방문율</h3>
+          <p>랭킹 등록 유저 비율, 추월 알림 후 24시간 내 재방문율. 게임이 살아야 트래픽이 산다.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bar">
+    <span>요기요 시즌 랭킹 · 게이미피케이션 × 혜택탭 광고 수익화</span>
+    <span>2026-07-16 · 상상챌린지 2.0 제출용</span>
+  </div>
+</div>
+</body>
+</html>
