@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-07-16">
+<meta name="doc-updated" content="2026-07-16">
+<meta name="doc-status" content="in-progress">
+<title>요기요 시즌 랭킹 — 애니팡 메커니즘 기반 소셜 리텐션</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --yellow: #f5c400;
+    --gray-100: #e5e5e5;
+    --season: #0f172a;
+    --gold: #f5c400;
+    --silver: #9ca3af;
+    --bronze: #cd7c3a;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    max-width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  .header {
+    background: var(--season);
+    padding: 32px 40px 28px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,196,0,0.15) 0%, transparent 70%);
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(245,196,0,0.2);
+    border: 1px solid rgba(245,196,0,0.3);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+    color: var(--gold);
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.65;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* 핵심 메커니즘 3요소 */
+  .mechanic-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .mechanic-card {
+    background: var(--season);
+    border-radius: var(--r4);
+    padding: 20px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .mechanic-card::after {
+    content: attr(data-ref);
+    position: absolute;
+    bottom: 10px;
+    right: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.05em;
+  }
+  .mechanic-card .mc-icon { font-size: 24px; margin-bottom: 10px; }
+  .mechanic-card h3 {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .mechanic-card p {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+  }
+  .mc-tag {
+    display: inline-block;
+    background: rgba(245,196,0,0.15);
+    border: 1px solid rgba(245,196,0,0.3);
+    color: var(--gold);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+  }
+
+  /* 홈 위젯 + 알림 목업 */
+  .mockup-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .phone-wrap {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px;
+  }
+  .phone-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .phone-screen {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+    border: 1.5px solid var(--gray-100);
+  }
+
+  /* 시즌 위젯 */
+  .season-widget {
+    background: var(--season);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .season-widget::before {
+    content: '';
+    position: absolute;
+    top: -20px; right: -20px;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,196,0,0.2) 0%, transparent 70%);
+  }
+  .sw-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .sw-title { font-size: 11px; font-weight: 800; color: #fff; }
+  .sw-season { font-size: 9px; font-weight: 700; color: var(--gold); }
+  .sw-myrank {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+  }
+  .sw-rank-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1;
+    min-width: 28px;
+  }
+  .sw-rank-info .swri-name { font-size: 11px; font-weight: 700; color: #fff; margin-bottom: 1px; }
+  .sw-rank-info .swri-sub { font-size: 9px; color: rgba(255,255,255,0.5); }
+  .sw-rank-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-left: auto;
+  }
+  .sw-rank-bar-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 2px;
+    width: 62%;
+  }
+
+  /* 친구 목록 */
+  .friend-list { padding: 10px 12px; }
+  .friend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--bg-subtle);
+  }
+  .friend-row:last-child { border-bottom: none; }
+  .fr-rank {
+    font-size: 12px;
+    font-weight: 800;
+    min-width: 18px;
+    text-align: center;
+  }
+  .fr-rank.gold { color: var(--gold); }
+  .fr-rank.silver { color: var(--silver); }
+  .fr-rank.bronze { color: var(--bronze); }
+  .fr-rank.me { color: var(--primary); }
+  .fr-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .fr-avatar.me-av { background: var(--primary-50); border: 1.5px solid var(--primary); }
+  .fr-name { font-size: 11px; font-weight: 600; color: var(--text-primary); flex: 1; }
+  .fr-name.me-name { color: var(--primary); font-weight: 800; }
+  .fr-count { font-size: 10px; color: var(--text-tertiary); }
+  .fr-count.me-count { color: var(--primary); font-weight: 700; }
+  .fr-gap {
+    font-size: 9px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .fr-gap.danger { background: var(--primary-50); color: var(--primary); }
+  .fr-gap.safe { background: #d4f0e8; color: var(--green); }
+
+  /* 알림 목업 */
+  .notif-list { padding: 10px; display: grid; gap: 6px; }
+  .notif-card {
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .notif-card.alert { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .notif-card.safe { background: #f0f9f0; border: 1.5px solid #b2dfb2; }
+  .notif-card.info { background: var(--bg-subtle); }
+  .notif-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .notif-text .nt-title { font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; line-height: 1.3; }
+  .notif-text .nt-sub { font-size: 10px; color: var(--text-secondary); line-height: 1.4; }
+  .notif-card.alert .nt-title { color: var(--primary); }
+  .notif-card.safe .nt-title { color: var(--green); }
+
+  /* 시즌 구조 */
+  .season-structure {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .ss-item {
+    padding: 18px 16px;
+    border-right: 1px solid var(--gray-100);
+  }
+  .ss-item:last-child { border-right: none; }
+  .ss-item .si-week {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .ss-item h3 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.35; }
+  .ss-item p { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+  .ss-item.climax { background: var(--primary-25); }
+  .ss-item.climax .si-week { color: var(--primary); }
+
+  /* 카테고리 리그 */
+  .league-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .league-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 14px;
+    text-align: center;
+  }
+  .league-card.featured { background: var(--season); }
+  .league-icon { font-size: 24px; margin-bottom: 6px; }
+  .league-name { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+  .league-card.featured .league-name { color: #fff; }
+  .league-sub { font-size: 10px; color: var(--text-tertiary); line-height: 1.4; }
+  .league-card.featured .league-sub { color: rgba(255,255,255,0.5); }
+  .league-season-badge {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--season);
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: var(--rfull);
+    margin-top: 6px;
+  }
+
+  /* 보상 구조 */
+  .reward-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .reward-card {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+    text-align: center;
+  }
+  .reward-card.gold-card { background: var(--season); border: 1.5px solid var(--gold); }
+  .reward-card.silver-card { background: var(--bg-subtle); border: 1.5px solid var(--silver); }
+  .reward-card.bronze-card { background: var(--bg-subtle); }
+  .reward-medal { font-size: 28px; margin-bottom: 8px; }
+  .reward-card h3 { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+  .reward-card.gold-card h3 { color: var(--gold); }
+  .reward-card.silver-card h3 { color: var(--silver); }
+  .reward-card.bronze-card h3 { color: var(--bronze); }
+  .reward-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+  .reward-card.gold-card p { color: rgba(255,255,255,0.55); }
+
+  /* KPI */
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kpi-card { border-radius: var(--r4); padding: 16px 18px; }
+  .kpi-card.p { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .kpi-card.s { background: var(--bg-subtle); }
+  .kpi-card.g { background: #fefce8; border: 1.5px solid #fde68a; }
+  .kpi-card .k-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; color: var(--text-tertiary); }
+  .kpi-card.p .k-label { color: var(--primary); }
+  .kpi-card.g .k-label { color: #92400e; }
+  .kpi-card h3 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .kpi-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+
+  .footer-bar {
+    padding: 14px 40px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-bar span { font-size: 11px; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-tag">🏆 SEASON 1 · 리텐션 게이미피케이션</div>
+    <h1>요기요 시즌 랭킹<br>친구를 이겨야 끝나는 게임</h1>
+    <p>애니팡·드래곤플라이트 핵심 메커니즘 이식 — 친구 랭킹 경쟁 + 추월 알림 + 월간 리셋으로 재방문 루프 설계</p>
+  </div>
+
+  <div class="body">
+
+    <!-- 핵심 메커니즘 3요소 -->
+    <div>
+      <div class="section-title">애니팡에서 가져온 핵심 3요소</div>
+      <div class="mechanic-row">
+        <div class="mechanic-card" data-ref="애니팡 · 드래곤플라이트">
+          <div class="mc-tag">MECHANISM 01</div>
+          <div class="mc-icon">👥</div>
+          <h3>카카오 친구 랭킹</h3>
+          <p>전국 랭킹이 아닌 "아는 사람" 랭킹이 핵심. 모르는 1위보다 친구 OOO이 나보다 2위 앞에 있다는 게 훨씬 자존심이 걸림. 카카오 소셜 그래프 연동.</p>
+        </div>
+        <div class="mechanic-card" data-ref="드래곤플라이트 핵심">
+          <div class="mc-tag">MECHANISM 02</div>
+          <div class="mc-icon">🔔</div>
+          <h3>추월 알림</h3>
+          <p>"OOO이 당신을 앞질렀습니다" — 앱을 열지 않아도 날아오는 알림이 즉각 재방문을 만든다. 경쟁 불안을 트리거로 전환하는 핵심 장치.</p>
+        </div>
+        <div class="mechanic-card" data-ref="애니팡 주간 리셋">
+          <div class="mc-tag">MECHANISM 03</div>
+          <div class="mc-icon">🔄</div>
+          <h3>월간 리셋</h3>
+          <p>달성해도 다음 달 초기화. "이번 달 1위" 타이틀이 영구가 아니라 매달 새로 걸리는 판. 소진 없이 매달 새 경쟁 동기 부여.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 홈 위젯 + 알림 목업 -->
+    <div>
+      <div class="section-title">화면 구성 — 홈 위젯 & 추월 알림</div>
+      <div class="mockup-pair">
+
+        <div class="phone-wrap">
+          <div class="phone-label">홈 상단 고정 위젯</div>
+          <div class="phone-screen">
+            <div class="season-widget">
+              <div class="sw-top">
+                <div class="sw-title">🏆 7월 시즌 랭킹</div>
+                <div class="sw-season">D-15 종료</div>
+              </div>
+              <div class="sw-myrank">
+                <div class="sw-rank-num">3위</div>
+                <div class="sw-rank-info">
+                  <div class="swri-name">나 (치킨 카테고리)</div>
+                  <div class="swri-sub">이번 달 7회 주문</div>
+                </div>
+                <div class="sw-rank-bar">
+                  <div class="sw-rank-bar-fill"></div>
+                </div>
+              </div>
+            </div>
+            <div class="friend-list">
+              <div class="friend-row">
+                <div class="fr-rank gold">1</div>
+                <div class="fr-avatar">🙂</div>
+                <div class="fr-name">김민준</div>
+                <div class="fr-count">12회</div>
+                <div class="fr-gap danger">-5↑</div>
+              </div>
+              <div class="friend-row">
+                <div class="fr-rank silver">2</div>
+                <div class="fr-avatar">😄</div>
+                <div class="fr-name">이수진</div>
+                <div class="fr-count">9회</div>
+                <div class="fr-gap danger">-2↑</div>
+              </div>
+              <div class="friend-row">
+                <div class="fr-rank me">3</div>
+                <div class="fr-avatar me-av">나</div>
+                <div class="fr-name me-name">나</div>
+                <div class="fr-count me-count">7회</div>
+                <div class="fr-gap safe">+3↓</div>
+              </div>
+              <div class="friend-row">
+                <div class="fr-rank bronze">4</div>
+                <div class="fr-avatar">🤔</div>
+                <div class="fr-name">박재현</div>
+                <div class="fr-count">4회</div>
+                <div class="fr-gap safe">+3↓</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="phone-wrap">
+          <div class="phone-label">추월 알림 시나리오</div>
+          <div class="phone-screen">
+            <div class="notif-list">
+              <div class="notif-card alert">
+                <div class="notif-icon">🔥</div>
+                <div class="notif-text">
+                  <div class="nt-title">이수진이 당신을 앞질렀어요!</div>
+                  <div class="nt-sub">치킨 랭킹 2위 → 이수진 8회, 나 7회. 지금 주문하면 탈환 가능.</div>
+                </div>
+              </div>
+              <div class="notif-card alert">
+                <div class="notif-icon">⚠️</div>
+                <div class="notif-text">
+                  <div class="nt-title">박재현이 바짝 따라왔어요</div>
+                  <div class="nt-sub">나와 1회 차이. 시즌 D-15, 지금 주문하면 3위 수성.</div>
+                </div>
+              </div>
+              <div class="notif-card safe">
+                <div class="notif-icon">👑</div>
+                <div class="notif-text">
+                  <div class="nt-title">치킨 랭킹 2위 탈환!</div>
+                  <div class="nt-sub">이번 달 2위 확정. D-15 남았어요. 1위까지 4회 남음.</div>
+                </div>
+              </div>
+              <div class="notif-card info">
+                <div class="notif-icon">🏆</div>
+                <div class="notif-text">
+                  <div class="nt-title">6월 시즌 종료 — 3위 달성</div>
+                  <div class="nt-sub">브론즈 보상 쿠폰 5,000원 지급. 7월 시즌 시작!</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 시즌 구조 -->
+    <div>
+      <div class="section-title">월간 시즌 구조</div>
+      <div class="season-structure">
+        <div class="ss-item">
+          <div class="si-week">WEEK 1</div>
+          <h3>시즌 개막<br>초기 경쟁</h3>
+          <p>월초 리셋. 친구들 동시 시작. "이번 달은 내가 1위" 초기 동기 형성.</p>
+        </div>
+        <div class="ss-item">
+          <div class="si-week">WEEK 2–3</div>
+          <h3>중간 격차<br>추격전</h3>
+          <p>랭킹 격차 가시화. 추월 알림 본격 발동. 재방문 빈도 최고조.</p>
+        </div>
+        <div class="ss-item climax">
+          <div class="si-week">WEEK 4 · 클라이맥스</div>
+          <h3>마감 전<br>막판 스퍼트</h3>
+          <p>D-7, D-3, D-1 카운트다운 알림. "지금 주문하면 순위 바뀐다" 긴장감 극대화.</p>
+        </div>
+        <div class="ss-item">
+          <div class="si-week">MONTH END</div>
+          <h3>시즌 종료<br>보상 지급</h3>
+          <p>순위별 쿠폰 지급. 다음 시즌 예고. 리셋 알림 → 새 판 기대감.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 카테고리 리그 -->
+    <div>
+      <div class="section-title">카테고리 리그 — 여러 판에서 동시 경쟁</div>
+      <div class="league-row">
+        <div class="league-card featured">
+          <div class="league-icon">🍗</div>
+          <div class="league-name">치킨 리그</div>
+          <div class="league-sub">참여 인원 多<br>경쟁 치열</div>
+          <div class="league-season-badge">시즌 중</div>
+        </div>
+        <div class="league-card">
+          <div class="league-icon">🥗</div>
+          <div class="league-name">샐러드 리그</div>
+          <div class="league-sub">니치 · 소수 경쟁<br>1위 달성 쉬움</div>
+        </div>
+        <div class="league-card">
+          <div class="league-icon">🍜</div>
+          <div class="league-name">라멘 리그</div>
+          <div class="league-sub">마니아 집결<br>카테고리 매니아 픽 연동</div>
+        </div>
+        <div class="league-card">
+          <div class="league-icon">🍕</div>
+          <div class="league-name">피자 리그</div>
+          <div class="league-sub">가족 단위 多<br>주문금액 기준</div>
+        </div>
+      </div>
+      <div style="margin-top: 10px; padding: 12px 16px; background: var(--bg-subtle); border-radius: var(--r3);">
+        <span style="font-size: 11px; color: var(--text-tertiary);">💡 설계 포인트 — </span>
+        <span style="font-size: 11px; color: var(--text-secondary);">치킨처럼 경쟁이 치열한 리그는 자존심이 걸리고, 샐러드처럼 참여자 적은 리그는 1위 달성이 쉬워 성취감. 유저가 자기 강점 카테고리를 선택해 전략적으로 참여.</span>
+      </div>
+    </div>
+
+    <!-- 보상 구조 -->
+    <div>
+      <div class="section-title">시즌 종료 보상 — 순위별 차등</div>
+      <div class="reward-row">
+        <div class="reward-card gold-card">
+          <div class="reward-medal">🥇</div>
+          <h3>1위 · 카테고리 왕</h3>
+          <p>최대 쿠폰 + "이번 달 치킨왕" 프로필 배지 + 매니아 픽 스윔레인 큐레이터 자격 자동 부여. 사회적 가시성 최대.</p>
+        </div>
+        <div class="reward-card silver-card">
+          <div class="reward-medal">🥈</div>
+          <h3>2–5위 · 상위권</h3>
+          <p>중간 쿠폰 + 다음 시즌 스타트 보너스. "아깝다" 감정이 다음 시즌 더 열심히 하게 만드는 장치.</p>
+        </div>
+        <div class="reward-card bronze-card">
+          <div class="reward-medal">🥉</div>
+          <h3>참여 보상</h3>
+          <p>소액 쿠폰. 참여 자체에 최소 보상으로 이탈 방지. 단, 1·2위와 보상 격차를 크게 벌려 경쟁 동기 유지.</p>
+        </div>
+      </div>
+      <div style="margin-top:10px; padding: 12px 16px; background: var(--primary-25); border: 1.5px solid var(--primary-100); border-radius: var(--r3);">
+        <span style="font-size: 11px; color: var(--primary); font-weight: 700;">🔗 매니아 픽 연동 — </span>
+        <span style="font-size: 11px; color: var(--text-secondary);">시즌 1위는 해당 카테고리 매니아 픽 스윔레인 큐레이터 자격 자동 획득. 리텐션(시즌 랭킹)과 큐레이션(매니아 픽) 두 피처가 하나의 루프로 연결됨.</span>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">성공 지표</div>
+      <div class="kpi-row">
+        <div class="kpi-card p">
+          <div class="k-label">PRIMARY KPI</div>
+          <h3>시즌 참여 유저 MAU 대비 비율</h3>
+          <p>월간 활성 유저 중 랭킹 게임 참여율. 추월 알림 수신 후 당일 재방문율.</p>
+        </div>
+        <div class="kpi-card s">
+          <div class="k-label">RETENTION KPI</div>
+          <h3>시즌 연속 참여율</h3>
+          <p>1시즌 참여 후 2시즌 재참여율. 리셋 메커니즘의 지속 효과 검증. 시즌 마지막 주 주문 빈도 스파이크.</p>
+        </div>
+        <div class="kpi-card g">
+          <div class="k-label">SOCIAL KPI</div>
+          <h3>카카오 연동률 & 친구 초대</h3>
+          <p>랭킹 참여를 위한 카카오 연동 동의율. 친구 초대로 인한 신규 유입. 소셜 그래프 확장 속도.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bar">
+    <span>요기요 리텐션 게이미피케이션 · 시즌 랭킹 — 애니팡·드래곤플라이트 메커니즘 기반</span>
+    <span>2026-07-16 · 검토용 내부 문서</span>
+  </div>
+</div>
+</body>
+</html>
