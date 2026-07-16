@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-07-16">
+<meta name="doc-updated" content="2026-07-16">
+<meta name="doc-status" content="in-progress">
+<title>발견하는 홈 — Steam 탐색 UX 기반 배달앱 홈 탐색 콘텐츠 설계</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --purple: #7c3aed;
+    --purple-25: #f5f3ff;
+    --purple-100: #ddd6fe;
+    --gray-100: #e5e5e5;
+    --steam: #1b2838;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    max-width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  .header {
+    background: var(--primary);
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* Steam 인사이트 → 배달앱 매핑 */
+  .insight-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .insight-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg-subtle);
+    border-radius: var(--r3);
+    padding: 12px 14px;
+  }
+  .insight-row.highlight {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+  }
+  .ir-steam {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+  .ir-steam .irs-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+  }
+  .ir-arrow {
+    font-size: 14px;
+    color: var(--primary);
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .ir-app {
+    font-size: 11px;
+    color: var(--text-primary);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .ir-app .ira-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+  }
+
+  /* 핵심 피처 1: 탐색 큐 */
+  .feature-card {
+    border-radius: var(--r4);
+    overflow: hidden;
+    border: 1.5px solid var(--gray-100);
+  }
+  .feature-header {
+    padding: 16px 20px;
+    background: var(--steam);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .feature-header .fh-badge {
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: var(--rfull);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .feature-header h3 {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .feature-header p {
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    margin-top: 2px;
+  }
+  .feature-body {
+    padding: 18px 20px;
+    display: grid;
+    gap: 10px;
+    background: var(--bg-subtle);
+  }
+
+  /* 탐색 큐 목업 */
+  .queue-mockup {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .queue-card {
+    width: 160px;
+    flex-shrink: 0;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--shadow-1);
+    overflow: hidden;
+    border: 1.5px solid var(--gray-100);
+  }
+  .queue-card .qc-img {
+    height: 90px;
+    background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    position: relative;
+  }
+  .queue-card .qc-reason {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    right: 6px;
+    background: rgba(0,0,0,0.65);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 9px;
+    color: #fff;
+    font-weight: 600;
+  }
+  .queue-card .qc-info { padding: 10px 12px; }
+  .queue-card .qc-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .queue-card .qc-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .qc-tag {
+    background: var(--bg-subtle);
+    color: var(--text-tertiary);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .queue-card .qc-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+  }
+  .qc-btn {
+    padding: 5px 0;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .qc-btn.save { background: var(--primary); color: #fff; }
+  .qc-btn.skip { background: var(--bg-subtle); color: var(--text-secondary); }
+  .qc-btn.no { background: var(--bg-subtle); color: var(--text-tertiary); }
+
+  .queue-desc {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+  }
+  .queue-desc .qd-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .queue-desc .qd-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--primary-50);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .queue-desc .qd-text h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .queue-desc .qd-text p {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* 스윔레인 계층 */
+  .swimlane-layers {
+    display: grid;
+    gap: 6px;
+  }
+  .sl-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: var(--r3);
+    background: var(--bg-subtle);
+  }
+  .sl-row.hot { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .sl-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--gray-100);
+  }
+  .sl-dot.p1 { background: var(--primary); }
+  .sl-dot.p2 { background: var(--orange); }
+  .sl-dot.p3 { background: var(--blue); }
+  .sl-dot.p4 { background: var(--green); }
+  .sl-dot.p5 { background: var(--purple); }
+  .sl-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .sl-name .sl-sub {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-top: 1px;
+  }
+  .sl-level {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+    white-space: nowrap;
+  }
+  .sl-level.lv1 { background: var(--primary-50); color: var(--primary); }
+  .sl-level.lv2 { background: #ffe4d4; color: var(--orange); }
+  .sl-level.lv3 { background: #ddeeff; color: var(--blue); }
+  .sl-level.lv4 { background: #d4f0e8; color: var(--green); }
+  .sl-level.lv5 { background: var(--purple-25); color: var(--purple); }
+
+  /* 찜 루프 */
+  .loop-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    align-items: center;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px;
+  }
+  .loop-step { text-align: center; padding: 0 4px; }
+  .loop-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin: 0 auto 6px;
+    background: #fff;
+    box-shadow: var(--shadow-1);
+  }
+  .loop-step.trigger .loop-icon { background: var(--primary-25); box-shadow: none; border: 1.5px solid var(--primary-100); }
+  .loop-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    line-height: 1.3;
+  }
+  .loop-desc {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+  }
+  .loop-arrow {
+    text-align: center;
+    color: var(--primary);
+    font-size: 14px;
+  }
+
+  /* 추천 이유 카드 */
+  .reason-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .reason-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r3);
+    padding: 12px 14px;
+  }
+  .reason-card .rc-icon { font-size: 18px; margin-bottom: 6px; }
+  .reason-card .rc-reason {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .reason-card .rc-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+  }
+  .reason-card .rc-desc {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  /* KPI */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .kpi-card {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .kpi-card.p { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .kpi-card.s { background: var(--bg-subtle); }
+  .kpi-card.g { background: var(--purple-25); border: 1.5px solid var(--purple-100); }
+  .kpi-card .k-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; color: var(--text-tertiary);
+  }
+  .kpi-card.p .k-label { color: var(--primary); }
+  .kpi-card.g .k-label { color: var(--purple); }
+  .kpi-card h3 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .kpi-card p { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+
+  .footer-bar {
+    padding: 14px 40px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-bar span { font-size: 11px; color: var(--text-tertiary); }
+
+  .steam-ref {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--steam);
+    color: rgba(255,255,255,0.7);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-tag">탐색 홈 고도화 · Steam UX 기반</div>
+    <h1>발견하는 홈<br>탐색 욕구를 설계하는 배달앱 홈</h1>
+    <p>Steam 큐레이션 UX 7개 인사이트를 배달앱 홈에 이식 — "뭘 시킬지 모르겠다"를 "발견하는 재미"로 전환</p>
+  </div>
+
+  <div class="body">
+
+    <!-- Steam 인사이트 → 배달앱 매핑 -->
+    <div>
+      <div class="section-title">Steam 인사이트 → 배달앱 적용 매핑</div>
+      <div class="insight-grid">
+        <div class="insight-row highlight">
+          <div class="ir-steam">
+            <div class="irs-label">STEAM</div>
+            Discovery Queue — 하루 한 번 개인화 스와이프 탐색
+          </div>
+          <div class="ir-arrow">→</div>
+          <div class="ir-app">
+            <div class="ira-label">배달앱</div>
+            "오늘 뭐먹지?" 탐색 큐 — 10장 카드 스와이프 + 저장/패스
+          </div>
+        </div>
+        <div class="insight-row highlight">
+          <div class="ir-steam">
+            <div class="irs-label">STEAM</div>
+            Wishlist = 재방문 루프 노드 (속도→알고리즘 신호)
+          </div>
+          <div class="ir-arrow">→</div>
+          <div class="ir-app">
+            <div class="ira-label">배달앱</div>
+            찜 = 탐색 루프 재진입 트리거 (쿠폰/신메뉴 시 홈 재등장)
+          </div>
+        </div>
+        <div class="insight-row">
+          <div class="ir-steam">
+            <div class="irs-label">STEAM</div>
+            스윔레인 섹션별 개인화 강도·형태 차별화
+          </div>
+          <div class="ir-arrow">→</div>
+          <div class="ir-app">
+            <div class="ira-label">배달앱</div>
+            홈 레인 5종 계층화 — 개인화 강도별 섹션 설계
+          </div>
+        </div>
+        <div class="insight-row">
+          <div class="ir-steam">
+            <div class="irs-label">STEAM</div>
+            Deep Dive — "유사 → 다소 유사 → 의외의 발견" 3단계
+          </div>
+          <div class="ir-arrow">→</div>
+          <div class="ir-app">
+            <div class="ira-label">배달앱</div>
+            "이 가게 좋아하면" 확장 탐색 — 단계별 노출 거리 확대
+          </div>
+        </div>
+        <div class="insight-row">
+          <div class="ir-steam">
+            <div class="irs-label">STEAM</div>
+            추천 이유 명시 — "왜 이게 나왔는지" 컨텍스트 노출
+          </div>
+          <div class="ir-arrow">→</div>
+          <div class="ir-app">
+            <div class="ira-label">배달앱</div>
+            모든 추천 카드에 "이유 배지" — 신뢰도·클릭률 동시 상승
+          </div>
+        </div>
+        <div class="insight-row">
+          <div class="ir-steam">
+            <div class="irs-label">STEAM</div>
+            큐레이터 시스템 — 신뢰 기반 제3자 추천 레이어
+          </div>
+          <div class="ir-arrow">→</div>
+          <div class="ir-app">
+            <div class="ira-label">배달앱</div>
+            파워블로거 픽 레이어 — 알고리즘 추천 위에 에디토리얼 신뢰 추가
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 피처 1: 탐색 큐 -->
+    <div>
+      <div class="feature-card">
+        <div class="feature-header">
+          <div>
+            <div class="fh-badge">핵심 피처 01</div>
+            <h3>"오늘 뭐먹지?" 탐색 큐</h3>
+            <p>Steam Discovery Queue 적용 — 탐색 자체를 보상으로</p>
+          </div>
+        </div>
+        <div class="feature-body">
+          <div class="queue-mockup">
+            <div class="queue-card">
+              <div class="qc-img">
+                🥗
+                <div class="qc-reason">지난 샐러드 주문과 비슷해서</div>
+              </div>
+              <div class="qc-info">
+                <div class="qc-name">초록정원 샐러드</div>
+                <div class="qc-tags">
+                  <span class="qc-tag">건강식</span>
+                  <span class="qc-tag">유자드레싱</span>
+                  <span class="qc-tag">신규</span>
+                </div>
+                <div class="qc-actions">
+                  <div class="qc-btn save">찜 ♥</div>
+                  <div class="qc-btn skip">패스</div>
+                  <div class="qc-btn no">별로</div>
+                </div>
+              </div>
+            </div>
+            <div class="queue-desc">
+              <div class="qd-item">
+                <div class="qd-icon">🎴</div>
+                <div class="qd-text">
+                  <h4>하루 한 번, 10장 카드</h4>
+                  <p>매일 새로 생성되는 개인화 탐색 덱. 전날 반응(찜/패스/별로)이 오늘 큐를 재보정.</p>
+                </div>
+              </div>
+              <div class="qd-item">
+                <div class="qd-icon">💬</div>
+                <div class="qd-text">
+                  <h4>모든 카드에 "이유 배지"</h4>
+                  <p>왜 이 가게가 나왔는지 한 줄 컨텍스트. "단골 재주문 중", "파워블로거 방문" 등.</p>
+                </div>
+              </div>
+              <div class="qd-item">
+                <div class="qd-icon">🎁</div>
+                <div class="qd-text">
+                  <h4>탐색 완료 리워드</h4>
+                  <p>10장 모두 보면 소액 쿠폰 지급. 탐색 행위 자체를 보상으로 — 매일 열게 만드는 장치.</p>
+                </div>
+              </div>
+              <div class="qd-item">
+                <div class="qd-icon">📈</div>
+                <div class="qd-text">
+                  <h4>찜 속도 → 알고리즘 신호</h4>
+                  <p>찜이 빠르게 쌓이는 신규 가게 → "곧 뜰 맛집" 스윔레인 자동 진입. (Steam Popular Upcoming)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 피처 2: 홈 스윔레인 계층 -->
+    <div>
+      <div class="feature-card">
+        <div class="feature-header">
+          <div>
+            <div class="fh-badge">핵심 피처 02</div>
+            <h3>홈 스윔레인 5종 계층화</h3>
+            <p>Steam 홈 섹션 구조 적용 — 개인화 강도·정보 형태를 레인마다 달리 설계</p>
+          </div>
+        </div>
+        <div class="feature-body">
+          <div class="swimlane-layers">
+            <div class="sl-row hot">
+              <div class="sl-dot p1"></div>
+              <div class="sl-name">
+                찜해뒀는데 쿠폰 나왔어요
+                <div class="sl-sub">찜 가게 중 쿠폰 발행 / 신메뉴 등록 시 자동 등장 · Steam "Wishlist on Sale" 동일 원리</div>
+              </div>
+              <div class="sl-level lv1">개인화 MAX</div>
+            </div>
+            <div class="sl-row">
+              <div class="sl-dot p2"></div>
+              <div class="sl-name">
+                내 단골의 오늘 픽
+                <div class="sl-sub">주문 이력 기반 · 자주 간 가게의 오늘 추천 메뉴</div>
+              </div>
+              <div class="sl-level lv2">개인화 높음</div>
+            </div>
+            <div class="sl-row">
+              <div class="sl-dot p3"></div>
+              <div class="sl-name">
+                지금 내 동네서 뜨는 집
+                <div class="sl-sub">반경 2km 내 찜 속도 급상승 가게 · 곧 뜰 맛집 예고</div>
+              </div>
+              <div class="sl-level lv3">위치 기반</div>
+            </div>
+            <div class="sl-row">
+              <div class="sl-dot p4"></div>
+              <div class="sl-name">
+                파워블로거 이번 주 엄선
+                <div class="sl-sub">김상지 외 인증 블로거의 실방문 큐레이션 · 에디토리얼 레이어</div>
+              </div>
+              <div class="sl-level lv4">에디토리얼</div>
+            </div>
+            <div class="sl-row">
+              <div class="sl-dot p5"></div>
+              <div class="sl-name">
+                이걸 좋아하면 이것도 — Deep Dive
+                <div class="sl-sub">매우 유사 → 다소 유사 → 의외의 발견 3단계 확장 탐색</div>
+              </div>
+              <div class="sl-level lv5">발견 탐색</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 피처 3: 찜 루프 -->
+    <div>
+      <div class="section-title">찜 루프 재설계 — 저장에서 재방문 트리거로</div>
+      <div class="loop-row">
+        <div class="loop-step">
+          <div class="loop-icon">🔍</div>
+          <div class="loop-label">탐색 큐에서 발견</div>
+          <div class="loop-desc">하루 10장 카드 스와이프</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step trigger">
+          <div class="loop-icon">♥</div>
+          <div class="loop-label">찜 추가</div>
+          <div class="loop-desc">저장 + 알고리즘 신호 전달</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step">
+          <div class="loop-icon">🔔</div>
+          <div class="loop-label">쿠폰·신메뉴 알림</div>
+          <div class="loop-desc">외부→앱 재유입 트리거</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step">
+          <div class="loop-icon">🏠</div>
+          <div class="loop-label">홈 자동 등장</div>
+          <div class="loop-desc">"찜 특가" 레인 최상단 노출</div>
+        </div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step">
+          <div class="loop-icon">🛒</div>
+          <div class="loop-label">주문 전환</div>
+          <div class="loop-desc">탐색→의향→구매 루프 완성</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 추천 이유 카드 예시 -->
+    <div>
+      <div class="section-title">추천 이유 명시 — 모든 카드에 "왜 나왔는지" 한 줄</div>
+      <div class="reason-grid">
+        <div class="reason-card">
+          <div class="rc-icon">🔁</div>
+          <div class="rc-reason">단골 재주문 중</div>
+          <div class="rc-name">황금치킨 본점</div>
+          <div class="rc-desc">이 가게 단골 고객의 87%가 한 달 내 재주문</div>
+        </div>
+        <div class="reason-card">
+          <div class="rc-icon">✍️</div>
+          <div class="rc-reason">파워블로거 방문</div>
+          <div class="rc-name">초록정원 샐러드</div>
+          <div class="rc-desc">김상지 블로거가 직접 방문 후 추천</div>
+        </div>
+        <div class="reason-card">
+          <div class="rc-icon">📍</div>
+          <div class="rc-reason">내 동네서 빠르게 뜨는 중</div>
+          <div class="rc-name">도시락공방</div>
+          <div class="rc-desc">최근 2주 찜 +340% 급상승 신규 가게</div>
+        </div>
+        <div class="reason-card">
+          <div class="rc-icon">♥</div>
+          <div class="rc-reason">찜해뒀는데 쿠폰 나왔어요</div>
+          <div class="rc-name">라멘오타쿠 역삼점</div>
+          <div class="rc-desc">찜한 지 14일 · 오늘 3,000원 쿠폰 발행</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">성공 지표</div>
+      <div class="kpi-row">
+        <div class="kpi-card p">
+          <div class="k-label">PRIMARY KPI</div>
+          <h3>탐색 큐 완료율 → CVR</h3>
+          <p>탐색 큐 10장 완료 비율. 완료 후 당일 주문 전환율. 탐색 행위와 구매의 연결 강도.</p>
+        </div>
+        <div class="kpi-card s">
+          <div class="k-label">SECONDARY KPI</div>
+          <h3>찜 → 주문 전환율</h3>
+          <p>찜 후 30일 내 주문 전환. 기존 찜 기능 대비 개선폭. 찜 루프 재설계 효과 검증.</p>
+        </div>
+        <div class="kpi-card g">
+          <div class="k-label">DISCOVERY KPI</div>
+          <h3>신규 가게 발견율</h3>
+          <p>탐색 큐를 통해 처음 주문한 가게 비율. 홈 탐색이 실제 "발견"으로 이어지는지 측정.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bar">
+    <span>요기요 탐색 홈 고도화 · Steam Discovery UX 기반 발견하는 홈</span>
+    <span>2026-07-16 · 검토용 내부 문서</span>
+  </div>
+</div>
+</body>
+</html>
