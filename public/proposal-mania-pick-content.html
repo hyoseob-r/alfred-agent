@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-07-16">
+<meta name="doc-updated" content="2026-07-16">
+<meta name="doc-status" content="in-progress">
+<title>매니아 픽 × 김상지가 간다 — 큐레이팅 × 콘텐츠 통합 전략</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --primary-600: #c8003f;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --yellow: #ffcb2e;
+    --gray-100: #e5e5e5;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    max-width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    background: var(--primary);
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* Flywheel */
+  .flywheel {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+    border-radius: var(--r4);
+    padding: 24px 28px;
+  }
+  .flywheel .fw-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 16px;
+  }
+  .flywheel-steps {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    align-items: center;
+  }
+  .fw-step {
+    text-align: center;
+    padding: 0 6px;
+  }
+  .fw-icon {
+    width: 44px;
+    height: 44px;
+    background: #fff;
+    border: 2px solid var(--primary-100);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    font-size: 18px;
+  }
+  .fw-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+    line-height: 1.3;
+  }
+  .fw-desc {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+  }
+  .fw-arrow {
+    text-align: center;
+    font-size: 16px;
+    color: var(--primary-100);
+    font-weight: 300;
+  }
+
+  /* 4-role grid */
+  .role-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .role-card {
+    border-radius: var(--r4);
+    padding: 20px;
+    background: var(--bg-subtle);
+  }
+  .role-card.primary-role {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+  }
+  .role-card .rc-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 3px 9px;
+    border-radius: var(--rfull);
+    margin-bottom: 10px;
+    background: var(--primary-50);
+    color: var(--primary);
+  }
+  .role-card .rc-badge.gray { background: var(--gray-100); color: var(--text-tertiary); }
+  .role-card .rc-badge.green { background: #d4f0e8; color: var(--green); }
+  .role-card .rc-badge.blue { background: #ddeeff; color: var(--blue); }
+  .role-card h3 {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    line-height: 1.35;
+  }
+  .role-card p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* Challenge mechanic */
+  .challenge-box {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .ch-side {
+    text-align: center;
+  }
+  .ch-side .ch-amount {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .ch-side.invest .ch-amount { color: var(--text-tertiary); }
+  .ch-side.reward .ch-amount { color: var(--primary); }
+  .ch-side .ch-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .ch-side .ch-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .ch-middle {
+    text-align: center;
+  }
+  .ch-middle .ch-condition {
+    background: var(--primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: var(--r3);
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  .ch-middle .ch-arrow {
+    font-size: 20px;
+    color: var(--primary);
+    margin-top: 6px;
+  }
+
+  /* Why ranking */
+  .why-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .why-card {
+    border-radius: var(--r4);
+    padding: 18px 20px;
+  }
+  .why-card.wrong {
+    background: #fff8e1;
+    border: 1.5px solid #ffe082;
+  }
+  .why-card.right {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+  }
+  .why-card .w-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    margin-bottom: 8px;
+  }
+  .why-card.wrong .w-label { color: var(--orange); }
+  .why-card.right .w-label { color: var(--primary); }
+  .why-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .why-card p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* Category examples */
+  .category-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .category-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 16px 14px;
+    text-align: center;
+  }
+  .category-card.featured {
+    background: var(--primary-25);
+    border: 1.5px solid var(--primary-100);
+  }
+  .category-card .cat-icon { font-size: 24px; margin-bottom: 8px; }
+  .category-card .cat-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .category-card .cat-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .category-card .cat-why {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+  }
+  .phase-chip {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: var(--rfull);
+    margin-top: 6px;
+  }
+  .phase-chip.later {
+    background: var(--gray-100);
+    color: var(--text-tertiary);
+  }
+
+  /* KPI */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .kpi-card {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .kpi-card.p { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .kpi-card.s { background: var(--bg-subtle); }
+  .kpi-card.g { background: #f0f9f0; border: 1.5px solid #b2dfb2; }
+  .kpi-card .k-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+    color: var(--text-tertiary);
+  }
+  .kpi-card.p .k-label { color: var(--primary); }
+  .kpi-card.g .k-label { color: var(--green); }
+  .kpi-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .kpi-card p {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .footer-bar {
+    padding: 14px 40px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-bar span { font-size: 11px; color: var(--text-tertiary); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-tag">큐레이팅 고도화 × 콘텐츠 · Council #c-00017</div>
+    <h1>매니아 픽 × 김상지가 간다<br>큐레이팅–콘텐츠 통합 플라이휠</h1>
+    <p>헤비유저가 큐레이팅하고, 랭킹이 진성성을 보증하고, 콘텐츠가 바이럴을 만든다</p>
+  </div>
+
+  <div class="body">
+
+    <!-- 플라이휠 -->
+    <div>
+      <div class="section-title">핵심 구조 — 5단계 플라이휠</div>
+      <div class="flywheel">
+        <div class="fw-title">FLYWHEEL · 매니아가 추천하고, 김상지가 검증한다</div>
+        <div class="flywheel-steps">
+          <div class="fw-step">
+            <div class="fw-icon">🍽️</div>
+            <div class="fw-label">자주 주문</div>
+            <div class="fw-desc">카테고리 반복 주문으로 헤비유저 자격 축적</div>
+          </div>
+          <div class="fw-arrow">→</div>
+          <div class="fw-step">
+            <div class="fw-icon">🏆</div>
+            <div class="fw-label">500위 진입</div>
+            <div class="fw-desc">랭킹 달성 → "매니아" 공식 자격 획득</div>
+          </div>
+          <div class="fw-arrow">→</div>
+          <div class="fw-step">
+            <div class="fw-icon">⭐</div>
+            <div class="fw-label">픽 등재</div>
+            <div class="fw-desc">매니아의 별점 5점 가게가 스윔레인에 노출</div>
+          </div>
+          <div class="fw-arrow">→</div>
+          <div class="fw-step">
+            <div class="fw-icon">🎥</div>
+            <div class="fw-label">김상지 방문</div>
+            <div class="fw-desc">매니아 픽 가게를 직접 방문 · 콘텐츠화</div>
+          </div>
+          <div class="fw-arrow">→</div>
+          <div class="fw-step">
+            <div class="fw-icon">🔥</div>
+            <div class="fw-label">바이럴</div>
+            <div class="fw-desc">"나도 매니아 되고 싶다" → 오더 빈도 상승</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4개 역할 -->
+    <div>
+      <div class="section-title">구성 요소 — 4가지 역할</div>
+      <div class="role-grid">
+        <div class="role-card primary-role">
+          <div class="rc-badge">앱 피처</div>
+          <h3>매니아 픽 스윔레인</h3>
+          <p>카테고리를 월 N회 이상 주문한 헤비유저의 별점 5점 가게를 별도 스윔레인으로 노출. "치킨왕이 인정한 집"처럼 카테고리별 캐릭터 언어 + 투명한 선정 기준 배지로 신뢰도 확보.</p>
+        </div>
+        <div class="role-card primary-role">
+          <div class="rc-badge">콘텐츠 레이어</div>
+          <h3>김상지가 간다간다간다</h3>
+          <p>매니아 픽에 등재된 가게를 직접 방문하는 콘텐츠 시리즈. 매니아의 큐레이션을 콘텐츠가 검증하는 구조 → 픽의 진성성이 콘텐츠 신뢰도로 전환됨. 바이럴 엔진.</p>
+        </div>
+        <div class="role-card">
+          <div class="rc-badge green">게이미피케이션</div>
+          <h3>500위 매니아 랭킹</h3>
+          <p>카테고리 주문 빈도 기반 리더보드. 500위 안에 들면 공식 "매니아" 자격 획득. 무조건 참여 리워드가 아닌 달성 기반 인정 → 큐레이션 진성성과 직결됨.</p>
+        </div>
+        <div class="role-card">
+          <div class="rc-badge blue">진입 장치</div>
+          <h3>2만원 → 5만원 챌린지</h3>
+          <p>매니아 랭킹 진입을 위한 초기 주문 부담 해소. 챌린지 구조로 처음 참여하는 유저를 플라이휠로 유입. 달성 조건이 콘텐츠 소재로도 활용 가능.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 챌린지 구조 -->
+    <div>
+      <div class="section-title">챌린지 구조 설계</div>
+      <div class="challenge-box">
+        <div class="ch-side invest">
+          <div class="ch-label">참여 조건</div>
+          <div class="ch-amount">2만원</div>
+          <div class="ch-desc">카테고리 내 지정 기간<br>누적 주문금액 도달</div>
+        </div>
+        <div class="ch-middle">
+          <div class="ch-condition">500위 안에 진입<br>매니아 자격 달성</div>
+          <div class="ch-arrow">↓</div>
+        </div>
+        <div class="ch-side reward">
+          <div class="ch-label">달성 리워드</div>
+          <div class="ch-amount">+5만원</div>
+          <div class="ch-desc">매니아 인증 배지 + 쿠폰<br>김상지가 간다 스페셜 초대</div>
+        </div>
+      </div>
+      <div style="margin-top: 10px; padding: 12px 16px; background: var(--bg-subtle); border-radius: var(--r3);">
+        <span style="font-size: 11px; color: var(--text-tertiary);">⚠️ 핵심 설계 원칙 — </span>
+        <span style="font-size: 11px; color: var(--text-secondary);">"참여만 해도 준다"는 긁히는 구조. 500위 달성이라는 <strong>조건 있는 리워드</strong>여야 매니아 자격의 진성성이 유지되고, 콘텐츠 신뢰도와 직결됨.</span>
+      </div>
+    </div>
+
+    <!-- 왜 랭킹 기반인가 -->
+    <div>
+      <div class="section-title">왜 "달성 기반"이어야 하는가</div>
+      <div class="why-row">
+        <div class="why-card wrong">
+          <div class="w-label">❌ 무조건 참여 리워드</div>
+          <h3>진성성이 없다</h3>
+          <p>아무나 참여해서 받는 쿠폰은 매니아 자격의 의미를 희석시킴. 김상지가 방문하는 가게가 "아무나 추천한 집"이 되면 콘텐츠 신뢰도 0. 리워드가 클릭베이트가 됨.</p>
+        </div>
+        <div class="why-card right">
+          <div class="w-label">✅ 500위 달성 기반 리워드</div>
+          <h3>진성성이 콘텐츠 가치가 된다</h3>
+          <p>"치킨을 이 달에 15번 시켜서 500위 진입한 사람이 추천한 집을 김상지가 갔습니다" → 이 한 문장이 콘텐츠 전체의 신뢰를 만듦. 달성의 어려움이 큐레이션의 권위가 됨.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 카테고리 선정 -->
+    <div>
+      <div class="section-title">카테고리 선정 — 니치 먼저, 볼륨 나중</div>
+      <div class="category-row">
+        <div class="category-card featured">
+          <div class="cat-icon">🥗</div>
+          <div class="cat-name">샐러드</div>
+          <div class="cat-title">"건강식 매니아 픽"</div>
+          <div class="cat-why">건강식 인플루언서 채널 시너지. SNS 공유율 높음. 매니아 기준 낮게 설정 가능(월 3회).</div>
+          <div class="phase-chip">Phase 1 베타</div>
+        </div>
+        <div class="category-card featured">
+          <div class="cat-icon">🐡</div>
+          <div class="cat-name">홍어·특수음식</div>
+          <div class="cat-title">"마니아만 아는 집"</div>
+          <div class="cat-why">초니치 → 마니아 커뮤니티 화제성 폭발. 진입 경쟁 낮음. 콘텐츠 차별성 최고.</div>
+          <div class="phase-chip">Phase 1 베타</div>
+        </div>
+        <div class="category-card featured">
+          <div class="cat-icon">🍜</div>
+          <div class="cat-name">라멘·일식</div>
+          <div class="cat-title">"라멘 오타쿠 선정"</div>
+          <div class="cat-why">오타쿠 문화권 바이럴 가능. 에펨코리아·라멘 커뮤니티 유입 기대.</div>
+          <div class="phase-chip">Phase 2</div>
+        </div>
+        <div class="category-card">
+          <div class="cat-icon">🍗</div>
+          <div class="cat-name">치킨</div>
+          <div class="cat-title">"치킨왕 인정 맛집"</div>
+          <div class="cat-why">볼륨 최대. 차별화 약함. 500위 경쟁 너무 치열. 니치 성공 후 확장.</div>
+          <div class="phase-chip later">Phase 3 확장</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">성공 지표</div>
+      <div class="kpi-row">
+        <div class="kpi-card p">
+          <div class="k-label">PRODUCT KPI</div>
+          <h3>매니아 픽 스윔레인 CVR</h3>
+          <p>일반 스윔레인 대비 전환율. 큐레이션 신뢰도의 실구매 전환력 검증.</p>
+        </div>
+        <div class="kpi-card p">
+          <div class="k-label">CONTENT KPI</div>
+          <h3>김상지 콘텐츠 공유율</h3>
+          <p>영상 조회수 × 공유율 × 요기요 앱 유입 연결. 콘텐츠→앱 전환 퍼널.</p>
+        </div>
+        <div class="kpi-card g">
+          <div class="k-label">FLYWHEEL KPI</div>
+          <h3>챌린지 참여 후 리텐션</h3>
+          <p>2만원 챌린지 달성 유저의 30일 재주문율. 플라이휠 지속성 검증.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bar">
+    <span>요기요 큐레이팅 × 콘텐츠 · Council #c-00017 기반 통합 전략</span>
+    <span>2026-07-16 · 검토용 내부 문서</span>
+  </div>
+</div>
+</body>
+</html>
