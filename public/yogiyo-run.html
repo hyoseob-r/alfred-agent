@@ -27,6 +27,12 @@
 const C = document.getElementById('c');
 const cx = C.getContext('2d');
 
+// 조리 이미지 로드
+const joriImg = new Image();
+joriImg.src = 'jori.png';
+let joriReady = false;
+joriImg.onload = () => { joriReady = true; };
+
 const W = 375, H = 667;
 C.width = W; C.height = H;
 
@@ -339,6 +345,24 @@ function drawHUD() {
   }
 }
 
+// ── 조리 드로우 헬퍼 ─────────────────────────────
+function drawJori(x, y, size, alpha = 1, flipX = false) {
+  cx.globalAlpha = alpha;
+  cx.save();
+  cx.translate(x, y);
+  if (flipX) cx.scale(-1, 1);
+  if (joriReady) {
+    cx.drawImage(joriImg, -size * 0.6, -size * 0.5, size * 1.2, size);
+  } else {
+    cx.font = `${size * 0.9}px serif`;
+    cx.textAlign = 'center';
+    cx.textBaseline = 'middle';
+    cx.fillText('🐥', 0, 0);
+  }
+  cx.restore();
+  cx.globalAlpha = 1;
+}
+
 // ── 플레이어 드로우 ──────────────────────────────
 function drawPlayer() {
   const blink = P.inv > 0 && Math.floor(P.inv / 5) % 2 === 0;
@@ -352,28 +376,23 @@ function drawPlayer() {
   cx.globalAlpha = 0.18;
   cx.fillStyle = '#000';
   cx.beginPath();
-  cx.ellipse(px, py + 26, 18, 6, 0, 0, Math.PI * 2);
+  cx.ellipse(px, py + 28, 20, 7, 0, 0, Math.PI * 2);
   cx.fill();
   cx.globalAlpha = 1;
 
   // 속도 잔상
-  if (Math.abs(P.vx) > 0.5 || S === 'play') {
-    cx.globalAlpha = 0.25;
-    em('🐥', px, py + 10, 34);
-    cx.globalAlpha = 0.1;
-    em('🐥', px, py + 20, 24);
-    cx.globalAlpha = 1;
-  }
+  drawJori(px, py + 12, 44, 0.2);
+  drawJori(px, py + 22, 32, 0.08);
 
-  // 캐릭터
-  em('🐥', px, py, 44);
+  // 캐릭터 본체
+  drawJori(px, py, 56);
 
   // 무적 실드
   if (P.inv > 0) {
     cx.strokeStyle = `rgba(250,0,80,${P.inv / 80 * 0.8})`;
-    cx.lineWidth = 2;
+    cx.lineWidth = 2.5;
     cx.beginPath();
-    cx.arc(px, py, 28, 0, Math.PI * 2);
+    cx.arc(px, py, 32, 0, Math.PI * 2);
     cx.stroke();
   }
 }
@@ -406,22 +425,27 @@ function drawFX() {
 
 // ── 시작 화면 ─────────────────────────────────────
 function drawStart() {
-  // 로고 글로우
+  // 조리 글로우
+  const joriY = 195 + Math.sin(frame * 0.04) * 7;
   cx.shadowColor = COL.primary;
-  cx.shadowBlur  = 40;
-  em('🐥', W/2, 200 + Math.sin(frame * 0.04) * 6, 80);
+  cx.shadowBlur  = 30;
+  drawJori(W/2, joriY, 110);
   cx.shadowBlur = 0;
 
-  btxt('요기요 런', W/2, 305, 32, COL.white);
-  txt('시즌 챌린지 · 고득점으로 랭킹에 도전하세요', W/2, 335, 12, 'rgba(255,255,255,0.45)');
+  // 이름 태그
+  rrect(W/2 - 36, joriY + 50, 72, 22, 11, 'rgba(250,0,80,0.15)', COL.primary, 1);
+  btxt('조리', W/2, joriY + 61, 12, COL.primary);
+
+  btxt('요기요 런', W/2, 308, 32, COL.white);
+  txt('시즌 챌린지 · 고득점으로 랭킹에 도전하세요', W/2, 336, 12, 'rgba(255,255,255,0.45)');
 
   // 미니 설명
-  rrect(40, 370, W - 80, 58, 10, 'rgba(255,255,255,0.04)');
-  txt('← → 방향키  또는  스와이프로 레인 이동', W/2, 391, 11, 'rgba(255,255,255,0.5)');
+  rrect(40, 368, W - 80, 58, 10, 'rgba(255,255,255,0.04)');
+  txt('← → 방향키  또는  스와이프로 레인 이동', W/2, 390, 11, 'rgba(255,255,255,0.5)');
 
   const fds = ['🍗','🍕','🍔','🌮','🥗'];
-  fds.forEach((f, i) => em(f, 80 + i * 44, 415, 22));
-  txt('음식 모으기 = 점수 UP   ⛔💨 장애물 = 라이프 DOWN', W/2, 437, 10, 'rgba(255,255,255,0.3)');
+  fds.forEach((f, i) => em(f, 80 + i * 44, 413, 22));
+  txt('음식 모으기 = 점수 UP   ⛔💨 장애물 = 라이프 DOWN', W/2, 435, 10, 'rgba(255,255,255,0.3)');
 
   // 시작 버튼
   const by = 520, pulse = 1 + Math.sin(frame * 0.07) * 0.025;
@@ -443,8 +467,13 @@ function drawOver() {
   cx.fillStyle = 'rgba(10,14,26,0.82)';
   cx.fillRect(0, 0, W, H);
 
-  em('💀', W/2, 175, 60);
-  btxt('GAME OVER', W/2, 255, 26, COL.white);
+  // 조리 (쓰러진 느낌 — 뒤집기)
+  cx.save();
+  cx.translate(W/2, 178);
+  cx.rotate(Math.PI);
+  drawJori(0, 0, 80);
+  cx.restore();
+  btxt('GAME OVER', W/2, 258, 26, COL.white);
 
   // 점수 카드
   rrect(50, 285, W - 100, 100, 14, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.1)', 1);
