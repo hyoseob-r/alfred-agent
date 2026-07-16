@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-07-16">
+<meta name="doc-updated" content="2026-07-16">
+<meta name="doc-status" content="in-progress">
+<title>김상지가 간다간다간다 — 파워블로거 큐레이션 탐색 피처</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --purple: #7c3aed;
+    --purple-25: #f5f3ff;
+    --purple-100: #ddd6fe;
+    --gray-100: #e5e5e5;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    max-width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.75;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* 컨셉 박스 */
+  .concept-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .concept-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 18px;
+    position: relative;
+  }
+  .concept-card.key {
+    background: #f5f3ff;
+    border: 1.5px solid var(--purple-100);
+  }
+  .concept-card .c-num {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--gray-100);
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+  .concept-card.key .c-num { color: var(--purple-100); }
+  .concept-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .concept-card p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .concept-card .c-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: var(--rfull);
+    margin-bottom: 8px;
+    background: var(--purple-100);
+    color: var(--purple);
+  }
+  .concept-card.key .c-tag { background: var(--purple); color: #fff; }
+
+  /* 블로거 인증 레이블 */
+  .label-box {
+    background: #1a1a2e;
+    border-radius: var(--r4);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .label-badge {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #fa0050, #7c3aed);
+    border-radius: 12px;
+    padding: 12px 16px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .label-badge .lb-icon { font-size: 20px; margin-bottom: 4px; }
+  .label-badge .lb-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .label-badge .lb-sub {
+    font-size: 9px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 2px;
+  }
+  .label-info h3 {
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .label-info p {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+  }
+  .label-criteria {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .label-chip {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--rfull);
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* 3레이어 UX 구조 */
+  .layer-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-radius: var(--r4);
+    overflow: hidden;
+    border: 1.5px solid var(--gray-100);
+  }
+  .layer-item {
+    padding: 20px;
+    border-right: 1px solid var(--gray-100);
+    position: relative;
+  }
+  .layer-item:last-child { border-right: none; }
+  .layer-item .arrow-right {
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #fff;
+    z-index: 1;
+  }
+  .layer-item .l-step {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+  .layer-item h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1.35;
+  }
+
+  /* 모바일 목업 */
+  .mockup-area {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .mockup-phone {
+    background: #fff;
+    border: 1.5px solid var(--gray-100);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+  }
+  .mockup-phone .mp-header {
+    background: #f8f8f8;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .mockup-phone .mp-body { padding: 12px; }
+
+  /* 스윔레인 목업 */
+  .swimlane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .swimlane-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+  .swimlane-more {
+    font-size: 10px;
+    color: var(--text-tertiary);
+  }
+  .blogger-card-mini {
+    background: var(--bg-subtle);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .blogger-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fa0050, #7c3aed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .blogger-info .bi-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1px;
+  }
+  .blogger-info .bi-sub {
+    font-size: 9px;
+    color: var(--text-tertiary);
+  }
+  .blogger-badge-mini {
+    margin-left: auto;
+    background: #1a1a2e;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* 상세 페이지 목업 */
+  .review-card {
+    background: var(--bg-subtle);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .review-card .rc-store {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+  }
+  .review-card .rc-excerpt {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+  .review-card .rc-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .review-card .rc-blog {
+    font-size: 9px;
+    color: var(--text-tertiary);
+  }
+  .review-card .rc-order {
+    background: var(--primary);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: var(--rfull);
+  }
+  .review-card .rc-order.gray {
+    background: var(--gray-100);
+    color: var(--text-tertiary);
+  }
+
+  /* 가게 배지 목업 */
+  .store-card-mock {
+    background: var(--bg-subtle);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .store-img-mock {
+    height: 60px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    position: relative;
+  }
+  .store-pb-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: #1a1a2e;
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+  .store-info-mock {
+    padding: 8px 10px;
+  }
+  .store-info-mock .sim-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .store-info-mock .sim-review {
+    font-size: 9px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    font-style: italic;
+  }
+
+  .mockup-caption {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-align: center;
+    margin-top: 8px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* 파이프라인 */
+  .pipeline-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    overflow: hidden;
+  }
+  .pipeline-item {
+    padding: 16px 18px;
+    border-right: 1px solid var(--gray-100);
+    position: relative;
+  }
+  .pipeline-item:last-child { border-right: none; }
+  .pipeline-item .pi-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+  }
+  .pipeline-item h3 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+    line-height: 1.35;
+  }
+  .pipeline-item p {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* KPI */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .kpi-card {
+    border-radius: var(--r4);
+    padding: 16px 18px;
+  }
+  .kpi-card.p { background: var(--primary-25); border: 1.5px solid var(--primary-100); }
+  .kpi-card.s { background: var(--bg-subtle); }
+  .kpi-card.g { background: var(--purple-25); border: 1.5px solid var(--purple-100); }
+  .kpi-card .k-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    margin-bottom: 6px;
+    color: var(--text-tertiary);
+  }
+  .kpi-card.p .k-label { color: var(--primary); }
+  .kpi-card.g .k-label { color: var(--purple); }
+  .kpi-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .kpi-card p {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .footer-bar {
+    padding: 14px 40px;
+    background: var(--bg-subtle);
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-bar span { font-size: 11px; color: var(--text-tertiary); }
+
+  .layer-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .layer-list li {
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding-left: 12px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .layer-list li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--primary);
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-tag">탐색 영역 고도화 · 파워블로거 큐레이션</div>
+    <h1>김상지가 간다간다간다<br>파워블로거 큐레이션 탐색 피처</h1>
+    <p>네이버 플레이스 500위 이상 인증 블로거의 실제 방문 리뷰를 탐색 영역 특별 콘텐츠로 — 요기요 입점 가게는 바로 주문으로 연결</p>
+  </div>
+
+  <div class="body">
+
+    <!-- 컨셉 3가지 -->
+    <div>
+      <div class="section-title">Why — 3가지 차별화 포인트</div>
+      <div class="concept-row">
+        <div class="concept-card key">
+          <div class="c-tag">아무나 못 받는 레이블</div>
+          <div class="c-num">500+</div>
+          <h3>네이버 플레이스<br>500위 인증 기준</h3>
+          <p>팔로워 수가 아닌 실제 활동 영향력으로 검증. 진입 장벽이 레이블의 가치가 됨. "김상지가 갔다"는 한 줄이 신뢰의 근거.</p>
+        </div>
+        <div class="concept-card">
+          <div class="c-num">01</div>
+          <h3>실제 방문 리뷰<br>= 다른 차원의 신뢰</h3>
+          <p>앱 오더 데이터(매니아 픽)와 근본적으로 다름. 직접 가서 먹어보고 쓴 글 — 배달 경험이 아닌 매장 경험의 큐레이션.</p>
+        </div>
+        <div class="concept-card">
+          <div class="c-num">02</div>
+          <h3>외부 콘텐츠를<br>앱 안으로</h3>
+          <p>블로거가 네이버에서 활동한 콘텐츠를 요기요 탐색에 연동. 블로거 입장에서도 자신의 리뷰가 요기요에 노출되는 추가 채널 확보.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 인증 레이블 -->
+    <div>
+      <div class="section-title">파워블로거 인증 레이블</div>
+      <div class="label-box">
+        <div class="label-badge">
+          <div class="lb-icon">✍️</div>
+          <div class="lb-title">파워<br>블로거</div>
+          <div class="lb-sub">VERIFIED</div>
+        </div>
+        <div class="label-info">
+          <h3>"김상지가 간다간다간다" — 아무에게나 붙지 않는 레이블</h3>
+          <p>네이버 플레이스 500위 이상 리뷰어에게만 부여. 실제로 다니고, 실제로 쓰고, 실제로 영향력 있는 사람만 인증. 요기요가 이들의 활동을 탐색 영역 특별 콘텐츠로 큐레이팅.</p>
+          <div class="label-criteria">
+            <span class="label-chip">네이버 플레이스 500위 이상</span>
+            <span class="label-chip">실활동 리뷰어</span>
+            <span class="label-chip">요기요 파트너 블로거</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3레이어 UX -->
+    <div>
+      <div class="section-title">UX 구조 — 3레이어 탐색 흐름</div>
+      <div class="layer-row">
+        <div class="layer-item">
+          <div class="arrow-right">→</div>
+          <div class="l-step">LAYER 01 · 탐색 탭</div>
+          <h3>파워블로거 스윔레인</h3>
+          <ul class="layer-list">
+            <li>탐색 영역 상단 고정 스윔레인</li>
+            <li>블로거 프로필 카드 가로 스크롤</li>
+            <li>최신 방문 가게 프리뷰 노출</li>
+            <li>"○○ 블로거의 이번 주 픽" 타이틀</li>
+          </ul>
+        </div>
+        <div class="layer-item">
+          <div class="arrow-right">→</div>
+          <div class="l-step">LAYER 02 · 블로거 상세</div>
+          <h3>블로거 피드 페이지</h3>
+          <ul class="layer-list">
+            <li>블로거 프로필 + 인증 배지</li>
+            <li>최근 방문 가게 리뷰 피드</li>
+            <li>블로그 원문 발췌 + 링크</li>
+            <li>요기요 입점 가게 표시 + CTA</li>
+          </ul>
+        </div>
+        <div class="layer-item">
+          <div class="l-step">LAYER 03 · 가게 연동</div>
+          <h3>가게 카드 블로거 배지</h3>
+          <ul class="layer-list">
+            <li>가게 상세 페이지에 블로거 배지</li>
+            <li>방문 리뷰 발췌 인용 노출</li>
+            <li>블로거 프로필 연결</li>
+            <li>"요기요로 주문하기" CTA</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 목업 -->
+    <div>
+      <div class="section-title">화면 구성 제안</div>
+      <div class="mockup-area">
+
+        <!-- 스윔레인 -->
+        <div>
+          <div class="mockup-phone">
+            <div class="mp-header">탐색 탭 · 스윔레인</div>
+            <div class="mp-body">
+              <div class="swimlane-header">
+                <div class="swimlane-title">✍️ 파워블로거 픽</div>
+                <div class="swimlane-more">전체보기</div>
+              </div>
+              <div class="blogger-card-mini">
+                <div class="blogger-avatar">😊</div>
+                <div class="blogger-info">
+                  <div class="bi-name">김상지</div>
+                  <div class="bi-sub">이번 주 · 샐러드 3곳 방문</div>
+                </div>
+                <div class="blogger-badge-mini">N500+</div>
+              </div>
+              <div class="blogger-card-mini">
+                <div class="blogger-avatar">🍜</div>
+                <div class="blogger-info">
+                  <div class="bi-name">라멘오타쿠</div>
+                  <div class="bi-sub">이번 주 · 라멘 5곳 방문</div>
+                </div>
+                <div class="blogger-badge-mini">N500+</div>
+              </div>
+              <div class="blogger-card-mini">
+                <div class="blogger-avatar">🥗</div>
+                <div class="blogger-info">
+                  <div class="bi-name">건강한한끼</div>
+                  <div class="bi-sub">이번 주 · 건강식 2곳 방문</div>
+                </div>
+                <div class="blogger-badge-mini">N500+</div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">Layer 01 · 탐색 스윔레인</div>
+        </div>
+
+        <!-- 블로거 상세 -->
+        <div>
+          <div class="mockup-phone">
+            <div class="mp-header">블로거 상세 페이지</div>
+            <div class="mp-body">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--gray-100);">
+                <div class="blogger-avatar" style="width:36px;height:36px;">😊</div>
+                <div>
+                  <div style="font-size:12px;font-weight:800;color:var(--text-primary);">김상지</div>
+                  <div style="font-size:9px;color:var(--text-tertiary);">네이버 플레이스 상위 500 · 파워블로거</div>
+                </div>
+              </div>
+              <div class="review-card">
+                <div class="rc-store">🥗 초록정원 샐러드</div>
+                <div class="rc-excerpt">"드레싱이 진짜 다름. 흔한 발사믹이 아니고 직접 만든 유자소스..."</div>
+                <div class="rc-cta">
+                  <div class="rc-blog">네이버 블로그 원문 →</div>
+                  <div class="rc-order">요기요 주문</div>
+                </div>
+              </div>
+              <div class="review-card">
+                <div class="rc-store">🍱 도시락공방</div>
+                <div class="rc-excerpt">"직접 담은 반찬이 할머니 집 느낌. 배달인데 이 퀄리티가..."</div>
+                <div class="rc-cta">
+                  <div class="rc-blog">네이버 블로그 원문 →</div>
+                  <div class="rc-order gray">미입점</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">Layer 02 · 블로거 피드</div>
+        </div>
+
+        <!-- 가게 배지 -->
+        <div>
+          <div class="mockup-phone">
+            <div class="mp-header">가게 상세 · 블로거 배지</div>
+            <div class="mp-body">
+              <div class="store-card-mock">
+                <div class="store-img-mock">
+                  🥗
+                  <div class="store-pb-badge">✍️ 파워블로거 방문</div>
+                </div>
+                <div class="store-info-mock">
+                  <div class="sim-name">초록정원 샐러드</div>
+                  <div style="font-size:9px;color:var(--text-tertiary);margin:3px 0 6px;">"드레싱이 진짜 다름. 직접 만든 유자소스..." — 김상지</div>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <div style="background:var(--primary);color:#fff;font-size:9px;font-weight:700;padding:3px 8px;border-radius:var(--rfull);">주문하기</div>
+                    <div style="font-size:9px;color:var(--text-tertiary);">블로그 전문 보기 →</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-caption">Layer 03 · 가게 연동 배지</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 데이터 파이프라인 -->
+    <div>
+      <div class="section-title">데이터 파이프라인 — 블로그 → 앱 연동</div>
+      <div class="pipeline-row">
+        <div class="pipeline-item">
+          <div class="pi-label">STEP 01</div>
+          <h3>블로거 인증</h3>
+          <p>네이버 플레이스 500위 검증. 파트너 블로거로 등록. 블로그 URL 연동 동의 수집.</p>
+        </div>
+        <div class="pipeline-item">
+          <div class="pi-label">STEP 02</div>
+          <h3>리뷰 수집</h3>
+          <p>블로거 네이버 블로그 최신 포스트 주기적 수집. 가게명·위치 파싱으로 리뷰 데이터 구조화.</p>
+        </div>
+        <div class="pipeline-item">
+          <div class="pi-label">STEP 03</div>
+          <h3>입점 가게 매핑</h3>
+          <p>파싱된 가게명 + 위치를 요기요 입점 DB와 매칭. 매칭 성공 시 "주문하기" CTA 활성화.</p>
+        </div>
+        <div class="pipeline-item">
+          <div class="pi-label">STEP 04</div>
+          <h3>탐색 영역 노출</h3>
+          <p>블로거 피드 갱신 → 탐색 스윔레인 자동 업데이트. 최신 리뷰 기준 정렬.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">성공 지표</div>
+      <div class="kpi-row">
+        <div class="kpi-card p">
+          <div class="k-label">PRIMARY KPI</div>
+          <h3>블로거 픽 → 주문 전환율</h3>
+          <p>탐색 스윔레인 진입 후 요기요 입점 가게 주문 전환. 콘텐츠 신뢰도의 구매 전환력 검증.</p>
+        </div>
+        <div class="kpi-card s">
+          <div class="k-label">SECONDARY KPI</div>
+          <h3>탐색 탭 체류 시간</h3>
+          <p>블로거 피드 콘텐츠 소비 깊이. 블로그 원문 클릭률 + 페이지 스크롤 깊이.</p>
+        </div>
+        <div class="kpi-card g">
+          <div class="k-label">ECOSYSTEM KPI</div>
+          <h3>파워블로거 파트너 수</h3>
+          <p>인증 블로거 풀 확대 속도. 카테고리별 블로거 커버리지. 블로거 재활동률 (콘텐츠 신선도).</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-bar">
+    <span>요기요 탐색 영역 고도화 · 김상지가 간다간다간다 — 파워블로거 큐레이션 피처</span>
+    <span>2026-07-16 · 검토용 내부 문서</span>
+  </div>
+</div>
+</body>
+</html>
