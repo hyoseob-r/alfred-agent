@@ -26,6 +26,13 @@
 const C = document.getElementById('c');
 const cx = C.getContext('2d');
 
+// 음식 이미지 16개 프리로드
+const foodImgs = Array.from({length: 16}, (_, i) => {
+  const img = new Image();
+  img.src = `food${i}.png`;
+  return img;
+});
+
 // 배경 이미지
 const bgImg = new Image();
 bgImg.src = 'bg.jpeg';
@@ -179,9 +186,8 @@ function spawn() {
     lane,
     x: playerX(lane),
     y: -40,
-    emoji: isObs
-      ? OBSTACLES[Math.floor(Math.random() * OBSTACLES.length)]
-      : FOODS[Math.floor(Math.random() * FOODS.length)],
+    emoji: isObs ? OBSTACLES[Math.floor(Math.random() * OBSTACLES.length)] : null,
+    foodIdx: isObs ? -1 : Math.floor(Math.random() * foodImgs.length),
     isObs,
     spd: baseSpeed * (0.85 + Math.random() * 0.3),
     r: 20,
@@ -464,23 +470,38 @@ function drawPlayer() {
 function drawItems() {
   items.forEach(it => {
     const pulse = it.isObs ? 1 + Math.sin(frame * 0.18) * 0.1 : 1;
-    const r = 22 * pulse;
+    const r = 26 * pulse;
 
-    // 원형 배경
-    cx.beginPath();
-    cx.arc(it.x, it.y, r, 0, Math.PI * 2);
     if (it.isObs) {
-      cx.fillStyle = 'rgba(40,0,0,0.75)';
+      // 장애물: 어두운 원 + 빨간 테두리 + 이모지
+      cx.beginPath();
+      cx.arc(it.x, it.y, r, 0, Math.PI * 2);
+      cx.fillStyle = 'rgba(40,0,0,0.8)';
       cx.fill();
-      cx.strokeStyle = 'rgba(250,0,80,0.7)';
+      cx.strokeStyle = 'rgba(250,0,80,0.9)';
+      cx.lineWidth = 2.5;
+      cx.stroke();
+      em(it.emoji, it.x, it.y, 30 * pulse);
+    } else {
+      // 음식: 이미지 직접 렌더 (원형 클리핑)
+      const img = foodImgs[it.foodIdx];
+      const size = r * 2;
+      cx.save();
+      cx.beginPath();
+      cx.arc(it.x, it.y, r, 0, Math.PI * 2);
+      cx.clip();
+      if (img.complete && img.naturalWidth > 0) {
+        cx.drawImage(img, it.x - r, it.y - r, size, size);
+      }
+      cx.restore();
+
+      // 테두리
+      cx.beginPath();
+      cx.arc(it.x, it.y, r, 0, Math.PI * 2);
+      cx.strokeStyle = 'rgba(255,255,255,0.6)';
       cx.lineWidth = 2;
       cx.stroke();
-    } else {
-      cx.fillStyle = 'rgba(255,255,255,0.85)';
-      cx.fill();
     }
-
-    em(it.emoji, it.x, it.y, 28 * pulse);
   });
 }
 
