@@ -529,11 +529,11 @@ function drawPlayer() {
   cx.globalAlpha = 1;
 
   // 속도 잔상
-  drawJori(px, py + 14, 52, 0.2, P.dir);
-  drawJori(px, py + 26, 38, 0.08, P.dir);
+  drawJori(px, py + 7, 26, 0.2, P.dir);
+  drawJori(px, py + 13, 19, 0.08, P.dir);
 
   // 캐릭터 본체
-  drawJori(px, py, 72, 1, P.dir);
+  drawJori(px, py, 36, 1, P.dir);
 
   // 무적 실드
   if (P.inv > 0) {
@@ -650,7 +650,7 @@ function drawStart() {
   const joriY = 195 + Math.sin(frame * 0.04) * 7;
   cx.shadowColor = COL.primary;
   cx.shadowBlur  = 30;
-  drawJori(W/2, joriY, 110);
+  drawJori(W/2, joriY, 55);
   cx.shadowBlur = 0;
 
   // 이름 태그
@@ -692,7 +692,7 @@ function drawOver() {
   cx.save();
   cx.translate(W/2, 178);
   cx.rotate(Math.PI);
-  drawJori(0, 0, 80);
+  drawJori(0, 0, 40);
   cx.restore();
   btxt('GAME OVER', W/2, 258, 26, COL.white);
 
