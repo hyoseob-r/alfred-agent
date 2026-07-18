@@ -608,8 +608,69 @@
               </div>
             </div>
 
-            <div style="margin-top:10px; padding:8px 12px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; font-size:10px; color:#92400e; line-height:1.6;">
-              <strong>마감딜이 이 레인에 들어오는 이유:</strong> 마감딜은 "지금 이 시간에만 유효한 정보"다. 별도 탭이 아니라 컨텍스트 재주문 레인에 통합하면 사용자가 새로운 탭을 학습할 필요 없이 자연스럽게 소비된다. 사장님 입장에서도 광고비 경쟁 없이 재고 소진 목적으로 자발적 할인을 설정하는 구조 — 할인랭킹과 달리 카니발이 없다.
+            <!-- 마감딜 심층: 사장님 관점 + 고객 관점 -->
+            <div style="margin-top:14px; font-size:10px; font-weight:700; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">마감딜 심층 — 사장님 관점 × 고객 관점</div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+              <!-- 사장님 관점 -->
+              <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:10px; font-weight:800; color:#166534; margin-bottom:8px;">🧑‍🍳 사장님 관점 — 재고 손실을 줄이는 유일한 타이밍</div>
+                <div style="font-size:10px; color:#15803d; line-height:1.7; margin-bottom:8px;">
+                  반찬·밀키트·베이커리·샐러드는 <strong>당일 마감 재고가 발생</strong>한다. 버리는 것보다 20~40% 할인해서 파는 게 낫고, 사장님은 이미 그 사실을 안다.<br>
+                  문제는 지금까지 그 타이밍에 고객에게 노출할 채널이 없었다는 것.
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                  <div style="background:white; border-radius:7px; padding:7px 9px; font-size:9px; color:var(--text-secondary); line-height:1.5; border:1px solid #bbf7d0;">
+                    <strong style="color:#166534;">기존 할인랭킹과 다른 점</strong><br>
+                    할인랭킹 = 광고비 경쟁 (상시 노출). 마감딜 = 재고 처리 목적 (마감 임박 자동 노출). 사장님의 동기가 근본적으로 달라 <strong>카니발이 없다</strong>.
+                  </div>
+                  <div style="background:white; border-radius:7px; padding:7px 9px; font-size:9px; color:var(--text-secondary); line-height:1.5; border:1px solid #bbf7d0;">
+                    <strong style="color:#166534;">사장님이 하는 것</strong><br>
+                    마감 예상 시간 + 할인율 직접 설정 (사장님센터 또는 포스). 플랫폼이 자동으로 해당 시간에 고객 레인에 노출.
+                  </div>
+                </div>
+              </div>
+
+              <!-- 고객 관점 -->
+              <div style="background:#fff7ed; border:1.5px solid #fed7aa; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:10px; font-weight:800; color:#c2410c; margin-bottom:8px;">📱 고객 관점 — 새 탭 없이 홈에서 자연스럽게</div>
+                <div style="font-size:10px; color:#92400e; line-height:1.7; margin-bottom:8px;">
+                  별도 "마감딜 탭"을 학습할 필요가 없다. 저녁 9시에 앱을 켜면 컨텍스트 재주문 레인에 마감딜 카드가 자연스럽게 섞여 등장. <strong>"지금 이 시간에 맞는 선택지"</strong>로 소비된다.
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                  <div style="background:white; border-radius:7px; padding:7px 9px; font-size:9px; color:var(--text-secondary); line-height:1.5; border:1px solid #fed7aa;">
+                    <strong style="color:#c2410c;">노출 조건</strong><br>
+                    마감 2시간 전 + 사장님이 할인율 설정 시 자동 활성화. 한정 수량 소진 시 자동 종료. 고객에겐 "마감 N분 전 · 지금만 이 가격" 배지로 긴박감 부여.
+                  </div>
+                  <div style="background:white; border-radius:7px; padding:7px 9px; font-size:9px; color:var(--text-secondary); line-height:1.5; border:1px solid #fed7aa;">
+                    <strong style="color:#c2410c;">습관 형성 루프</strong><br>
+                    저녁 시간대 앱 진입 → 마감딜 카드 발견 → 할인 구매 → 다음날 같은 시간 재방문 기대. <strong>할인이 재방문 트리거</strong>가 된다.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 흐름 다이어그램 -->
+            <div style="display:flex; align-items:center; background:#fafafa; border:1px solid var(--gray-100); border-radius:10px; overflow:hidden;">
+              <div style="flex:1; padding:10px 12px; text-align:center; font-size:9px; color:var(--text-secondary); line-height:1.5;">
+                <div style="font-size:13px; margin-bottom:3px;">🧑‍🍳</div>
+                <strong style="color:var(--text-primary); font-size:10px;">사장님</strong><br>마감 시간·할인율 설정
+              </div>
+              <div style="color:var(--text-tertiary); font-size:12px; padding:0 2px;">→</div>
+              <div style="flex:1; padding:10px 12px; text-align:center; font-size:9px; color:var(--text-secondary); line-height:1.5;">
+                <div style="font-size:13px; margin-bottom:3px;">⚙️</div>
+                <strong style="color:var(--text-primary); font-size:10px;">플랫폼 자동</strong><br>해당 시간 컨텍스트<br>레인 노출 활성화
+              </div>
+              <div style="color:var(--text-tertiary); font-size:12px; padding:0 2px;">→</div>
+              <div style="flex:1; padding:10px 12px; text-align:center; font-size:9px; color:var(--text-secondary); line-height:1.5;">
+                <div style="font-size:13px; margin-bottom:3px;">📱</div>
+                <strong style="color:var(--text-primary); font-size:10px;">고객 홈화면</strong><br>"마감 1시간 전<br>30% 할인" 카드 등장
+              </div>
+              <div style="color:var(--text-tertiary); font-size:12px; padding:0 2px;">→</div>
+              <div style="flex:1; padding:10px 12px; text-align:center; font-size:9px; color:var(--text-secondary); line-height:1.5; background:#f0fdf4;">
+                <div style="font-size:13px; margin-bottom:3px;">✅</div>
+                <strong style="color:#166534; font-size:10px;">WIN-WIN</strong><br>사장님 재고 소진<br>고객 할인 구매<br>플랫폼 GMV ↑
+              </div>
             </div>
           </div>
         </div>
