@@ -27,6 +27,12 @@
 const C = document.getElementById('c');
 const cx = C.getContext('2d');
 
+// 배경 이미지
+const bgImg = new Image();
+bgImg.src = 'bg.jpeg';
+let bgReady = false, bgY = 0;
+bgImg.onload = () => { bgReady = true; };
+
 // 조리 이미지 로드 (3 프레임)
 const imgs = { straight: new Image(), left: new Image(), right: new Image() };
 imgs.straight.src = 'jori.png';
@@ -304,28 +310,41 @@ function rrect(x, y, w, h, r, fill, stroke, sw = 1) {
 
 // ── 배경 ──────────────────────────────────────────
 function drawBG() {
-  cx.fillStyle = COL.bg;
+  cx.fillStyle = '#b89a6a';
   cx.fillRect(0, 0, W, H);
 
-  // 흐르는 스피드 라인
-  bgLines.forEach(l => {
-    const g = cx.createLinearGradient(l.x, l.y - l.len, l.x, l.y);
-    g.addColorStop(0, `rgba(255,255,255,0)`);
-    g.addColorStop(1, `rgba(255,255,255,${l.alpha})`);
-    cx.strokeStyle = g;
-    cx.lineWidth = 1;
-    cx.beginPath();
-    cx.moveTo(l.x, l.y - l.len);
-    cx.lineTo(l.x, l.y);
-    cx.stroke();
-  });
+  if (bgReady) {
+    // 이미지 비율 유지하며 캔버스 폭에 맞춤
+    const scale = W / bgImg.width;
+    const bh = bgImg.height * scale; // 스크린에서의 이미지 높이
+
+    // 스크롤 업데이트 (play 중일 때만)
+    if (S === 'play') {
+      bgY += baseSpeed * 0.6;
+      if (bgY >= bh) bgY -= bh;
+    }
+
+    // 이미지 2장 연속 출력 → 이음새 없는 루프
+    const startY = bgY - bh;
+    for (let i = 0; i < 3; i++) {
+      cx.drawImage(bgImg, 0, startY + bh * i, W, bh);
+    }
+
+    // 살짝 어둡게 오버레이 (캐릭터/아이템 가시성 확보)
+    cx.fillStyle = 'rgba(0,0,0,0.18)';
+    cx.fillRect(0, 0, W, H);
+  } else {
+    // 이미지 로드 전 폴백
+    cx.fillStyle = COL.bg;
+    cx.fillRect(0, 0, W, H);
+  }
 
   // 레인 구분선
-  cx.strokeStyle = 'rgba(255,255,255,0.04)';
+  cx.strokeStyle = 'rgba(255,255,255,0.08)';
   cx.lineWidth = 1;
   for (let i = 1; i < LANE_COUNT; i++) {
     cx.beginPath();
-    cx.setLineDash([8, 16]);
+    cx.setLineDash([8, 20]);
     cx.moveTo(LANE_W * i, 0);
     cx.lineTo(LANE_W * i, H);
     cx.stroke();
