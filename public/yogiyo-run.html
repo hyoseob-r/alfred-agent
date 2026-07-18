@@ -202,21 +202,38 @@ function startGame() {
 }
 
 // ── 스폰 ──────────────────────────────────────────
-function spawn() {
-  const rand = Math.random();
-  const lane  = Math.floor(Math.random() * LANE_COUNT);
-  const obsChance = Math.min(0.2 + score / 8000, 0.38);
+// 난이도 단계: score 기준으로 해금되는 아이템 풀 결정
+function getDifficultyTier() {
+  if (score < 500)  return 0; // 음식만
+  if (score < 1500) return 1; // + 장애물 1종
+  if (score < 3000) return 2; // + 장애물 2종, 보너스 1종
+  if (score < 5000) return 3; // + 장애물 3종, 보너스 2종
+  return 4;                   // 전체 해금
+}
 
-  let kind = 'food'; // food | obs | bonus
-  if (rand < obsChance) kind = 'obs';
-  else if (rand < obsChance + 0.12) kind = 'bonus';
+function spawn() {
+  const tier = getDifficultyTier();
+  const lane = Math.floor(Math.random() * LANE_COUNT);
+
+  // 단계별 확률
+  const obsChance   = [0, 0.07, 0.13, 0.20, 0.30][tier];
+  const bonusChance = [0, 0,    0.05, 0.09, 0.14][tier];
+
+  // 해금된 아이템 풀
+  const obsPool   = OBS_TYPES.slice(0, [0, 1, 2, 3, 3][tier]);
+  const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
+
+  const rand = Math.random();
+  let kind = 'food';
+  if (obsPool.length   > 0 && rand < obsChance)                      kind = 'obs';
+  else if (bonusPool.length > 0 && rand < obsChance + bonusChance)   kind = 'bonus';
 
   items.push({
     lane, x: playerX(lane), y: -40,
     kind,
     foodIdx:   kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
-    obsType:   kind === 'obs'   ? OBS_TYPES[Math.floor(Math.random() * OBS_TYPES.length)] : null,
-    bonusType: kind === 'bonus' ? BONUS_TYPES[Math.floor(Math.random() * BONUS_TYPES.length)] : null,
+    obsType:   kind === 'obs'   ? obsPool[Math.floor(Math.random() * obsPool.length)] : null,
+    bonusType: kind === 'bonus' ? bonusPool[Math.floor(Math.random() * bonusPool.length)] : null,
     spd: baseSpeed * (0.85 + Math.random() * 0.3),
     r: 22,
   });
@@ -265,8 +282,12 @@ function update() {
   else combo = 0;
 
   // 스폰
-  const rate = Math.max(22, 55 - score / 120);
-  if (frame % Math.floor(rate) === 0) spawn();
+  // 난이도별 스폰 주기 (프레임): 초반 여유 → 후반 빠름
+  const spawnRate = score < 500  ? 80 :
+                    score < 1500 ? 65 :
+                    score < 3000 ? 55 :
+                    score < 5000 ? 42 : 28;
+  if (frame % spawnRate === 0) spawn();
 
   // 아이템 업데이트
   items = items.filter(it => {
