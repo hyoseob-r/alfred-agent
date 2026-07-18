@@ -407,20 +407,21 @@ function drawHUD() {
 }
 
 // ── 조리 드로우 헬퍼 ─────────────────────────────
-// dir: -1=left 0=straight 1=right
+// size = 기준 최대 너비(px). 원본 비율 유지하여 렌더.
 function drawJori(x, y, size, alpha = 1, dir = 0) {
   cx.globalAlpha = alpha;
   cx.save();
   cx.translate(x, y);
 
   let img, ready;
-  if (dir < 0) { img = imgs.left;     ready = imgReady.left; }
-  else if (dir > 0) { img = imgs.right; ready = imgReady.right; }
-  else          { img = imgs.straight; ready = imgReady.straight; }
+  if (dir < 0)      { img = imgs.left;     ready = imgReady.left; }
+  else if (dir > 0) { img = imgs.right;    ready = imgReady.right; }
+  else              { img = imgs.straight; ready = imgReady.straight; }
 
-  if (ready) {
-    const w = size * 0.95;
-    const h = size * 1.3;
+  if (ready && img.naturalWidth > 0) {
+    const ratio = img.naturalHeight / img.naturalWidth;
+    const w = size;
+    const h = size * ratio;
     cx.drawImage(img, -w / 2, -h / 2, w, h);
   } else {
     cx.font = `${size * 0.9}px serif`;
@@ -450,11 +451,11 @@ function drawPlayer() {
   cx.globalAlpha = 1;
 
   // 속도 잔상
-  drawJori(px, py + 12, 44, 0.2, P.dir);
-  drawJori(px, py + 22, 32, 0.08, P.dir);
+  drawJori(px, py + 14, 52, 0.2, P.dir);
+  drawJori(px, py + 26, 38, 0.08, P.dir);
 
   // 캐릭터 본체
-  drawJori(px, py, 56, 1, P.dir);
+  drawJori(px, py, 72, 1, P.dir);
 
   // 무적 실드
   if (P.inv > 0) {
