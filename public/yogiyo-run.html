@@ -43,7 +43,12 @@ imgs.left.onload     = () => { imgReady.left     = true; };
 imgs.right.onload    = () => { imgReady.right    = true; };
 
 const W = 375, H = 667;
-C.width = W; C.height = H;
+const DPR = window.devicePixelRatio || 1;
+
+// 캔버스 내부 해상도를 DPR만큼 키워서 레티나에서도 선명하게
+C.width  = W * DPR;
+C.height = H * DPR;
+cx.scale(DPR, DPR);
 
 function resize() {
   const s = Math.min(window.innerWidth / W, window.innerHeight / H);
