@@ -17,7 +17,6 @@
   }
   canvas {
     display: block;
-    image-rendering: pixelated;
   }
 </style>
 </head>
@@ -330,8 +329,8 @@ function drawBG() {
       cx.drawImage(bgImg, 0, startY + bh * i, W, bh);
     }
 
-    // 살짝 어둡게 오버레이 (캐릭터/아이템 가시성 확보)
-    cx.fillStyle = 'rgba(0,0,0,0.18)';
+    // 오버레이 (배경만 어둡게)
+    cx.fillStyle = 'rgba(0,0,0,0.28)';
     cx.fillRect(0, 0, W, H);
   } else {
     // 이미지 로드 전 폴백
@@ -460,7 +459,23 @@ function drawPlayer() {
 function drawItems() {
   items.forEach(it => {
     const pulse = it.isObs ? 1 + Math.sin(frame * 0.18) * 0.1 : 1;
-    em(it.emoji, it.x, it.y, 32 * pulse);
+    const r = 22 * pulse;
+
+    // 원형 배경
+    cx.beginPath();
+    cx.arc(it.x, it.y, r, 0, Math.PI * 2);
+    if (it.isObs) {
+      cx.fillStyle = 'rgba(40,0,0,0.75)';
+      cx.fill();
+      cx.strokeStyle = 'rgba(250,0,80,0.7)';
+      cx.lineWidth = 2;
+      cx.stroke();
+    } else {
+      cx.fillStyle = 'rgba(255,255,255,0.85)';
+      cx.fill();
+    }
+
+    em(it.emoji, it.x, it.y, 28 * pulse);
   });
 }
 
