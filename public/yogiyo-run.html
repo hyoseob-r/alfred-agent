@@ -52,15 +52,20 @@ bgImg.src = 'bg.jpeg';
 let bgReady = false, bgY = 0;
 bgImg.onload = () => { bgReady = true; };
 
-// 조리 이미지 로드 (3 프레임)
-const imgs = { straight: new Image(), left: new Image(), right: new Image() };
-imgs.straight.src = 'jori.png';
-imgs.left.src     = 'jori-left.png';
-imgs.right.src    = 'jori-right.png';
-const imgReady = { straight: false, left: false, right: false };
-imgs.straight.onload = () => { imgReady.straight = true; };
-imgs.left.onload     = () => { imgReady.left     = true; };
-imgs.right.onload    = () => { imgReady.right    = true; };
+// 조리 이미지 로드 (front 2프레임 + left + right)
+const imgs = {
+  front1: new Image(), front2: new Image(),
+  left: new Image(), right: new Image()
+};
+imgs.front1.src = 'jori-front1.png';
+imgs.front2.src = 'jori-front2.png';
+imgs.left.src   = 'jori-left2.png';
+imgs.right.src  = 'jori-right2.png';
+const imgReady = { front1: false, front2: false, left: false, right: false };
+imgs.front1.onload = () => { imgReady.front1 = true; };
+imgs.front2.onload = () => { imgReady.front2 = true; };
+imgs.left.onload   = () => { imgReady.left   = true; };
+imgs.right.onload  = () => { imgReady.right  = true; };
 
 const W = 375, H = 667;
 const DPR = window.devicePixelRatio || 1;
@@ -482,9 +487,14 @@ function drawJori(x, y, size, alpha = 1, dir = 0) {
   cx.translate(x, y);
 
   let img, ready;
-  if (dir < 0)      { img = imgs.left;     ready = imgReady.left; }
-  else if (dir > 0) { img = imgs.right;    ready = imgReady.right; }
-  else              { img = imgs.straight; ready = imgReady.straight; }
+  if (dir < 0) { img = imgs.left;  ready = imgReady.left; }
+  else if (dir > 0) { img = imgs.right; ready = imgReady.right; }
+  else {
+    // 2프레임마다 front1/front2 교체 → 걷는 애니메이션
+    const useF1 = Math.floor(frame / 2) % 2 === 0;
+    img   = useF1 ? imgs.front1 : imgs.front2;
+    ready = useF1 ? imgReady.front1 : imgReady.front2;
+  }
 
   if (ready && img.naturalWidth > 0) {
     const ratio = img.naturalHeight / img.naturalWidth;
