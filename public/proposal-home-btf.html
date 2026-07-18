@@ -201,6 +201,66 @@
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
+  .lane-card.full { grid-column: 1 / -1; }
+
+  /* 컨텍스트 시그널 그리드 */
+  .ctx-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .ctx-cell {
+    background: white;
+    border: 1px solid var(--gray-100);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .ctx-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .ctx-text h5 { font-size: 10px; font-weight: 800; color: var(--text-primary); margin-bottom: 2px; }
+  .ctx-text p  { font-size: 9px; color: var(--text-secondary); line-height: 1.45; }
+
+  /* 카드 유형 3종 */
+  .card-types {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .card-type {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1.5px solid var(--gray-100);
+  }
+  .ct-head {
+    padding: 7px 10px;
+    font-size: 10px;
+    font-weight: 800;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .ct-head.red    { background: #fff5f8; color: var(--primary); }
+  .ct-head.orange { background: #fff7ed; color: #c2410c; }
+  .ct-head.green  { background: #f0fff4; color: var(--green); }
+  .ct-body {
+    padding: 8px 10px;
+    background: var(--bg-subtle);
+    font-size: 9px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .ct-example {
+    margin-top: 5px;
+    padding: 5px 8px;
+    background: white;
+    border-radius: 6px;
+    font-size: 9px;
+    color: var(--text-primary);
+    font-style: italic;
+    border: 1px solid var(--gray-100);
+  }
   .lane-card {
     border-radius: var(--r4);
     border: 1.5px solid var(--gray-100);
@@ -388,8 +448,8 @@
   <!-- 헤더 -->
   <div class="header">
     <div class="header-tag">A. 수익성 증대 · 홈화면 리디자인</div>
-    <h1>홈 BTF를 바꾼다<br>발견 · 큐레이션 · 재주문 스윔레인 설계</h1>
-    <p>"자주 주문한 이 메뉴 어때요?"를 버린다. BTF 전 구간을 맥락 기반 재주문 + 신뢰 큐레이션 + 발견 탐색 4개 스윔레인으로 교체해 홈 진입이 곧 주문으로 이어지게 한다.</p>
+    <h1>홈 BTF를 바꾼다<br>컨텍스트 재주문 · 큐레이션 · 마감딜 스윔레인 설계</h1>
+    <p>"자주 주문한 이 메뉴 어때요?"를 버린다. BTF 전 구간을 컨텍스트 기반 재주문·마감딜 + 헤비유저 큐레이션 + 블로거 검증 3개 스윔레인으로 교체해 홈 진입이 곧 주문으로 이어지게 한다.</p>
   </div>
 
   <div class="body">
@@ -444,10 +504,9 @@
           </div>
           <div class="screen-zone zone-btf-new">
             <div class="zone-label">BTF — 4개 스윔레인으로 교체</div>
-            ① 지금 이 순간 재주문 (컨텍스트)<br>
+            ① 컨텍스트 재주문 + 마감딜 (시간 기반)<br>
             ② 매니아 픽 (헤비유저 큐레이션)<br>
-            ③ 검증된 맛집 (블로거 실방문 픽)<br>
-            ④ 오늘 뭐먹지? (개인화 탐색 큐)
+            ③ 검증된 맛집 (블로거 실방문 픽)
           </div>
         </div>
       </div>
@@ -457,24 +516,100 @@
 
     <!-- 4개 스윔레인 -->
     <div>
-      <div class="section-title">솔루션 — BTF 4개 스윔레인 설계</div>
+      <div class="section-title">솔루션 — BTF 3개 스윔레인 설계</div>
       <div class="lane-grid">
 
-        <!-- 01 컨텍스트 재주문 -->
-        <div class="lane-card">
+        <!-- 01 컨텍스트 재주문 + 마감딜 통합 (full width) -->
+        <div class="lane-card full">
           <div class="lane-header">
             <div class="lane-num">1</div>
             <div class="lane-info">
-              <h4>지금 이 순간 재주문</h4>
-              <div class="lane-sub">시간 · 위치 · 주기 데이터로 지금에 맞는<br>단일 버티컬 하나만 노출</div>
+              <h4>지금 이 순간 재주문 — 컨텍스트 × 마감딜</h4>
+              <div class="lane-sub">시간·위치·주기 신호로 "지금 이 사람에게 맞는 가게 하나"를 노출. 마감 임박 재고 할인도 같은 레인에서 시간 컨텍스트로 서핑.</div>
             </div>
           </div>
           <div class="lane-body">
             <span class="lane-tag">시간 컨텍스트</span>
             <span class="lane-tag">위치 기반</span>
             <span class="lane-tag">주기 학습</span>
-            <div class="lane-logic">
-              매주 월요일 오전 앱을 켜면 "지난주 커피 가게에서 오늘도 아메리카노?" — 바니프레소가 단일 브랜드 앱으로 한 것을 요기요는 모든 카테고리에서 구현한다. 맥락이 맞을수록 클릭 없이 주문으로 간다.
+            <span class="lane-tag orange">마감 임박 재고 할인</span>
+            <span class="lane-tag orange">사장님 자발적 할인</span>
+
+            <!-- 컨텍스트 시그널 6종 -->
+            <div style="font-size:10px; font-weight:700; color:var(--text-tertiary); margin-top:12px; margin-bottom:0; text-transform:uppercase; letter-spacing:0.06em;">읽는 시그널 — 지금 이 순간을 정의하는 6가지 데이터</div>
+            <div class="ctx-grid">
+              <div class="ctx-cell">
+                <div class="ctx-icon">⏰</div>
+                <div class="ctx-text">
+                  <h5>시간대</h5>
+                  <p>아침 8시 → 카페·베이커리<br>야식 11시 → 치킨·분식</p>
+                </div>
+              </div>
+              <div class="ctx-cell">
+                <div class="ctx-icon">📅</div>
+                <div class="ctx-text">
+                  <h5>요일 패턴</h5>
+                  <p>월요일 점심엔 샐러드<br>금요일 저녁엔 치맥</p>
+                </div>
+              </div>
+              <div class="ctx-cell">
+                <div class="ctx-icon">📍</div>
+                <div class="ctx-text">
+                  <h5>위치 컨텍스트</h5>
+                  <p>회사 근처 → 점심 버티컬<br>집 근처 → 저녁 배달</p>
+                </div>
+              </div>
+              <div class="ctx-cell">
+                <div class="ctx-icon">🔁</div>
+                <div class="ctx-text">
+                  <h5>주기 학습</h5>
+                  <p>2주마다 같은 가게 재주문<br>→ "이번 주 순서가 왔어요"</p>
+                </div>
+              </div>
+              <div class="ctx-cell">
+                <div class="ctx-icon">🛒</div>
+                <div class="ctx-text">
+                  <h5>마지막 주문</h5>
+                  <p>최근 주문 가게 기준<br>유사 메뉴·가게 패턴 매칭</p>
+                </div>
+              </div>
+              <div class="ctx-cell" style="border-color: #fed7aa; background: #fff7ed;">
+                <div class="ctx-icon">⏳</div>
+                <div class="ctx-text">
+                  <h5>마감 임박 재고</h5>
+                  <p>사장님이 설정한 마감 할인<br>= 시간 컨텍스트 신호로 편입</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3가지 카드 유형 -->
+            <div style="font-size:10px; font-weight:700; color:var(--text-tertiary); margin-top:14px; margin-bottom:0; text-transform:uppercase; letter-spacing:0.06em;">노출 카드 3유형 — 컨텍스트에 따라 자동 선택</div>
+            <div class="card-types">
+              <div class="card-type">
+                <div class="ct-head red">유형 A — 습관 재주문</div>
+                <div class="ct-body">
+                  과거 주문 패턴이 반복될 시점에 해당 가게를 단독 노출. 클릭 1번으로 바로 장바구니.
+                  <div class="ct-example">"매주 월 오전, 강남구 오피스 → ☕ 오늘도 아메리카노 어때요?"</div>
+                </div>
+              </div>
+              <div class="card-type">
+                <div class="ct-head orange">유형 B — 버티컬 숏컷</div>
+                <div class="ct-body">
+                  지금 시간대에 가장 많이 주문된 카테고리 하나만 노출. 가게 여러 개가 아닌 버티컬 단위 집중.
+                  <div class="ct-example">"금요일 밤 11시 → 🍗 치킨 지금 배달되는 곳 3곳"</div>
+                </div>
+              </div>
+              <div class="card-type">
+                <div class="ct-head green">유형 C — 마감딜 카드</div>
+                <div class="ct-body">
+                  마감 2시간 전 재고 처리 할인 중인 가게를 시간 컨텍스트 레인에 편입. 사장님은 광고비 없이 재고 소진, 유저는 할인 혜택.
+                  <div class="ct-example">"오후 9시 → 🥗 마감 1시간 전 샐러드 30% 할인 · 한정 수량"</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:10px; padding:8px 12px; background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; font-size:10px; color:#92400e; line-height:1.6;">
+              <strong>마감딜이 이 레인에 들어오는 이유:</strong> 마감딜은 "지금 이 시간에만 유효한 정보"다. 별도 탭이 아니라 컨텍스트 재주문 레인에 통합하면 사용자가 새로운 탭을 학습할 필요 없이 자연스럽게 소비된다. 사장님 입장에서도 광고비 경쟁 없이 재고 소진 목적으로 자발적 할인을 설정하는 구조 — 할인랭킹과 달리 카니발이 없다.
             </div>
           </div>
         </div>
@@ -515,23 +650,6 @@
           </div>
         </div>
 
-        <!-- 04 탐색 큐 -->
-        <div class="lane-card">
-          <div class="lane-header">
-            <div class="lane-num">4</div>
-            <div class="lane-info">
-              <h4>오늘 뭐먹지?</h4>
-              <div class="lane-sub">개인화 탐색 큐 — 못 먹어본 가게 발견<br>찜 루프로 재방문 트리거</div>
-            </div>
-          </div>
-          <div class="lane-body">
-            <span class="lane-tag purple">발견 경험</span>
-            <span class="lane-tag purple">찜 루프</span>
-            <div class="lane-logic">
-              과거 주문·검색·찜 이력을 기반으로 아직 시도하지 않은 가게 카드를 개인화 탐색 큐로 노출. 찜한 가게에 쿠폰·신메뉴 업데이트 시 홈 재등장 — "오늘 네가 찜한 집이 할인 중" 방식으로 재방문 이유를 만든다.
-            </div>
-          </div>
-        </div>
 
       </div>
     </div>
@@ -606,13 +724,13 @@
         <div class="roadmap-card rm-card-p3">
           <div class="rm-head">
             <div class="rm-phase">Phase 3 · 풀 런칭</div>
-            스윔레인 ③④ 블로거 픽 + 탐색 큐
+            스윔레인 ③ 블로거 픽 + 마감딜 고도화
           </div>
           <div class="rm-body">
             <div class="rm-item">파워블로거 파트너십 계약 · 채널 연동</div>
-            <div class="rm-item">개인화 추천 모델 고도화</div>
-            <div class="rm-item">찜 루프 알림 트리거 설계</div>
-            <div class="rm-item" style="margin-top: 6px; color: var(--purple);">검증 지표: 탐색 큐 UV · 찜 → 주문 전환율</div>
+            <div class="rm-item">마감딜 자동 할인율 제안 기능 (사장님 앱)</div>
+            <div class="rm-item">컨텍스트 레인 내 마감딜 노출 비중 A/B</div>
+            <div class="rm-item" style="margin-top: 6px; color: var(--purple);">검증 지표: 블로거 픽 CVR · 마감딜 재고 소진율</div>
           </div>
         </div>
       </div>
@@ -647,7 +765,7 @@
 
     <!-- 핵심 논리 -->
     <div class="logic-banner">
-      <strong>핵심 논리:</strong> ATF(검색·배너)는 바꾸기 어렵다. BTF는 지금 당장 바꿀 수 있다. 재주문 UI를 맥락 인식으로 바꾸면 습관이 생기고, 큐레이션 스윔레인을 추가하면 발견 경험이 생긴다. 이 두 가지가 합쳐지면 홈 진입이 곧 주문으로 이어지는 구조가 된다. <strong>BTF 4개 스윔레인은 배민·쿠팡에 없는 홈화면 차별화 포인트</strong>다.
+      <strong>핵심 논리:</strong> ATF(검색·배너)는 바꾸기 어렵다. BTF는 지금 당장 바꿀 수 있다. 재주문 UI를 컨텍스트 인식으로 바꾸면 습관이 생기고, 마감딜을 같은 레인에 얹으면 사장님이 자발적으로 할인을 건다. 큐레이션 스윔레인은 별점 없이도 신뢰를 만든다. <strong>BTF 3개 스윔레인은 배민·쿠팡에 없는 홈화면 차별화 포인트</strong>다.
     </div>
 
   </div>
