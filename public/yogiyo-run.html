@@ -33,6 +33,19 @@ const foodImgs = Array.from({length: 16}, (_, i) => {
   return img;
 });
 
+// 장애물 이미지
+const obsImgs = { damage: new Image(), reverse: new Image(), blind: new Image() };
+obsImgs.damage.src  = 'obs_damage.png';
+obsImgs.reverse.src = 'obs_reverse.png';
+obsImgs.blind.src   = 'obs_blind.png';
+
+// 보너스 아이템 이미지
+const bonusImgs = { magnet: new Image(), slow: new Image(), fever: new Image(), dash: new Image() };
+bonusImgs.magnet.src = 'bonus_magnet.png';
+bonusImgs.slow.src   = 'bonus_slow.png';
+bonusImgs.fever.src  = 'bonus_fever.png';
+bonusImgs.dash.src   = 'bonus_dash.png';
+
 // 배경 이미지
 const bgImg = new Image();
 bgImg.src = 'bg.jpeg';
@@ -71,8 +84,8 @@ const PLAYER_Y   = 500;
 const LANE_COUNT = 5;
 const LANE_W     = W / LANE_COUNT;
 
-const FOODS     = ['🍗','🍕','🍔','🌮','🥗','🍜','🍣','🧆','🥞','🌯'];
-const OBSTACLES = ['⛔','💨','🌀'];
+const OBS_TYPES   = ['damage', 'reverse', 'blind'];
+const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash'];
 
 const COL = {
   bg:      '#0a0e1a',
@@ -102,9 +115,15 @@ for (let i = 0; i < 30; i++) bgLines.push({
 const P = {
   lane: 2, x: W / 2, y: PLAYER_Y,
   vx: 0, inv: 0, shake: 0, bump: 0,
-  dir: 0,       // -1=left 0=straight 1=right
-  dirTimer: 0,  // 방향 프레임 유지 타이머
-  moveTimer: 0, // 연속 이동 쿨다운
+  dir: 0,          // -1=left 0=straight 1=right
+  dirTimer: 0,     // 방향 프레임 유지 타이머
+  moveTimer: 0,    // 연속 이동 쿨다운
+  reverseTimer: 0, // 조작 반전
+  blindTimer:   0, // 시야 좁아짐
+  magnetTimer:  0, // 자석
+  slowTimer:    0, // 슬로우
+  feverTimer:   0, // 점수 2배
+  dashTimer:    0, // 초고속 이동
 };
 
 function playerX(lane) { return LANE_W * lane + LANE_W / 2; }
@@ -150,22 +169,19 @@ function moveLane(dir) {
 }
 
 // 꾹 누르기 처리 — update() 안에서 매 프레임 호출
-const HOLD_INTERVAL = 10; // N프레임마다 한 칸씩 이동
 function processHoldInput() {
+  const interval = P.dashTimer > 0 ? 4 : 10; // dash 중엔 이동 4배 빠름
   if (P.moveTimer > 0) { P.moveTimer--; return; }
 
   let dir = 0;
   if (keys['ArrowLeft']  || keys['a'] || keys['A']) dir = -1;
   if (keys['ArrowRight'] || keys['d'] || keys['D']) dir =  1;
-
-  // 터치: 화면 왼쪽 절반 = 왼쪽, 오른쪽 절반 = 오른쪽
-  if (touchHoldX !== null) {
-    dir = touchHoldX < W / 2 ? -1 : 1;
-  }
+  if (touchHoldX !== null) dir = touchHoldX < W / 2 ? -1 : 1;
 
   if (dir !== 0) {
+    if (P.reverseTimer > 0) dir *= -1;
     moveLane(dir);
-    P.moveTimer = HOLD_INTERVAL;
+    P.moveTimer = interval;
   }
 }
 
@@ -176,21 +192,28 @@ function startGame() {
   baseSpeed = 4; combo = 0; comboT = 0;
   items = []; particles = []; popups = [];
   P.lane = 2; P.x = playerX(2); P.inv = 0; P.shake = 0; P.bump = 0;
+  P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
+  P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
 }
 
 // ── 스폰 ──────────────────────────────────────────
 function spawn() {
-  const isObs = Math.random() < Math.min(0.2 + score / 8000, 0.45);
+  const rand = Math.random();
   const lane  = Math.floor(Math.random() * LANE_COUNT);
+  const obsChance = Math.min(0.2 + score / 8000, 0.38);
+
+  let kind = 'food'; // food | obs | bonus
+  if (rand < obsChance) kind = 'obs';
+  else if (rand < obsChance + 0.12) kind = 'bonus';
+
   items.push({
-    lane,
-    x: playerX(lane),
-    y: -40,
-    emoji: isObs ? OBSTACLES[Math.floor(Math.random() * OBSTACLES.length)] : null,
-    foodIdx: isObs ? -1 : Math.floor(Math.random() * foodImgs.length),
-    isObs,
+    lane, x: playerX(lane), y: -40,
+    kind,
+    foodIdx:   kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
+    obsType:   kind === 'obs'   ? OBS_TYPES[Math.floor(Math.random() * OBS_TYPES.length)] : null,
+    bonusType: kind === 'bonus' ? BONUS_TYPES[Math.floor(Math.random() * BONUS_TYPES.length)] : null,
     spd: baseSpeed * (0.85 + Math.random() * 0.3),
-    r: 20,
+    r: 22,
   });
 }
 
@@ -227,7 +250,13 @@ function update() {
   if (P.inv   > 0) P.inv--;
   if (P.dirTimer > 0) P.dirTimer--;
   else P.dir = 0;
-  if (comboT  > 0) comboT--;
+  if (P.reverseTimer > 0) P.reverseTimer--;
+  if (P.blindTimer   > 0) P.blindTimer--;
+  if (P.magnetTimer  > 0) P.magnetTimer--;
+  if (P.slowTimer    > 0) P.slowTimer--;
+  if (P.feverTimer   > 0) P.feverTimer--;
+  if (P.dashTimer    > 0) P.dashTimer--;
+  if (comboT > 0) comboT--;
   else combo = 0;
 
   // 스폰
@@ -236,29 +265,68 @@ function update() {
 
   // 아이템 업데이트
   items = items.filter(it => {
-    it.y += it.spd;
+    const spd = P.slowTimer > 0 ? it.spd * 0.4 : it.spd;
+    it.y += spd;
+
+    // 자석: 음식 아이템을 플레이어 쪽으로 끌어당김
+    if (P.magnetTimer > 0 && it.kind === 'food') {
+      it.x += (P.x - it.x) * 0.06;
+      it.y += (P.y - it.y) * 0.04;
+    }
 
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
 
-    if (dx < 26 && dy < 26 && P.inv === 0) {
-      if (it.isObs) {
-        lives--;
-        P.inv   = 80;
-        P.shake = 18;
-        P.bump  = 10;
-        burst(it.x, it.y, COL.primary, 12);
-        popup(P.x, P.y - 40, '💥 −1 LIFE', COL.primary);
-        if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
+    if (dx < 28 && dy < 28 && (P.inv === 0 || it.kind !== 'obs')) {
+      if (it.kind === 'obs') {
+        if (it.obsType === 'damage') {
+          lives--;
+          P.inv = 80; P.shake = 18; P.bump = 10;
+          burst(it.x, it.y, COL.primary, 12);
+          popup(P.x, P.y - 40, '💀 −1 LIFE', COL.primary);
+          if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
+        } else if (it.obsType === 'reverse') {
+          P.reverseTimer = 180;
+          P.shake = 10;
+          burst(it.x, it.y, '#a855f7', 10);
+          popup(P.x, P.y - 40, '🌀 조작 반전!', '#a855f7');
+        } else if (it.obsType === 'blind') {
+          P.blindTimer = 300;
+          P.shake = 8;
+          burst(it.x, it.y, '#1a1a1a', 10);
+          popup(P.x, P.y - 40, '😴 시야 좁아짐!', '#888');
+        }
+        return false;
+      } else if (it.kind === 'bonus') {
+        if (it.bonusType === 'magnet') {
+          P.magnetTimer = 300;
+          burst(it.x, it.y, '#f472b6', 10);
+          popup(P.x, P.y - 40, '🧲 자석 발동!', '#f472b6');
+        } else if (it.bonusType === 'slow') {
+          P.slowTimer = 180;
+          burst(it.x, it.y, '#c4b5fd', 10);
+          popup(P.x, P.y - 40, '⏱ 슬로우!', '#c4b5fd');
+        } else if (it.bonusType === 'fever') {
+          P.feverTimer = 300;
+          burst(it.x, it.y, COL.gold, 12);
+          popup(P.x, P.y - 40, '🌾 점수 2배!', COL.gold);
+        } else if (it.bonusType === 'dash') {
+          P.dashTimer = 300;
+          burst(it.x, it.y, '#f97316', 10);
+          popup(P.x, P.y - 40, '🌶 초고속!', '#f97316');
+        }
+        return false;
       } else {
-        const pts = Math.floor(10 * (1 + combo * 0.4));
+        const mult = P.feverTimer > 0 ? 2 : 1;
+        const pts = Math.floor(10 * mult * (1 + combo * 0.4));
         score += pts;
         combo++; comboT = 70;
-        burst(it.x, it.y, COL.gold, 7);
+        burst(it.x, it.y, P.feverTimer > 0 ? COL.gold : '#fff', 7);
         popup(it.x, it.y - 10,
-          combo > 2 ? `+${pts} ×${combo}🔥` : `+${pts}`, COL.gold);
+          combo > 2 ? `+${pts} ×${combo}🔥` : `+${pts}`,
+          P.feverTimer > 0 ? COL.gold : COL.gold);
+        return false;
       }
-      return false;
     }
     return it.y < H + 40;
   });
@@ -468,19 +536,28 @@ function drawPlayer() {
 }
 
 // ── 아이템 드로우 ─────────────────────────────────
+function drawItemImg(img, x, y, r) {
+  if (img && img.complete && img.naturalWidth > 0) {
+    const ratio = img.naturalHeight / img.naturalWidth;
+    const w = r * 2, h = w * ratio;
+    cx.drawImage(img, x - w/2, y - h/2, w, h);
+  }
+}
+
 function drawItems() {
   items.forEach(it => {
-    const pulse = it.isObs ? 1 + Math.sin(frame * 0.18) * 0.1 : 1;
+    const pulse = it.kind === 'obs' ? 1 + Math.sin(frame * 0.18) * 0.1 : 1;
     const r = 26 * pulse;
 
-    if (it.isObs) {
-      em(it.emoji, it.x, it.y, 36 * pulse);
+    if (it.kind === 'obs') {
+      drawItemImg(obsImgs[it.obsType], it.x, it.y, r);
+    } else if (it.kind === 'bonus') {
+      const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
+      cx.globalAlpha = glow;
+      drawItemImg(bonusImgs[it.bonusType], it.x, it.y, r * 1.1);
+      cx.globalAlpha = 1;
     } else {
-      const img = foodImgs[it.foodIdx];
-      const size = r * 2;
-      if (img.complete && img.naturalWidth > 0) {
-        cx.drawImage(img, it.x - r, it.y - r, size, size);
-      }
+      drawItemImg(foodImgs[it.foodIdx], it.x, it.y, r);
     }
   });
 }
@@ -501,6 +578,60 @@ function drawFX() {
     btxt(p.txt, p.x, p.y, 13, p.col);
   });
   cx.globalAlpha = 1;
+}
+
+// ── 특수 이펙트 오버레이 ──────────────────────────
+function drawSpecialFX() {
+  // BLIND: 라디얼 그라데이션으로 시야 좁히기
+  if (P.blindTimer > 0) {
+    const visionR = 80 + Math.sin(frame * 0.08) * 10;
+    const grad = cx.createRadialGradient(P.x, P.y, visionR * 0.3, P.x, P.y, visionR);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.96)');
+    cx.fillStyle = grad;
+    cx.fillRect(0, 0, W, H);
+  }
+
+  // REVERSE: 화면 테두리 보라색 펄스
+  if (P.reverseTimer > 0) {
+    const a = 0.3 + Math.sin(frame * 0.2) * 0.2;
+    cx.strokeStyle = `rgba(168,85,247,${a})`;
+    cx.lineWidth = 8;
+    cx.strokeRect(4, 4, W - 8, H - 8);
+  }
+
+  // FEVER: 화면 테두리 골드 글로우
+  if (P.feverTimer > 0) {
+    const a = 0.25 + Math.sin(frame * 0.15) * 0.15;
+    cx.strokeStyle = `rgba(245,196,0,${a})`;
+    cx.lineWidth = 10;
+    cx.strokeRect(4, 4, W - 8, H - 8);
+  }
+
+  // DASH: 화면 테두리 오렌지
+  if (P.dashTimer > 0) {
+    const a = 0.2 + Math.sin(frame * 0.25) * 0.15;
+    cx.strokeStyle = `rgba(249,115,22,${a})`;
+    cx.lineWidth = 8;
+    cx.strokeRect(4, 4, W - 8, H - 8);
+  }
+
+  // 활성 효과 뱃지 (우상단 HUD 아래)
+  const badges = [];
+  if (P.reverseTimer > 0) badges.push({ label: '🌀 반전', col: '#a855f7', t: P.reverseTimer });
+  if (P.blindTimer   > 0) badges.push({ label: '😴 암흑', col: '#6b7280', t: P.blindTimer });
+  if (P.magnetTimer  > 0) badges.push({ label: '🧲 자석', col: '#f472b6', t: P.magnetTimer });
+  if (P.slowTimer    > 0) badges.push({ label: '⏱ 슬로우', col: '#c4b5fd', t: P.slowTimer });
+  if (P.feverTimer   > 0) badges.push({ label: '🌾 2배', col: COL.gold, t: P.feverTimer });
+  if (P.dashTimer    > 0) badges.push({ label: '🌶 대시', col: '#f97316', t: P.dashTimer });
+
+  badges.forEach((b, i) => {
+    const bx = 12, by = 80 + i * 24;
+    rrect(bx, by - 9, 90, 18, 9, `${b.col}33`);
+    cx.strokeStyle = b.col; cx.lineWidth = 1;
+    rrect(bx, by - 9, 90, 18, 9); cx.stroke();
+    btxt(b.label, bx + 45, by, 10, b.col);
+  });
 }
 
 // ── 시작 화면 ─────────────────────────────────────
@@ -595,7 +726,7 @@ function loop() {
 
   if (S === 'play' || S === 'over' || S === 'dead') drawPlayer();
 
-  if (S === 'play')  drawHUD();
+  if (S === 'play')  { drawSpecialFX(); drawHUD(); }
   if (S === 'start') drawStart();
   if (S === 'over')  { drawHUD(); drawOver(); }
 
