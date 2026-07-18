@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="doc-created" content="2026-07-18">
+<meta name="doc-status" content="draft">
+<title>홈 BTF 리디자인 — 발견·큐레이션·재주문 스윔레인</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  :root {
+    --bg-primary: #ffffff;
+    --bg-subtle: #f6f6f6;
+    --bg-bottom: #f2f2f2;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --primary: #fa0050;
+    --primary-25: #fff5f8;
+    --primary-50: #ffe6ee;
+    --primary-100: #feccdc;
+    --orange: #f04600;
+    --green: #05947f;
+    --blue: #0c74e4;
+    --purple: #7c3aed;
+    --purple-25: #f5f3ff;
+    --purple-100: #ddd6fe;
+    --gray-100: #e5e5e5;
+    --gray-50: #f9f9f9;
+    --shadow-1: 0 1px 8px rgba(25,48,64,0.10), 0 0 2px rgba(25,48,64,0.08);
+    --shadow-2: 0 2px 12px rgba(25,48,64,0.24), 0 0 4px rgba(25,48,64,0.12);
+    --r3: 10px;
+    --r4: 12px;
+    --rfull: 360px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--bg-bottom);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .page {
+    width: 900px;
+    max-width: 100%;
+    background: var(--bg-primary);
+    border-radius: 16px;
+    box-shadow: var(--shadow-2);
+    overflow: hidden;
+  }
+
+  .header {
+    background: var(--primary);
+    padding: 32px 40px 28px;
+    color: #fff;
+  }
+  .header-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border-radius: var(--rfull);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    letter-spacing: 0.02em;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    opacity: 0.85;
+    line-height: 1.6;
+  }
+
+  .body {
+    padding: 32px 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  hr.divider {
+    border: none;
+    border-top: 1.5px solid var(--gray-100);
+  }
+
+  /* 문제 정의 */
+  .problem-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .problem-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 14px 16px;
+    border: 1.5px solid var(--gray-100);
+  }
+  .problem-card.hot {
+    background: #fff5f8;
+    border-color: var(--primary-100);
+  }
+  .pc-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .pc-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+  .pc-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* ATF/BTF 구조 다이어그램 */
+  .screen-diagram {
+    display: grid;
+    grid-template-columns: 1fr 36px 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .screen-box {
+    border-radius: var(--r4);
+    overflow: hidden;
+    border: 1.5px solid var(--gray-100);
+    font-size: 10px;
+  }
+  .screen-zone {
+    padding: 8px 12px;
+    line-height: 1.5;
+  }
+  .zone-atf {
+    background: #f0f0f0;
+    color: var(--text-tertiary);
+    font-weight: 600;
+    border-bottom: 1px dashed var(--gray-100);
+  }
+  .zone-btf-old {
+    background: #fff5f5;
+    color: #c0392b;
+  }
+  .zone-btf-new {
+    background: #f0fff4;
+    color: #155724;
+  }
+  .zone-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+    margin-bottom: 2px;
+  }
+  .zone-arrow {
+    text-align: center;
+    font-size: 22px;
+    color: var(--primary);
+    font-weight: 800;
+  }
+  .screen-title {
+    background: var(--bg-subtle);
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 11px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--text-secondary);
+  }
+
+  /* 스윔레인 4종 */
+  .lane-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .lane-card {
+    border-radius: var(--r4);
+    border: 1.5px solid var(--gray-100);
+    overflow: hidden;
+  }
+  .lane-header {
+    padding: 12px 14px 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .lane-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .lane-info h4 {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .lane-info .lane-sub {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+  .lane-body {
+    background: var(--bg-subtle);
+    padding: 10px 14px;
+    border-top: 1px solid var(--gray-100);
+  }
+  .lane-tag {
+    display: inline-block;
+    background: var(--primary-50);
+    color: var(--primary);
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+  .lane-tag.green { background: #dcfce7; color: #166534; }
+  .lane-tag.blue  { background: #dbeafe; color: #1d4ed8; }
+  .lane-tag.purple{ background: var(--purple-25); color: var(--purple); }
+  .lane-tag.orange{ background: #fff7ed; color: #c2410c; }
+  .lane-logic {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin-top: 6px;
+  }
+
+  /* 콘텐츠 플라이휠 */
+  .flywheel-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    overflow: hidden;
+    border: 1.5px solid var(--gray-100);
+  }
+  .fw-node {
+    flex: 1;
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .fw-node .fn-icon { font-size: 18px; margin-bottom: 4px; }
+  .fw-node h4 { font-size: 11px; font-weight: 800; line-height: 1.3; margin-bottom: 2px; }
+  .fw-node p  { font-size: 9px; color: var(--text-secondary); line-height: 1.4; }
+  .fw-arrow {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* 로드맵 */
+  .roadmap-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .roadmap-card {
+    border-radius: var(--r4);
+    border: 1.5px solid var(--gray-100);
+    overflow: hidden;
+  }
+  .rm-head {
+    padding: 10px 14px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .rm-head .rm-phase {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+  }
+  .rm-body {
+    padding: 10px 14px;
+    background: var(--bg-subtle);
+  }
+  .rm-item {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding-left: 10px;
+    position: relative;
+  }
+  .rm-item::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .rm-card-mvp .rm-head { background: #fff5f8; color: var(--primary); }
+  .rm-card-p2  .rm-head { background: #f0fff4; color: var(--green); }
+  .rm-card-p3  .rm-head { background: var(--purple-25); color: var(--purple); }
+
+  /* KPI */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .kpi-card {
+    background: var(--bg-subtle);
+    border-radius: var(--r4);
+    padding: 12px 14px;
+    border: 1.5px solid var(--gray-100);
+  }
+  .kpi-card .kpi-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .kpi-card .kpi-value {
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--primary);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .kpi-card .kpi-desc {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  /* 핵심 논리 배너 */
+  .logic-banner {
+    padding: 12px 16px;
+    background: #fefce8;
+    border: 1px solid #fde68a;
+    border-radius: var(--r4);
+    font-size: 11px;
+    color: #92400e;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="header-tag">A. 수익성 증대 · 홈화면 리디자인</div>
+    <h1>홈 BTF를 바꾼다<br>발견 · 큐레이션 · 재주문 스윔레인 설계</h1>
+    <p>"자주 주문한 이 메뉴 어때요?"를 버린다. BTF 전 구간을 맥락 기반 재주문 + 신뢰 큐레이션 + 발견 탐색 4개 스윔레인으로 교체해 홈 진입이 곧 주문으로 이어지게 한다.</p>
+  </div>
+
+  <div class="body">
+
+    <!-- 문제 정의 -->
+    <div>
+      <div class="section-title">Why — 지금 홈 BTF의 문제</div>
+      <div class="problem-row">
+        <div class="problem-card hot">
+          <div class="pc-label">문제 01</div>
+          <div class="pc-title">맥락 없는<br>재주문 UI</div>
+          <div class="pc-sub">카테고리 혼합 카드 나열. 저녁에 아침 메뉴, 월요일에 주말 메뉴 노출. 습관 형성이 안 된다.</div>
+        </div>
+        <div class="problem-card hot">
+          <div class="pc-label">문제 02</div>
+          <div class="pc-title">별점 4.8이<br>너무 많다</div>
+          <div class="pc-sub">상위 가게 대부분이 유사한 별점대. 배민·쿠팡과 동일한 큐레이션 로직. 선택 기준 없음.</div>
+        </div>
+        <div class="problem-card">
+          <div class="pc-label">문제 03</div>
+          <div class="pc-title">"뭘 시킬지<br>모르겠다"</div>
+          <div class="pc-sub">새로운 가게를 발견할 동선이 없다. 홈이 정적이라 재방문 이유가 약하다.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATF/BTF 구조 변화 -->
+    <div>
+      <div class="section-title">개입 구간 — ATF는 건드리지 않는다, BTF를 바꾼다</div>
+      <div class="screen-diagram">
+        <div class="screen-box">
+          <div class="screen-title">현재 홈</div>
+          <div class="screen-zone zone-atf">
+            <div class="zone-label">ATF (Above the Fold)</div>
+            검색창 · 카테고리 탭 · 배너
+          </div>
+          <div class="screen-zone zone-btf-old">
+            <div class="zone-label">BTF — 문제 구간</div>
+            "자주 주문한 이 메뉴 어때요?"<br>
+            카테고리 혼합 카드 나열<br>
+            별점순 일반 가게 리스트<br>
+            <br>
+            → 맥락 없음 · 변별력 없음 · 발견 없음
+          </div>
+        </div>
+        <div class="zone-arrow">→</div>
+        <div class="screen-box">
+          <div class="screen-title">제안 홈</div>
+          <div class="screen-zone zone-atf">
+            <div class="zone-label">ATF (유지)</div>
+            검색창 · 카테고리 탭 · 배너
+          </div>
+          <div class="screen-zone zone-btf-new">
+            <div class="zone-label">BTF — 4개 스윔레인으로 교체</div>
+            ① 지금 이 순간 재주문 (컨텍스트)<br>
+            ② 매니아 픽 (헤비유저 큐레이션)<br>
+            ③ 검증된 맛집 (블로거 실방문 픽)<br>
+            ④ 오늘 뭐먹지? (개인화 탐색 큐)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 4개 스윔레인 -->
+    <div>
+      <div class="section-title">솔루션 — BTF 4개 스윔레인 설계</div>
+      <div class="lane-grid">
+
+        <!-- 01 컨텍스트 재주문 -->
+        <div class="lane-card">
+          <div class="lane-header">
+            <div class="lane-num">1</div>
+            <div class="lane-info">
+              <h4>지금 이 순간 재주문</h4>
+              <div class="lane-sub">시간 · 위치 · 주기 데이터로 지금에 맞는<br>단일 버티컬 하나만 노출</div>
+            </div>
+          </div>
+          <div class="lane-body">
+            <span class="lane-tag">시간 컨텍스트</span>
+            <span class="lane-tag">위치 기반</span>
+            <span class="lane-tag">주기 학습</span>
+            <div class="lane-logic">
+              매주 월요일 오전 앱을 켜면 "지난주 커피 가게에서 오늘도 아메리카노?" — 바니프레소가 단일 브랜드 앱으로 한 것을 요기요는 모든 카테고리에서 구현한다. 맥락이 맞을수록 클릭 없이 주문으로 간다.
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 매니아 픽 -->
+        <div class="lane-card">
+          <div class="lane-header">
+            <div class="lane-num">2</div>
+            <div class="lane-info">
+              <h4>매니아 픽</h4>
+              <div class="lane-sub">특정 카테고리 헤비유저의 집단 큐레이션<br>"치킨왕이 인정한 집"</div>
+            </div>
+          </div>
+          <div class="lane-body">
+            <span class="lane-tag green">헤비유저 집단지성</span>
+            <span class="lane-tag green">카테고리별 독립 리그</span>
+            <div class="lane-logic">
+              월 N회 이상 주문한 카테고리 헤비유저의 별점 5점 가게만 선별 노출. 단순 평균 별점이 아닌 "이 카테고리를 진짜 많이 먹어본 사람이 인정한 가게"라는 신뢰 레이어 추가. 헤비유저는 큐레이터 정체성을 얻어 리뷰 작성 동기 강화.
+            </div>
+          </div>
+        </div>
+
+        <!-- 03 블로거 픽 -->
+        <div class="lane-card">
+          <div class="lane-header">
+            <div class="lane-num">3</div>
+            <div class="lane-info">
+              <h4>검증된 맛집</h4>
+              <div class="lane-sub">파워블로거 실방문 픽 — 네이버 플레이스<br>상위 블로거가 직접 가서 확인한 가게</div>
+            </div>
+          </div>
+          <div class="lane-body">
+            <span class="lane-tag blue">외부 신뢰 레이어</span>
+            <span class="lane-tag blue">실방문 검증</span>
+            <div class="lane-logic">
+              네이버 플레이스 상위 블로거가 실방문 후 작성한 리뷰를 탐색 영역 특별 콘텐츠로 연동. 요기요 입점 가게는 바로 주문 연결. 배민·쿠팡에 없는 외부 검증 신뢰 레이어 — "블로거가 가봤다"는 한 문장이 별점보다 강하다.
+            </div>
+          </div>
+        </div>
+
+        <!-- 04 탐색 큐 -->
+        <div class="lane-card">
+          <div class="lane-header">
+            <div class="lane-num">4</div>
+            <div class="lane-info">
+              <h4>오늘 뭐먹지?</h4>
+              <div class="lane-sub">개인화 탐색 큐 — 못 먹어본 가게 발견<br>찜 루프로 재방문 트리거</div>
+            </div>
+          </div>
+          <div class="lane-body">
+            <span class="lane-tag purple">발견 경험</span>
+            <span class="lane-tag purple">찜 루프</span>
+            <div class="lane-logic">
+              과거 주문·검색·찜 이력을 기반으로 아직 시도하지 않은 가게 카드를 개인화 탐색 큐로 노출. 찜한 가게에 쿠폰·신메뉴 업데이트 시 홈 재등장 — "오늘 네가 찜한 집이 할인 중" 방식으로 재방문 이유를 만든다.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 콘텐츠 플라이휠 (매니아픽 × 블로거 연동) -->
+    <div>
+      <div class="section-title">시너지 — 매니아 픽 × 블로거 콘텐츠 플라이휠</div>
+      <div class="flywheel-row">
+        <div class="fw-node">
+          <div class="fn-icon">🏆</div>
+          <h4>매니아 픽<br>선정</h4>
+          <p>헤비유저가<br>가게 추천</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">✍️</div>
+          <h4>블로거<br>실방문</h4>
+          <p>매니아 픽 가게<br>직접 검증</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">📱</div>
+          <h4>콘텐츠<br>노출</h4>
+          <p>탐색 영역<br>특별 피처</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">🛒</div>
+          <h4>주문<br>전환</h4>
+          <p>리뷰 → 바로<br>주문 연결</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node" style="background: #fff5f8;">
+          <div class="fn-icon">🔁</div>
+          <h4>헤비유저<br>동기 강화</h4>
+          <p>내 픽이 콘텐츠가 됨<br>→ 리뷰 작성 ↑</p>
+        </div>
+      </div>
+      <div style="margin-top: 8px; font-size: 10px; color: var(--text-tertiary); text-align: center;">매니아 픽 → 블로거 검증 → 탐색 큐 노출 → 주문 → 헤비유저 재참여의 자기강화 루프</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 단계별 로드맵 -->
+    <div>
+      <div class="section-title">단계별 로드맵</div>
+      <div class="roadmap-row">
+        <div class="roadmap-card rm-card-mvp">
+          <div class="rm-head">
+            <div class="rm-phase">MVP · 즉시 가능</div>
+            스윔레인 ① 컨텍스트 재주문
+          </div>
+          <div class="rm-body">
+            <div class="rm-item">시간·위치·주기 데이터 이미 보유</div>
+            <div class="rm-item">UI 변경만으로 구현 — 개발 리소스 최소</div>
+            <div class="rm-item">재주문율 A/B 테스트로 즉시 검증 가능</div>
+            <div class="rm-item" style="margin-top: 6px; color: var(--primary);">검증 지표: 스윔레인 CTR · 재주문 전환율</div>
+          </div>
+        </div>
+        <div class="roadmap-card rm-card-p2">
+          <div class="rm-head">
+            <div class="rm-phase">Phase 2 · 검증 후</div>
+            스윔레인 ② 매니아 픽 추가
+          </div>
+          <div class="rm-body">
+            <div class="rm-item">카테고리별 헤비유저 모수 사전 검증 필수</div>
+            <div class="rm-item">헤비유저 큐레이터 정체성 UI 설계</div>
+            <div class="rm-item">리뷰 작성 동기 연동 (큐레이터 배지)</div>
+            <div class="rm-item" style="margin-top: 6px; color: var(--green);">검증 지표: 매니아 픽 CVR · 리뷰 작성률</div>
+          </div>
+        </div>
+        <div class="roadmap-card rm-card-p3">
+          <div class="rm-head">
+            <div class="rm-phase">Phase 3 · 풀 런칭</div>
+            스윔레인 ③④ 블로거 픽 + 탐색 큐
+          </div>
+          <div class="rm-body">
+            <div class="rm-item">파워블로거 파트너십 계약 · 채널 연동</div>
+            <div class="rm-item">개인화 추천 모델 고도화</div>
+            <div class="rm-item">찜 루프 알림 트리거 설계</div>
+            <div class="rm-item" style="margin-top: 6px; color: var(--purple);">검증 지표: 탐색 큐 UV · 찜 → 주문 전환율</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div>
+      <div class="section-title">Success Metrics</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-label">Primary</div>
+          <div class="kpi-value">CTR</div>
+          <div class="kpi-desc">각 스윔레인 클릭률<br>(현재 재주문 UI 대비 개선)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Primary</div>
+          <div class="kpi-value">재주문율</div>
+          <div class="kpi-desc">컨텍스트 재주문 스윔레인<br>통한 재주문 전환율</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Secondary</div>
+          <div class="kpi-value">AOV</div>
+          <div class="kpi-desc">매니아 픽 · 블로거 픽<br>경유 주문 평균 금액</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Secondary</div>
+          <div class="kpi-value">리뷰율</div>
+          <div class="kpi-desc">매니아 큐레이터 정체성<br>부여 후 리뷰 작성 빈도</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 핵심 논리 -->
+    <div class="logic-banner">
+      <strong>핵심 논리:</strong> ATF(검색·배너)는 바꾸기 어렵다. BTF는 지금 당장 바꿀 수 있다. 재주문 UI를 맥락 인식으로 바꾸면 습관이 생기고, 큐레이션 스윔레인을 추가하면 발견 경험이 생긴다. 이 두 가지가 합쳐지면 홈 진입이 곧 주문으로 이어지는 구조가 된다. <strong>BTF 4개 스윔레인은 배민·쿠팡에 없는 홈화면 차별화 포인트</strong>다.
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
