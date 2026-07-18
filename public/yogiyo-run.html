@@ -491,7 +491,7 @@ function drawJori(x, y, size, alpha = 1, dir = 0) {
   else if (dir > 0) { img = imgs.right; ready = imgReady.right; }
   else {
     // 2프레임마다 front1/front2 교체 → 걷는 애니메이션
-    const useF1 = Math.floor(frame / 2) % 2 === 0;
+    const useF1 = Math.floor(frame / 30) % 2 === 0;
     img   = useF1 ? imgs.front1 : imgs.front2;
     ready = useF1 ? imgReady.front1 : imgReady.front2;
   }
