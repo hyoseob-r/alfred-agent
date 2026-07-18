@@ -473,34 +473,13 @@ function drawItems() {
     const r = 26 * pulse;
 
     if (it.isObs) {
-      // 장애물: 어두운 원 + 빨간 테두리 + 이모지
-      cx.beginPath();
-      cx.arc(it.x, it.y, r, 0, Math.PI * 2);
-      cx.fillStyle = 'rgba(40,0,0,0.8)';
-      cx.fill();
-      cx.strokeStyle = 'rgba(250,0,80,0.9)';
-      cx.lineWidth = 2.5;
-      cx.stroke();
-      em(it.emoji, it.x, it.y, 30 * pulse);
+      em(it.emoji, it.x, it.y, 36 * pulse);
     } else {
-      // 음식: 이미지 직접 렌더 (원형 클리핑)
       const img = foodImgs[it.foodIdx];
       const size = r * 2;
-      cx.save();
-      cx.beginPath();
-      cx.arc(it.x, it.y, r, 0, Math.PI * 2);
-      cx.clip();
       if (img.complete && img.naturalWidth > 0) {
         cx.drawImage(img, it.x - r, it.y - r, size, size);
       }
-      cx.restore();
-
-      // 테두리
-      cx.beginPath();
-      cx.arc(it.x, it.y, r, 0, Math.PI * 2);
-      cx.strokeStyle = 'rgba(255,255,255,0.6)';
-      cx.lineWidth = 2;
-      cx.stroke();
     }
   });
 }
