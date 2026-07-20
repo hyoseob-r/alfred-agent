@@ -503,6 +503,26 @@
   @media (max-width: 480px) {
     .mvp-row { grid-template-columns: 1fr !important; }
   }
+
+  .pdf-preview-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 16px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255,255,255,0.4);
+    backdrop-filter: blur(4px);
+    transition: background 0.15s;
+  }
+  .pdf-preview-btn:hover {
+    background: rgba(255,255,255,0.28);
+  }
 </style>
 </head>
 <body>
@@ -514,6 +534,7 @@
     <h1>마감딜<br>지금 아니면 못 사먹는다</h1>
     <p>팔리지 않으면 버려야 하는 메뉴가 있습니다. 사장님은 이미 20~40% 할인할 준비가 돼 있습니다.<br>
     할인랭킹·요타임딜과 달리, 마감딜은 <strong>시간이 만드는 긴박감</strong>입니다 — 입찰 경쟁 없이, 광고비 없이.</p>
+    <a class="pdf-preview-btn" href="/submit-preview.html?doc=closing-deal" target="_blank">📄 제안 제출용 PDF 미리보기</a>
   </div>
 
   <div class="body">

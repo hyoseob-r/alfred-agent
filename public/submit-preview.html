@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>제안 제출용 PDF 미리보기</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;900&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: #111;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .back-btn {
+      color: #aaa;
+      text-decoration: none;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .back-btn:hover { color: #fff; }
+    .divider { color: #444; font-size: 13px; }
+    .doc-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #eee;
+    }
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #E8173B;
+      color: white;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 18px;
+      border-radius: 20px;
+    }
+    .download-btn:hover { background: #c7102e; }
+    .pdf-frame {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+    .error {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      flex-direction: column;
+      gap: 12px;
+      color: #aaa;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a class="back-btn" id="back-link" href="#">← 페이퍼로 돌아가기</a>
+    <span class="divider">|</span>
+    <span class="doc-title" id="doc-title">제안서</span>
+  </div>
+  <a class="download-btn" id="download-btn" href="#" download>↓ PDF 다운로드</a>
+</div>
+
+<iframe class="pdf-frame" id="pdf-frame" src=""></iframe>
+
+<script>
+  const docs = {
+    'home-btf':      { title: '홈 BTF 리디자인',                       pdf: '/submit-home-btf.pdf',      back: '/proposal-home-btf.html' },
+    'partner-ai':    { title: '요기요 파트너 AI',                       pdf: '/submit-partner-ai.pdf',    back: '/proposal-partner-ai.html' },
+    'closing-deal':  { title: '마감딜',                                 pdf: '/submit-closing-deal.pdf',  back: '/proposal-closing-deal.html' },
+    'season-rank':   { title: '대기 중 경쟁 미니게임 + 혜택탭 광고',   pdf: '/submit-season-rank.pdf',   back: '/proposal-season-rank-v2.html' },
+  };
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get('doc');
+  const doc = docs[id];
+
+  if (doc) {
+    document.title = doc.title + ' — PDF 미리보기';
+    document.getElementById('doc-title').textContent = doc.title;
+    document.getElementById('pdf-frame').src = doc.pdf;
+    document.getElementById('download-btn').href = doc.pdf;
+    document.getElementById('back-link').href = doc.back;
+  } else {
+    document.getElementById('pdf-frame').style.display = 'none';
+    document.querySelector('.topbar').insertAdjacentHTML('afterend',
+      '<div class="error"><span>⚠️ 잘못된 접근입니다.</span><a href="/" style="color:#E8173B;">홈으로</a></div>');
+  }
+</script>
+</body>
+</html>
