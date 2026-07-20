@@ -448,8 +448,8 @@
   <!-- 헤더 -->
   <div class="header">
     <div class="header-tag">A. 수익성 증대 · 홈화면 리디자인</div>
-    <h1>홈 BTF를 바꾼다<br>컨텍스트 재주문 · 매니아 큐레이션 · 찜 재방문 루프</h1>
-    <p>"자주 주문한 이 메뉴 어때요?"를 버린다. BTF 전 구간을 컨텍스트 기반 재주문 + 헤비유저 큐레이션 + 찜 재활성화 3개 스윔레인으로 교체해 홈 진입이 곧 주문으로 이어지게 한다.</p>
+    <h1>홈 BTF를 바꾼다<br>컨텍스트 재주문 · 매니아 큐레이션 · 찜 재방문 · 메뉴 발견</h1>
+    <p>"자주 주문한 이 메뉴 어때요?"를 버린다. BTF 전 구간을 컨텍스트 기반 재주문 + 헤비유저 큐레이션 + 찜 재활성화 + 메뉴 발견 동적 슬롯, 최대 4개 스윔레인으로 교체해 홈 진입이 곧 주문으로 이어지게 한다.</p>
   </div>
 
   <div class="body">
@@ -516,7 +516,7 @@
 
     <!-- 4개 스윔레인 -->
     <div>
-      <div class="section-title">솔루션 — BTF 3개 스윔레인 설계</div>
+      <div class="section-title">솔루션 — BTF 최대 4개 스윔레인 설계</div>
       <div class="lane-grid">
 
         <!-- 01 컨텍스트 재주문 (full width) -->
@@ -644,13 +644,68 @@
           </div>
         </div>
 
+        <!-- Swimlane 4 — 메뉴 추천 동적 슬롯 -->
+        <div class="lane-card full" style="margin-top: 0;">
+          <div class="lane-header">
+            <div class="lane-num" style="background: var(--orange);">04</div>
+            <div>
+              <div class="lane-title">메뉴 추천 동적 슬롯</div>
+              <div class="lane-subtitle">상황에 따라 다른 메뉴 발견 방식 — 데이터가 없으면 레인 자체 미노출</div>
+            </div>
+          </div>
+
+          <!-- 3가지 케이스 카드 -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+            <!-- Case A -->
+            <div style="background: #FFF7F0; border: 1.5px solid var(--orange); border-radius: 10px; padding: 11px 12px;">
+              <div style="font-size: 8px; font-weight: 700; color: var(--orange); letter-spacing: 0.5px; margin-bottom: 6px;">CASE A</div>
+              <div style="font-size: 10px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">트렌드 메뉴</div>
+              <div style="font-size: 8.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;">이번 주 주문 급상승 메뉴를 카드로 노출. 가게가 아닌 메뉴명이 먼저 보인다.</div>
+              <div style="background: white; border-radius: 6px; padding: 6px 8px; font-size: 8px; color: var(--text-secondary); line-height: 1.5;">
+                <strong style="color: var(--orange);">발동 조건</strong><br>
+                최근 7일 주문 급증 메뉴 ≥ 3개
+              </div>
+            </div>
+            <!-- Case B -->
+            <div style="background: #FFF0F0; border: 1.5px solid #E53935; border-radius: 10px; padding: 11px 12px;">
+              <div style="font-size: 8px; font-weight: 700; color: #E53935; letter-spacing: 0.5px; margin-bottom: 6px;">CASE B</div>
+              <div style="font-size: 10px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">취향 크로스</div>
+              <div style="font-size: 8.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;">내가 주문한 적 없는 카테고리인데 비슷한 취향의 사람들이 많이 시킨 메뉴를 추천.</div>
+              <div style="background: white; border-radius: 6px; padding: 6px 8px; font-size: 8px; color: var(--text-secondary); line-height: 1.5;">
+                <strong style="color: #E53935;">발동 조건</strong><br>
+                주문이력 ≥ 5건 + 협업 필터링 매칭
+              </div>
+            </div>
+            <!-- Case C -->
+            <div style="background: #F0FFF4; border: 1.5px solid #2E7D32; border-radius: 10px; padding: 11px 12px;">
+              <div style="font-size: 8px; font-weight: 700; color: #2E7D32; letter-spacing: 0.5px; margin-bottom: 6px;">CASE C</div>
+              <div style="font-size: 10px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">메뉴 비교</div>
+              <div style="font-size: 8.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px;">같은 메뉴(예: 김치찌개)를 파는 근처 가게 3곳을 한 화면에서 메뉴 카드로 비교.</div>
+              <div style="background: white; border-radius: 6px; padding: 6px 8px; font-size: 8px; color: var(--text-secondary); line-height: 1.5;">
+                <strong style="color: #2E7D32;">발동 조건</strong><br>
+                동일 메뉴 취급 가게 ≥ 3개 (반경 3km)
+              </div>
+            </div>
+          </div>
+
+          <!-- 조건부 노출 로직 -->
+          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 5px;">
+            <div style="background: white; border: 1px solid #FFD0A8; border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--text-secondary); line-height: 1.5;">
+              <strong style="color: var(--orange);">동적 슬롯 원칙</strong> — 3개 케이스 중 조건을 충족하는 케이스만 노출. 아무것도 없으면 레인 자체를 숨긴다. 억지로 채우지 않는다.
+            </div>
+            <div style="background: white; border: 1px solid #FFD0A8; border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--text-secondary); line-height: 1.5;">
+              <strong style="color: var(--orange);">배민과의 차별점</strong> — 배민은 긍정 리뷰 메뉴를 가게 상세에서 보여준다. 요기요는 <em>홈에서 메뉴가 먼저 등장</em>한다. 가게를 고른 뒤 메뉴를 보는 게 아니라, 메뉴를 보고 가게로 진입하는 역순 탐색.
+            </div>
+          </div>
+        </div>
+
 
       </div>
     </div>
 
-    <!-- 시너지 — 3개 레인 연결 구조 -->
+    <!-- 시너지 — 4개 레인 연결 구조 -->
     <div>
-      <div class="section-title">시너지 — 3개 스윔레인이 연결되는 방식</div>
+      <div class="section-title">시너지 — 4개 스윔레인이 연결되는 방식</div>
       <div class="flywheel-row">
         <div class="fw-node">
           <div class="fn-icon">⏰</div>
@@ -676,13 +731,19 @@
           <p>변화 감지 →<br>홈에 재노출</p>
         </div>
         <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">🍽️</div>
+          <h4>메뉴 발견<br>동적 슬롯</h4>
+          <p>조건 충족 시<br>메뉴 먼저 노출</p>
+        </div>
+        <div class="fw-arrow">→</div>
         <div class="fw-node" style="background: #fff5f8;">
           <div class="fn-icon">🔁</div>
           <h4>재방문<br>루프</h4>
           <p>앱 열 이유가<br>계속 생긴다</p>
         </div>
       </div>
-      <div style="margin-top: 8px; font-size: 10px; color: var(--text-tertiary); text-align: center;">컨텍스트로 첫 노출 → 찜으로 저장 → 변화 트리거로 재방문 — 3개 레인이 하나의 루프를 만든다</div>
+      <div style="margin-top: 8px; font-size: 10px; color: var(--text-tertiary); text-align: center;">컨텍스트로 첫 노출 → 찜으로 저장 → 변화 트리거로 재방문 → 메뉴 발견으로 신규 진입 — 4개 레인이 하나의 루프를 만든다</div>
     </div>
 
     <hr class="divider">
@@ -759,7 +820,7 @@
 
     <!-- 핵심 논리 -->
     <div class="logic-banner">
-      <strong>핵심 논리:</strong> ATF(검색·배너)는 바꾸기 어렵다. BTF는 지금 당장 바꿀 수 있다. 컨텍스트로 첫 노출을 만들고, 매니아 픽으로 신뢰를 만들고, 찜 트리거로 재방문을 만든다. <strong>3개 스윔레인이 하나의 재방문 루프를 형성한다.</strong>
+      <strong>핵심 논리:</strong> ATF(검색·배너)는 바꾸기 어렵다. BTF는 지금 당장 바꿀 수 있다. 컨텍스트로 첫 노출을 만들고, 매니아 픽으로 신뢰를 만들고, 찜 트리거로 재방문을 만든다. 여기에 조건 충족 시 메뉴 발견 슬롯이 더해진다. <strong>최대 4개 스윔레인이 하나의 재방문 루프를 형성한다.</strong>
     </div>
 
   </div>
