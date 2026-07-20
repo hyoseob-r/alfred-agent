@@ -220,7 +220,7 @@ function spawn() {
   const bonusChance = [0,    0.05, 0.09, 0.13, 0.18][tier];
 
   // 해금된 아이템 풀
-  const obsPool   = OBS_TYPES.slice(0, [0, 1, 2, 3, 3][tier]);
+  const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
   const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
 
   const rand = Math.random();
