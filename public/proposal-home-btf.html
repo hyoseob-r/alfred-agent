@@ -448,8 +448,8 @@
   <!-- 헤더 -->
   <div class="header">
     <div class="header-tag">A. 수익성 증대 · 홈화면 리디자인</div>
-    <h1>홈 BTF를 바꾼다<br>컨텍스트 재주문 · 매니아 큐레이션 · 블로거 검증 스윔레인</h1>
-    <p>"자주 주문한 이 메뉴 어때요?"를 버린다. BTF 전 구간을 컨텍스트 기반 재주문 + 헤비유저 큐레이션 + 블로거 검증 3개 스윔레인으로 교체해 홈 진입이 곧 주문으로 이어지게 한다.</p>
+    <h1>홈 BTF를 바꾼다<br>컨텍스트 재주문 · 매니아 큐레이션 · 찜 재방문 루프</h1>
+    <p>"자주 주문한 이 메뉴 어때요?"를 버린다. BTF 전 구간을 컨텍스트 기반 재주문 + 헤비유저 큐레이션 + 찜 재활성화 3개 스윔레인으로 교체해 홈 진입이 곧 주문으로 이어지게 한다.</p>
   </div>
 
   <div class="body">
@@ -506,7 +506,7 @@
             <div class="zone-label">BTF — 4개 스윔레인으로 교체</div>
             ① 컨텍스트 재주문 (시간·위치·주기 기반)<br>
             ② 매니아 픽 (헤비유저 큐레이션)<br>
-            ③ 검증된 맛집 (블로거 실방문 픽)
+            ③ 찜 재방문 루프 (변화 트리거 재노출)
           </div>
         </div>
       </div>
@@ -617,20 +617,29 @@
           </div>
         </div>
 
-        <!-- 03 블로거 픽 -->
+        <!-- 03 찜 → 재방문 루프 -->
         <div class="lane-card">
           <div class="lane-header">
             <div class="lane-num">3</div>
             <div class="lane-info">
-              <h4>검증된 맛집</h4>
-              <div class="lane-sub">파워블로거 실방문 픽 — 네이버 플레이스<br>상위 블로거가 직접 가서 확인한 가게</div>
+              <h4>찜해두고 잊은 가게</h4>
+              <div class="lane-sub">찜만 하고 주문 안 한 가게에 변화가 생기면<br>홈에 다시 등장 — 재방문 이유를 만든다</div>
             </div>
           </div>
           <div class="lane-body">
-            <span class="lane-tag blue">외부 신뢰 레이어</span>
-            <span class="lane-tag blue">실방문 검증</span>
+            <span class="lane-tag purple">찜 재활성화</span>
+            <span class="lane-tag purple">변화 트리거</span>
+            <span class="lane-tag purple">재방문 루프</span>
             <div class="lane-logic">
-              네이버 플레이스 상위 블로거가 실방문 후 작성한 리뷰를 탐색 영역 특별 콘텐츠로 연동. 요기요 입점 가게는 바로 주문 연결. 배민·쿠팡에 없는 외부 검증 신뢰 레이어 — "블로거가 가봤다"는 한 문장이 별점보다 강하다.
+              찜했지만 주문하지 않은 가게에 할인·신메뉴·재오픈 등 변화가 생기면 BTF에 자동 노출. "네가 찜한 집에 오늘 신메뉴가 생겼어요" — 외부 의존 없이 플랫폼 데이터만으로 작동하는 재방문 트리거. Steam 위시리스트 할인 알림과 동일한 구조.
+            </div>
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 5px;">
+              <div style="background: white; border: 1px solid var(--purple-100); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--text-secondary); line-height: 1.5;">
+                <strong style="color: var(--purple);">트리거 조건</strong> — 할인 쿠폰 발행 · 신메뉴 등록 · 휴무 후 재오픈 · 리뷰 급증
+              </div>
+              <div style="background: white; border: 1px solid var(--purple-100); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--text-secondary); line-height: 1.5;">
+                <strong style="color: var(--purple);">찜의 재정의</strong> — 지금까지 찜은 저장만 되고 끝이었다. 트리거가 붙으면 찜이 재방문 채널이 된다.
+              </div>
             </div>
           </div>
         </div>
@@ -639,41 +648,41 @@
       </div>
     </div>
 
-    <!-- 콘텐츠 플라이휠 (매니아픽 × 블로거 연동) -->
+    <!-- 시너지 — 3개 레인 연결 구조 -->
     <div>
-      <div class="section-title">시너지 — 매니아 픽 × 블로거 콘텐츠 플라이휠</div>
+      <div class="section-title">시너지 — 3개 스윔레인이 연결되는 방식</div>
       <div class="flywheel-row">
         <div class="fw-node">
-          <div class="fn-icon">🏆</div>
-          <h4>매니아 픽<br>선정</h4>
-          <p>헤비유저가<br>가게 추천</p>
-        </div>
-        <div class="fw-arrow">→</div>
-        <div class="fw-node">
-          <div class="fn-icon">✍️</div>
-          <h4>블로거<br>실방문</h4>
-          <p>매니아 픽 가게<br>직접 검증</p>
-        </div>
-        <div class="fw-arrow">→</div>
-        <div class="fw-node">
-          <div class="fn-icon">📱</div>
-          <h4>콘텐츠<br>노출</h4>
-          <p>탐색 영역<br>특별 피처</p>
+          <div class="fn-icon">⏰</div>
+          <h4>컨텍스트<br>재주문</h4>
+          <p>지금 이 순간<br>맞는 가게 노출</p>
         </div>
         <div class="fw-arrow">→</div>
         <div class="fw-node">
           <div class="fn-icon">🛒</div>
-          <h4>주문<br>전환</h4>
-          <p>리뷰 → 바로<br>주문 연결</p>
+          <h4>주문 or<br>찜</h4>
+          <p>바로 주문하거나<br>찜으로 저장</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">🏆</div>
+          <h4>매니아 픽<br>큐레이션</h4>
+          <p>헤비유저가<br>신뢰 레이어 형성</p>
+        </div>
+        <div class="fw-arrow">→</div>
+        <div class="fw-node">
+          <div class="fn-icon">🔔</div>
+          <h4>찜 트리거<br>재등장</h4>
+          <p>변화 감지 →<br>홈에 재노출</p>
         </div>
         <div class="fw-arrow">→</div>
         <div class="fw-node" style="background: #fff5f8;">
           <div class="fn-icon">🔁</div>
-          <h4>헤비유저<br>동기 강화</h4>
-          <p>내 픽이 콘텐츠가 됨<br>→ 리뷰 작성 ↑</p>
+          <h4>재방문<br>루프</h4>
+          <p>앱 열 이유가<br>계속 생긴다</p>
         </div>
       </div>
-      <div style="margin-top: 8px; font-size: 10px; color: var(--text-tertiary); text-align: center;">매니아 픽 → 블로거 검증 → 탐색 큐 노출 → 주문 → 헤비유저 재참여의 자기강화 루프</div>
+      <div style="margin-top: 8px; font-size: 10px; color: var(--text-tertiary); text-align: center;">컨텍스트로 첫 노출 → 찜으로 저장 → 변화 트리거로 재방문 — 3개 레인이 하나의 루프를 만든다</div>
     </div>
 
     <hr class="divider">
@@ -709,13 +718,13 @@
         <div class="roadmap-card rm-card-p3">
           <div class="rm-head">
             <div class="rm-phase">Phase 3 · 풀 런칭</div>
-            스윔레인 ③ 블로거 픽 + 마감딜 고도화
+            스윔레인 ③ 찜 재방문 루프
           </div>
           <div class="rm-body">
-            <div class="rm-item">파워블로거 파트너십 계약 · 채널 연동</div>
-            <div class="rm-item">마감딜 자동 할인율 제안 기능 (사장님 앱)</div>
-            <div class="rm-item">컨텍스트 레인 내 마감딜 노출 비중 A/B</div>
-            <div class="rm-item" style="margin-top: 6px; color: var(--purple);">검증 지표: 블로거 픽 CVR · 마감딜 재고 소진율</div>
+            <div class="rm-item">찜 데이터 × 가게 변화 이벤트 연동 파이프라인</div>
+            <div class="rm-item">트리거 조건 정의 (할인·신메뉴·재오픈·리뷰급증)</div>
+            <div class="rm-item">홈 재노출 우선순위 알고리즘 설계</div>
+            <div class="rm-item" style="margin-top: 6px; color: var(--purple);">검증 지표: 찜 → 주문 전환율 · 재방문 주기 단축</div>
           </div>
         </div>
       </div>
@@ -738,7 +747,7 @@
         <div class="kpi-card">
           <div class="kpi-label">Secondary</div>
           <div class="kpi-value">AOV</div>
-          <div class="kpi-desc">매니아 픽 · 블로거 픽<br>경유 주문 평균 금액</div>
+          <div class="kpi-desc">매니아 픽 경유<br>주문 평균 금액</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Secondary</div>
@@ -750,7 +759,7 @@
 
     <!-- 핵심 논리 -->
     <div class="logic-banner">
-      <strong>핵심 논리:</strong> ATF(검색·배너)는 바꾸기 어렵다. BTF는 지금 당장 바꿀 수 있다. 재주문 UI를 컨텍스트 인식으로 바꾸면 습관이 생기고, 큐레이션 스윔레인은 별점 없이도 신뢰를 만든다. <strong>BTF 3개 스윔레인은 배민·쿠팡에 없는 홈화면 차별화 포인트</strong>다.
+      <strong>핵심 논리:</strong> ATF(검색·배너)는 바꾸기 어렵다. BTF는 지금 당장 바꿀 수 있다. 컨텍스트로 첫 노출을 만들고, 매니아 픽으로 신뢰를 만들고, 찜 트리거로 재방문을 만든다. <strong>3개 스윔레인이 하나의 재방문 루프를 형성한다.</strong>
     </div>
 
   </div>
