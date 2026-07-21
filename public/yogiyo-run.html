@@ -211,44 +211,65 @@ function getDifficultyTier() {
   return 4;                   // 전체 해금
 }
 
+function makeItem(lane, kind, obsType, bonusType) {
+  return {
+    lane, lane2: null,
+    x: playerX(lane), y: -40,
+    kind,
+    foodIdx:   kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
+    obsType:   obsType   || null,
+    bonusType: bonusType || null,
+    spd: baseSpeed * (0.85 + Math.random() * 0.3),
+    r: 22,
+  };
+}
+
 function spawn() {
   const tier = getDifficultyTier();
   const lane = Math.floor(Math.random() * LANE_COUNT);
 
-  // 단계별 확률
   const obsChance   = [0.05, 0.20, 0.35, 0.48, 0.58][tier];
   const bonusChance = [0,    0.05, 0.09, 0.13, 0.18][tier];
 
-  // 해금된 아이템 풀
   const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
   const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
 
   const rand = Math.random();
   let kind = 'food';
-  if (obsPool.length   > 0 && rand < obsChance)                      kind = 'obs';
-  else if (bonusPool.length > 0 && rand < obsChance + bonusChance)   kind = 'bonus';
+  if (obsPool.length   > 0 && rand < obsChance)                    kind = 'obs';
+  else if (bonusPool.length > 0 && rand < obsChance + bonusChance) kind = 'bonus';
 
   const obsType   = kind === 'obs'   ? obsPool[Math.floor(Math.random() * obsPool.length)] : null;
   const bonusType = kind === 'bonus' ? bonusPool[Math.floor(Math.random() * bonusPool.length)] : null;
 
-  // damage 장애물은 2칸 점유 — 레인 0~(LANE_COUNT-2) 중 선택
-  const wideLane  = obsType === 'damage' ? Math.floor(Math.random() * (LANE_COUNT - 1)) : lane;
-  const wideLane2 = obsType === 'damage' ? wideLane + 1 : null;
-  const spawnX    = obsType === 'damage'
-    ? (playerX(wideLane) + playerX(wideLane2)) / 2
-    : playerX(lane);
+  items.push(makeItem(lane, kind, obsType, bonusType));
+}
 
-  items.push({
-    lane:  obsType === 'damage' ? wideLane : lane,
-    lane2: wideLane2,
-    x: spawnX, y: -40,
-    kind,
-    foodIdx:  kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
-    obsType,
-    bonusType,
-    spd: baseSpeed * (0.85 + Math.random() * 0.3),
-    r: 22,
-  });
+// 벽 스폰: 연속 2~3칸을 damage 장애물로 막고 나머지는 통로
+function spawnWall() {
+  const tier = getDifficultyTier();
+  if (tier < 1) return; // tier 1 이상에서만 등장
+
+  // 벽 너비: tier 1→2칸, tier 2→2칸, tier 3+→3칸
+  const wallW = tier >= 3 ? 3 : 2;
+
+  // 통로 위치를 먼저 정하고 나머지를 막음
+  // 가능한 통로 수: LANE_COUNT - wallW
+  const openStart = Math.floor(Math.random() * (LANE_COUNT - wallW + 1));
+  const openLanes = new Set();
+  for (let i = openStart; i < openStart + (LANE_COUNT - wallW); i++) {
+    if (openLanes.size < LANE_COUNT - wallW) openLanes.add(i % LANE_COUNT);
+  }
+
+  // 막힌 레인에 damage 스폰 (같은 속도로 동시 진입)
+  const spd = baseSpeed * (0.9 + Math.random() * 0.2);
+  for (let l = 0; l < LANE_COUNT; l++) {
+    if (!openLanes.has(l)) {
+      const it = makeItem(l, 'obs', 'damage', null);
+      it.spd = spd; // 벽은 같은 속도로 정렬
+      items.push(it);
+    }
+  }
 }
 
 // ── 파티클 ────────────────────────────────────────
@@ -293,13 +314,19 @@ function update() {
   if (comboT > 0) comboT--;
   else combo = 0;
 
-  // 스폰
-  // 난이도별 스폰 주기 (프레임): 초반 여유 → 후반 빠름
+  // 일반 스폰
   const spawnRate = score < 500  ? 50 :
                     score < 1500 ? 38 :
                     score < 3000 ? 28 :
                     score < 5000 ? 20 : 14;
   if (frame % spawnRate === 0) spawn();
+
+  // 벽 스폰: 일정 주기로 연속 장애물 등장
+  const wallRate = score < 500  ? 0   :   // tier 0 없음
+                   score < 1500 ? 220 :
+                   score < 3000 ? 170 :
+                   score < 5000 ? 130 : 90;
+  if (wallRate > 0 && frame % wallRate === 0) spawnWall();
 
   // 아이템 업데이트
   items = items.filter(it => {
@@ -312,11 +339,10 @@ function update() {
       it.y += (P.y - it.y) * 0.04;
     }
 
-    const hitW = it.lane2 !== null ? LANE_W + 10 : 28;
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
 
-    if (dx < hitW && dy < 28 && (P.inv === 0 || it.kind !== 'obs')) {
+    if (dx < 28 && dy < 28 && (P.inv === 0 || it.kind !== 'obs')) {
       if (it.kind === 'obs') {
         if (it.obsType === 'damage') {
           lives--;
@@ -594,18 +620,7 @@ function drawItems() {
     const r = 26 * pulse;
 
     if (it.kind === 'obs') {
-      if (it.obsType === 'damage' && it.lane2 !== null) {
-        // 2칸 wide 장애물 — 너비 2 * LANE_W
-        const img = obsImgs['damage'];
-        if (img && img.complete && img.naturalWidth > 0) {
-          const wideW = LANE_W * 2 - 4;
-          const ratio = img.naturalHeight / img.naturalWidth;
-          const h = wideW * ratio;
-          cx.drawImage(img, it.x - wideW / 2, it.y - h / 2, wideW, h);
-        }
-      } else {
-        drawItemImg(obsImgs[it.obsType], it.x, it.y, r);
-      }
+      drawItemImg(obsImgs[it.obsType], it.x, it.y, r);
     } else if (it.kind === 'bonus') {
       const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
       cx.globalAlpha = glow;
