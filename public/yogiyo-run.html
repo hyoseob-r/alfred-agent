@@ -228,12 +228,24 @@ function spawn() {
   if (obsPool.length   > 0 && rand < obsChance)                      kind = 'obs';
   else if (bonusPool.length > 0 && rand < obsChance + bonusChance)   kind = 'bonus';
 
+  const obsType   = kind === 'obs'   ? obsPool[Math.floor(Math.random() * obsPool.length)] : null;
+  const bonusType = kind === 'bonus' ? bonusPool[Math.floor(Math.random() * bonusPool.length)] : null;
+
+  // damage 장애물은 2칸 점유 — 레인 0~(LANE_COUNT-2) 중 선택
+  const wideLane  = obsType === 'damage' ? Math.floor(Math.random() * (LANE_COUNT - 1)) : lane;
+  const wideLane2 = obsType === 'damage' ? wideLane + 1 : null;
+  const spawnX    = obsType === 'damage'
+    ? (playerX(wideLane) + playerX(wideLane2)) / 2
+    : playerX(lane);
+
   items.push({
-    lane, x: playerX(lane), y: -40,
+    lane:  obsType === 'damage' ? wideLane : lane,
+    lane2: wideLane2,
+    x: spawnX, y: -40,
     kind,
-    foodIdx:   kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
-    obsType:   kind === 'obs'   ? obsPool[Math.floor(Math.random() * obsPool.length)] : null,
-    bonusType: kind === 'bonus' ? bonusPool[Math.floor(Math.random() * bonusPool.length)] : null,
+    foodIdx:  kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
+    obsType,
+    bonusType,
     spd: baseSpeed * (0.85 + Math.random() * 0.3),
     r: 22,
   });
@@ -300,10 +312,11 @@ function update() {
       it.y += (P.y - it.y) * 0.04;
     }
 
+    const hitW = it.lane2 !== null ? LANE_W + 10 : 28;
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
 
-    if (dx < 28 && dy < 28 && (P.inv === 0 || it.kind !== 'obs')) {
+    if (dx < hitW && dy < 28 && (P.inv === 0 || it.kind !== 'obs')) {
       if (it.kind === 'obs') {
         if (it.obsType === 'damage') {
           lives--;
@@ -581,7 +594,18 @@ function drawItems() {
     const r = 26 * pulse;
 
     if (it.kind === 'obs') {
-      drawItemImg(obsImgs[it.obsType], it.x, it.y, r);
+      if (it.obsType === 'damage' && it.lane2 !== null) {
+        // 2칸 wide 장애물 — 너비 2 * LANE_W
+        const img = obsImgs['damage'];
+        if (img && img.complete && img.naturalWidth > 0) {
+          const wideW = LANE_W * 2 - 4;
+          const ratio = img.naturalHeight / img.naturalWidth;
+          const h = wideW * ratio;
+          cx.drawImage(img, it.x - wideW / 2, it.y - h / 2, wideW, h);
+        }
+      } else {
+        drawItemImg(obsImgs[it.obsType], it.x, it.y, r);
+      }
     } else if (it.kind === 'bonus') {
       const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
       cx.globalAlpha = glow;
