@@ -615,8 +615,71 @@
               </div>
             </div>
 
-            <div style="margin-top:10px; padding:8px 12px; background:var(--primary-25); border:1px solid var(--primary-100); border-radius:8px; font-size:10px; color:#7c001f; line-height:1.6;">
-              <strong>핵심:</strong> 바니프레소가 커피 단일 브랜드 앱으로 만든 "오늘도 아메리카노?" 경험을 요기요는 모든 카테고리에서 구현한다. 맥락이 맞을수록 클릭 없이 주문으로 간다.
+            <!-- 모닝커피 픽업 패턴 상세 -->
+            <div style="margin-top:14px; border:1.5px solid #f97316; border-radius:12px; overflow:hidden;">
+              <div style="background:#f97316; padding:7px 14px; font-size:10px; font-weight:800; color:white; letter-spacing:0.04em;">
+                📌 심층 케이스 — 모닝커피 픽업 패턴
+              </div>
+              <div style="padding:12px 14px; background:#fff8f3; display:flex; flex-direction:column; gap:10px;">
+
+                <div style="font-size:10px; color:var(--text-secondary); line-height:1.7;">
+                  <strong style="color:var(--text-primary);">시나리오</strong><br>
+                  평일 오전 8시, 강남구 오피스 방면으로 출근 중인 사용자. 지난 3주간 매주 화·목 오전 8~9시 사이 같은 카페에서 아메리카노를 픽업 주문했다.
+                </div>
+
+                <!-- 트리거 조건 -->
+                <div>
+                  <div style="font-size:9px; font-weight:700; color:#f97316; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.05em;">발동 조건 — 3가지 시그널 동시 충족 시</div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+                    <div style="background:white; border:1px solid #fed7aa; border-radius:8px; padding:8px 9px; font-size:9px; line-height:1.5; color:var(--text-secondary);">
+                      <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">⏰ 시간</div>
+                      평일 오전<br>7:30 ~ 9:30
+                    </div>
+                    <div style="background:white; border:1px solid #fed7aa; border-radius:8px; padding:8px 9px; font-size:9px; line-height:1.5; color:var(--text-secondary);">
+                      <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">📍 위치</div>
+                      집 → 직장<br>이동 경로 감지
+                    </div>
+                    <div style="background:white; border:1px solid #fed7aa; border-radius:8px; padding:8px 9px; font-size:9px; line-height:1.5; color:var(--text-secondary);">
+                      <div style="font-weight:700; color:#c2410c; margin-bottom:2px;">🔁 주기</div>
+                      동일 가게<br>2회 이상 반복
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 노출 UX -->
+                <div>
+                  <div style="font-size:9px; font-weight:700; color:#f97316; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.05em;">홈 노출 UX</div>
+                  <div style="background:white; border:1px solid #fed7aa; border-radius:8px; padding:10px 12px; font-size:9.5px; line-height:1.7; color:var(--text-secondary);">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                      <span style="font-size:20px;">☕</span>
+                      <div>
+                        <div style="font-weight:700; color:var(--text-primary); font-size:11px;">"오늘도 아메리카노 픽업할까요?"</div>
+                        <div style="font-size:9px; color:#aaa;">이디야커피 강남대로점 · 도보 4분 · 픽업 준비 5분</div>
+                      </div>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                      <div style="flex:1; background:#f97316; color:white; text-align:center; border-radius:6px; padding:5px 0; font-size:9px; font-weight:700;">바로 주문</div>
+                      <div style="flex:1; background:#f5f5f5; color:#555; text-align:center; border-radius:6px; padding:5px 0; font-size:9px; font-weight:600;">다른 메뉴 보기</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 배민과의 차이 -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                  <div style="background:#fff0f0; border:1px solid #fecaca; border-radius:8px; padding:8px 10px; font-size:9px; line-height:1.5; color:var(--text-secondary);">
+                    <div style="font-weight:700; color:#dc2626; margin-bottom:3px;">배민 현재</div>
+                    홈에 "최근 주문 가게" 리스트 나열. 시간·위치 맥락 없음. 아침에도 야식 가게가 뜬다.
+                  </div>
+                  <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:8px 10px; font-size:9px; line-height:1.5; color:var(--text-secondary);">
+                    <div style="font-weight:700; color:#16a34a; margin-bottom:3px;">요기요 모닝커피 픽업</div>
+                    지금 이 순간 맞는 가게 하나만 노출. 픽업 거리·대기시간까지 인라인 표시. 클릭 1번 주문.
+                  </div>
+                </div>
+
+                <div style="padding:7px 10px; background:var(--primary-25); border:1px solid var(--primary-100); border-radius:7px; font-size:9.5px; color:#7c001f; line-height:1.6;">
+                  <strong>핵심:</strong> 바니프레소가 커피 단일 브랜드 앱으로 구현한 "오늘도 아메리카노?" 경험을 요기요는 모든 카테고리·전 시간대에서 구현한다. 맥락이 맞을수록 클릭 없이 주문으로 간다.
+                </div>
+              </div>
             </div>
           </div>
         </div>
