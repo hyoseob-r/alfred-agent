@@ -616,8 +616,7 @@ function drawItemImg(img, x, y, r) {
 
 function drawItems() {
   items.forEach(it => {
-    const pulse = it.kind === 'obs' ? 1 + Math.sin(frame * 0.18) * 0.1 : 1;
-    const r = 26 * pulse;
+    const r = 26;
 
     if (it.kind === 'obs') {
       drawItemImg(obsImgs[it.obsType], it.x, it.y, r);
