@@ -530,10 +530,13 @@
             · 일일 퀘스트·7일 스트릭·공유 바이럴로 리텐션 설계
           </div>
           <div>
-            · 랭킹: <strong>자기중심 퍼센타일</strong> — 실제 타인과의 경쟁 없음<br>
+            · 랭킹: 자기중심 퍼센타일 (타인과 비교 없음)<br>
             · 광고: AdFit 배너 1개 (홈·게임·랭킹)<br>
             · 시즌제: Phase 3 계획 — 아직 미구현
           </div>
+        </div>
+        <div style="margin-top:10px; padding:8px 12px; background:#fef2f2; border-radius:8px; color:#991b1b; font-size:10px; line-height:1.6;">
+          <strong>핵심 문제 (개인 관찰):</strong> 한 번 플레이하고 나면 내일 또 열어야 할 이유가 없다. 퀘스트·스트릭 구조가 있어도 "지금 당장 해야 하는" 긴박감이나 베네핏이 느껴지지 않는다.
         </div>
       </div>
 
@@ -543,10 +546,10 @@
           <div style="background:var(--gray-100); padding:8px 14px; font-size:10px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.04em;">PLAYYO 현재</div>
           <div style="padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
             <div style="font-size:10px; line-height:1.6; color:var(--text-secondary);">
-              <span style="font-weight:700; color:var(--text-primary);">찾아가야 하는 게임, 혼자 하는 게임</span><br>
-              · 혜택탭 UV 자체가 낮아 접근성 부족<br>
-              · 랭킹은 퍼센타일 자기확인 — 경쟁 대상이 없음<br>
-              · 광고 배너 1개 — 인벤토리 확장 여지 큼
+              <span style="font-weight:700; color:var(--text-primary);">플레이를 이어가야 할 동기가 없다</span><br>
+              · 혜택탭 깊숙이 있어 접근 자체가 번거로움<br>
+              · 오늘 안 해도, 내일 안 해도 잃는 게 없음<br>
+              · 잘하든 못하든 내 결과만 보임 — 남과 비교 없음
             </div>
             <div style="background:#fef2f2; border-radius:7px; padding:7px 10px; font-size:9.5px; color:#991b1b;">
               콘텐츠는 있다. 다시 열 이유가 없다 — 개인 관찰
@@ -558,55 +561,18 @@
           <div style="background:#f97316; padding:8px 14px; font-size:10px; font-weight:700; color:white; text-transform:uppercase; letter-spacing:0.04em;">이 제안 — PLAYYO × 경쟁</div>
           <div style="padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
             <div style="font-size:10px; line-height:1.6; color:var(--text-secondary);">
-              <span style="font-weight:700; color:var(--text-primary);">경쟁을 붙이고, 앱 전면으로 끌어낸다</span><br>
-              · 구 단위 실시간 경쟁 랭킹 → 추월 알림 → 재방문<br>
-              · 배달 대기·홈·주문완료에서 직접 진입 (뎁스 제거)<br>
-              · Phase 3 시즌제를 지금 앞당겨서 구현<br>
-              · 광고 구좌를 배너 1개 → 앱 전반으로 확장
+              <span style="font-weight:700; color:var(--text-primary);">경쟁 레이어로 "계속 해야 할 이유"를 만든다</span><br>
+              · 구 단위 시즌 랭킹 → 추월 알림 → 오늘 안에 따라잡아야 함<br>
+              · 주문 완료 시 넛징으로 혜택탭 진입 유도<br>
+              · 게임은 혜택탭 안에서만 — 광고 노출 필수화
             </div>
             <div style="background:#fff7ed; border-radius:7px; padding:7px 10px; font-size:9.5px; color:#c2410c;">
-              경쟁이 돌아올 이유를 만들고, 그 트래픽이 광고 수익이 된다.
+              돌아올 이유가 생기면, 혜택탭 트래픽이 살아난다.
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 3가지 핵심 변화 -->
-      <div style="font-size:10px; font-weight:700; color:var(--text-tertiary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">3가지 핵심 변화</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:4px;">
-        <div style="background:white; border:1.5px solid #f97316; border-radius:10px; padding:12px 14px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
-          <div style="font-weight:700; color:#f97316; font-size:11px; margin-bottom:5px;">① 진입 뎁스 해소</div>
-          배달 대기·홈·주문완료에서 바로 진입. 찾아가는 게임 → 찾아오는 게임.
-        </div>
-        <div style="background:white; border:1.5px solid #f97316; border-radius:10px; padding:12px 14px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
-          <div style="font-weight:700; color:#f97316; font-size:11px; margin-bottom:5px;">② 경쟁 랭킹 추가</div>
-          퍼센타일 자기확인 → 구 단위 실시간 경쟁. 추월 알림이 재방문 훅.
-        </div>
-        <div style="background:white; border:1.5px solid #f97316; border-radius:10px; padding:12px 14px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
-          <div style="font-weight:700; color:#f97316; font-size:11px; margin-bottom:5px;">③ 광고 구좌 확장</div>
-          배너 1개 → 배달 대기·알림·홈 전반으로. 트래픽이 곧 인벤토리.
-        </div>
-      </div>
-
-      <!-- 경쟁 심리 3요소 -->
-      <div style="font-size:10px; font-weight:700; color:var(--text-tertiary); margin-top:12px; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">경쟁이 재방문을 만드는 3가지 심리</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
-        <div style="background:white; border:1px solid var(--gray-200); border-radius:10px; padding:10px 12px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
-          <div style="font-size:16px; margin-bottom:4px;">😤</div>
-          <div style="font-weight:700; color:var(--text-primary); margin-bottom:3px;">손실 회피</div>
-          "1위였는데 밀렸다" → 추월 알림 → 즉시 앱 재진입
-        </div>
-        <div style="background:white; border:1px solid var(--gray-200); border-radius:10px; padding:10px 12px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
-          <div style="font-size:16px; margin-bottom:4px;">🏅</div>
-          <div style="font-weight:700; color:var(--text-primary); margin-bottom:3px;">지위 욕구</div>
-          "우리 동네 1등" — 지역 정체성과 결합한 경쟁
-        </div>
-        <div style="background:white; border:1px solid var(--gray-200); border-radius:10px; padding:10px 12px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
-          <div style="font-size:16px; margin-bottom:4px;">🔁</div>
-          <div style="font-weight:700; color:var(--text-primary); margin-bottom:3px;">목표 근접 효과</div>
-          "3위까지 2점 차" — 가까울수록 더 하고 싶어진다
-        </div>
-      </div>
     </div>
 
     <!-- 게임 퀄리티 vs 경쟁 구조 -->
