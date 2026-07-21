@@ -517,55 +517,76 @@
       </div>
     </div>
 
-    <!-- 요기월드 현황 + 문제 정의 -->
+    <!-- PLAYYO 현황 + 문제 정의 -->
     <div>
-      <div class="section-title">요기월드가 이미 있다 — 그런데 왜 안 되고 있나</div>
+      <div class="section-title">PLAYYO가 이미 있다 — 그런데 왜 안 되고 있나</div>
+
+      <!-- PLAYYO 현황 팩트 -->
+      <div style="background:#f8fafc; border:1px solid var(--gray-200); border-radius:12px; padding:12px 16px; margin-bottom:14px; font-size:10px; line-height:1.8; color:var(--text-secondary);">
+        <div style="font-weight:700; color:var(--text-primary); margin-bottom:6px;">PLAYYO 현황 (v2.1 · 2026-05-12)</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            · 활성 게임 9종 (요기플립·요기2048·요도쿠·요기캐치·요기퀴즈·요기뱀·요기소트·요기파이프·요기팡)<br>
+            · <strong style="color:#dc2626;">요기런 비활성</strong> — "임팩트 부족" 사유로 꺼진 상태<br>
+            · 일일 퀘스트·7일 스트릭·공유 바이럴로 리텐션 설계
+          </div>
+          <div>
+            · 랭킹: <strong>자기중심 퍼센타일</strong> — 실제 타인과의 경쟁 없음<br>
+            · 광고: AdFit 320×50 sticky bottom <strong>배너 1개</strong>만 (홈·게임·랭킹)<br>
+            · 시즌제: Phase 3 (10만+ 도달 후) 계획 — 아직 미구현
+          </div>
+        </div>
+      </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
-        <!-- 현재 요기월드 -->
+        <!-- 현재 PLAYYO -->
         <div style="border:1.5px solid var(--gray-200); border-radius:12px; overflow:hidden;">
-          <div style="background:var(--gray-100); padding:8px 14px; font-size:10px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.04em;">요기월드 현재</div>
+          <div style="background:var(--gray-100); padding:8px 14px; font-size:10px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.04em;">PLAYYO 현재</div>
           <div style="padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
             <div style="font-size:10px; line-height:1.6; color:var(--text-secondary);">
-              <span style="font-weight:700; color:var(--text-primary);">혜택탭 → 요기월드 진입 (뎁스 2단계+)</span><br>
-              · 혜택탭 자체를 찾는 사람이 적다<br>
-              · 거기서 다시 요기월드를 찾아 들어가야 한다<br>
-              · 게임은 <strong>혼자 즐기는 구조</strong> — 다시 올 이유 없음<br>
-              · 경쟁 요소 없음 → 오늘 안 해도 그만
+              <span style="font-weight:700; color:var(--text-primary);">찾아가야 하는 게임, 혼자 하는 게임</span><br>
+              · 혜택탭 UV 자체가 낮아 접근성 부족<br>
+              · 랭킹은 퍼센타일 자기확인 — 경쟁 대상이 없음<br>
+              · 요기런 비활성 상태 (임팩트 부족 판정)<br>
+              · 광고 배너 1개 — 인벤토리 확장 여지 큼
             </div>
             <div style="background:#fef2f2; border-radius:7px; padding:7px 10px; font-size:9.5px; color:#991b1b;">
-              콘텐츠는 있는데 아무도 모른다. 알아도 다시 오지 않는다.
+              콘텐츠는 있다. 돌아올 이유가 없는 게 문제다.
             </div>
           </div>
         </div>
         <!-- 이 제안 -->
         <div style="border:1.5px solid #f97316; border-radius:12px; overflow:hidden;">
-          <div style="background:#f97316; padding:8px 14px; font-size:10px; font-weight:700; color:white; text-transform:uppercase; letter-spacing:0.04em;">이 제안 — 요기월드 + 경쟁</div>
+          <div style="background:#f97316; padding:8px 14px; font-size:10px; font-weight:700; color:white; text-transform:uppercase; letter-spacing:0.04em;">이 제안 — PLAYYO × 경쟁</div>
           <div style="padding:12px 14px; display:flex; flex-direction:column; gap:8px;">
             <div style="font-size:10px; line-height:1.6; color:var(--text-secondary);">
-              <span style="font-weight:700; color:var(--text-primary);">요기월드를 앱 전면으로 끌어낸다</span><br>
-              · 배달 대기 알림에서 게임 직접 진입<br>
-              · 홈·주문완료 화면에서도 게임 진입점 노출<br>
-              · 구 단위 <strong>경쟁 랭킹</strong> → 추월 알림 → 재방문<br>
-              · 게임 횟수 소진 → 광고 시청으로 충전
+              <span style="font-weight:700; color:var(--text-primary);">경쟁을 붙이고, 앱 전면으로 끌어낸다</span><br>
+              · 구 단위 실시간 경쟁 랭킹 → 추월 알림 → 재방문<br>
+              · 배달 대기·홈·주문완료에서 직접 진입 (뎁스 제거)<br>
+              · Phase 3 시즌제를 지금 앞당겨서 구현<br>
+              · 광고 구좌를 배너 1개 → 앱 전반으로 확장
             </div>
             <div style="background:#fff7ed; border-radius:7px; padding:7px 10px; font-size:9.5px; color:#c2410c;">
-              뎁스를 없애고, 경쟁을 붙인다. 요기월드가 살아난다.
+              경쟁이 돌아올 이유를 만들고, 그 트래픽이 광고 수익이 된다.
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 2가지 핵심 변화 -->
-      <div style="font-size:10px; font-weight:700; color:var(--text-tertiary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">2가지 핵심 변화</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px;">
+      <!-- 3가지 핵심 변화 -->
+      <div style="font-size:10px; font-weight:700; color:var(--text-tertiary); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">3가지 핵심 변화</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:4px;">
         <div style="background:white; border:1.5px solid #f97316; border-radius:10px; padding:12px 14px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
           <div style="font-weight:700; color:#f97316; font-size:11px; margin-bottom:5px;">① 진입 뎁스 해소</div>
-          혜택탭 → 요기월드 탐색 없이, <strong>배달 대기 알림·홈·주문 완료 화면</strong>에서 바로 게임 진입. 찾아가는 게임 → 찾아오는 게임.
+          배달 대기·홈·주문완료에서 바로 진입. 찾아가는 게임 → 찾아오는 게임.
         </div>
         <div style="background:white; border:1.5px solid #f97316; border-radius:10px; padding:12px 14px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
-          <div style="font-weight:700; color:#f97316; font-size:11px; margin-bottom:5px;">② 경쟁 요소 추가</div>
-          혼자 하는 게임 → <strong>구(區) 단위 실시간 랭킹</strong>. 추월 알림이 재방문 훅이 되고, 월간 리셋이 매달 새 동기를 만든다.
+          <div style="font-weight:700; color:#f97316; font-size:11px; margin-bottom:5px;">② 경쟁 랭킹 추가</div>
+          퍼센타일 자기확인 → 구 단위 실시간 경쟁. 추월 알림이 재방문 훅.
+        </div>
+        <div style="background:white; border:1.5px solid #f97316; border-radius:10px; padding:12px 14px; font-size:9.5px; line-height:1.6; color:var(--text-secondary);">
+          <div style="font-weight:700; color:#f97316; font-size:11px; margin-bottom:5px;">③ 광고 구좌 확장</div>
+          배너 1개 → 배달 대기·알림·홈 전반으로. 트래픽이 곧 인벤토리.
         </div>
       </div>
 
