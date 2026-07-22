@@ -1097,8 +1097,16 @@ function drawOver() {
   rrect(-110, -24, 220, 48, 24, COL.primary); btxt('다시 도전', 0, 0, 17, '#fff'); cx.restore();
 }
 
-// ── 메인 루프 ─────────────────────────────────────
-function loop() {
+// ── 메인 루프 (60fps 고정) ────────────────────────
+const TARGET_MS = 1000 / 60; // 16.67ms
+let lastTime = 0;
+
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = now - lastTime;
+  if (dt < TARGET_MS - 1) return; // 60fps 초과 프레임 스킵
+  lastTime = now - (dt % TARGET_MS); // drift 보정
+
   update();
   drawBG();
   drawItems();
@@ -1107,10 +1115,9 @@ function loop() {
   if (S === 'play')  { drawSpecialFX(); drawHUD(); drawUrgentMsg(); drawExtraTime(); }
   if (S === 'start') drawStart();
   if (S === 'over')  { drawHUD(); drawOver(); }
-  requestAnimationFrame(loop);
 }
 
-loop();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
