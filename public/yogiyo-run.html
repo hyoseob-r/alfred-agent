@@ -87,10 +87,11 @@ resize();
 window.addEventListener('resize', resize);
 
 // ── 상수 ──────────────────────────────────────────
-const PLAYER_Y     = 500;
 const PLAYER_SPEED = 4;    // 최대 속도 px/frame
 const PLAYER_ACCEL = 0.5;  // 가속도
 const PLAYER_FRIC  = 0.80; // 마찰
+const PLAYER_Y_MIN = 160;  // 세로 이동 상한
+const PLAYER_Y_MAX = 600;  // 세로 이동 하한
 const TIME_INIT    = 30 * 60;
 
 const OBS_TYPES   = ['damage', 'reverse', 'blind'];
@@ -112,8 +113,8 @@ let goldenSpawned = false; // 이번 게임에서 황금 물약 스폰 여부
 
 // ── 플레이어 ──────────────────────────────────────
 const P = {
-  x: W / 2, y: PLAYER_Y,
-  vx: 0,           // 수평 속도 (자유이동)
+  x: W / 2, y: 500,
+  vx: 0, vy: 0,    // 수평/수직 속도 (자유이동)
   inv: 0, shake: 0, bump: 0,
   dir: 0,           // 방향 (-1=left, 0=straight, 1=right) - 뱅킹 애니용
   reverseTimer: 0, blindTimer: 0,
@@ -123,7 +124,7 @@ const P = {
 
 // ── 입력 ──────────────────────────────────────────
 const keys = {};
-let touchX = null; // 현재 터치 X 위치
+let touchX = null, touchY = null; // 현재 터치 위치
 
 document.addEventListener('keydown', e => {
   keys[e.key] = true;
@@ -135,6 +136,7 @@ C.addEventListener('touchstart', e => {
   e.preventDefault();
   const rect = C.getBoundingClientRect();
   touchX = (e.touches[0].clientX - rect.left) * (W / rect.width);
+  touchY = (e.touches[0].clientY - rect.top)  * (H / rect.height);
   if (S !== 'play') startGame();
 }, { passive: false });
 
@@ -142,11 +144,12 @@ C.addEventListener('touchmove', e => {
   e.preventDefault();
   const rect = C.getBoundingClientRect();
   touchX = (e.touches[0].clientX - rect.left) * (W / rect.width);
+  touchY = (e.touches[0].clientY - rect.top)  * (H / rect.height);
 }, { passive: false });
 
 C.addEventListener('touchend', e => {
   e.preventDefault();
-  touchX = null;
+  touchX = null; touchY = null;
 }, { passive: false });
 
 C.addEventListener('click', () => { if (S !== 'play') startGame(); });
@@ -158,16 +161,19 @@ function processInput() {
   const speed = PLAYER_SPEED * (P.dashTimer > 0 ? 1.7 : 1);
 
   if (touchX !== null) {
-    // 터치: 화면 좌/우 기준으로 방향만 보고 찔끔 가속 (위치 추적 X)
-    const dir = touchX < W / 2 ? -1 : 1;
-    P.vx += dir * PLAYER_ACCEL;
+    // 터치: 좌/우 방향 (X), 위/아래 방향 (Y) — 찔끔 가속
+    const dirX = touchX < W / 2 ? -1 : 1;
+    P.vx += dirX * PLAYER_ACCEL;
     P.vx = Math.max(-speed, Math.min(speed, P.vx));
+
+    const dirY = touchY !== null ? (touchY < H / 2 ? -1 : 1) : 0;
+    P.vy += dirY * PLAYER_ACCEL;
+    P.vy = Math.max(-speed, Math.min(speed, P.vy));
   } else {
-    // 키보드: 가속 + 마찰
+    // 키보드: 가속 + 마찰 (수평)
     let dir = 0;
     if (keys['ArrowLeft']  || keys['a'] || keys['A']) dir = -1;
     if (keys['ArrowRight'] || keys['d'] || keys['D']) dir =  1;
-
     if (P.reverseTimer > 0) dir *= -1;
 
     if (dir !== 0) {
@@ -176,6 +182,20 @@ function processInput() {
     } else {
       P.vx *= PLAYER_FRIC;
       if (Math.abs(P.vx) < 0.15) P.vx = 0;
+    }
+
+    // 키보드: 수직
+    let dirY = 0;
+    if (keys['ArrowUp']   || keys['w'] || keys['W']) dirY = -1;
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) dirY =  1;
+    if (P.reverseTimer > 0) dirY *= -1;
+
+    if (dirY !== 0) {
+      P.vy += dirY * PLAYER_ACCEL;
+      P.vy = Math.max(-speed, Math.min(speed, P.vy));
+    } else {
+      P.vy *= PLAYER_FRIC;
+      if (Math.abs(P.vy) < 0.15) P.vy = 0;
     }
   }
 }
@@ -186,7 +206,7 @@ function startGame() {
   score = 0; lives = 3; frame = 0; timeLeft = TIME_INIT;
   baseSpeed = 4; combo = 0; comboT = 0;
   items = []; particles = []; popups = [];
-  P.x = W / 2; P.vx = 0;
+  P.x = W / 2; P.y = 500; P.vx = 0; P.vy = 0;
   P.inv = 0; P.shake = 0; P.bump = 0; P.dir = 0;
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
@@ -299,10 +319,12 @@ function update() {
     else { S = 'over'; if (score > hi) hi = score; return; }
   }
 
-  // 황금 물약 — 10초 남았을 때 1회만 스폰
+  // 황금 물약 — 10초 남았을 때 1회만 스폰 (느리게 내려옴)
   if (!goldenSpawned && timeLeft <= 600 && timeLeft > 0) {
     goldenSpawned = true;
-    items.push(makeItem(randX(), 'bonus', null, 'golden_time'));
+    const gt = makeItem(randX(), 'bonus', null, 'golden_time');
+    gt.spd = 1.5; // 천천히 내려오게
+    items.push(gt);
   }
 
   baseSpeed = Math.min(4 + score / 300, 10);
@@ -312,9 +334,12 @@ function update() {
   // 플레이어 위치 적용
   P.x += P.vx;
   P.x = Math.max(20, Math.min(W - 20, P.x));
+  P.y += P.vy;
+  P.y = Math.max(PLAYER_Y_MIN, Math.min(PLAYER_Y_MAX, P.y));
 
   // 벽에서 튕기기
   if (P.x <= 20 || P.x >= W - 20) P.vx *= -0.3;
+  if (P.y <= PLAYER_Y_MIN || P.y >= PLAYER_Y_MAX) P.vy *= -0.3;
 
   // 방향 뱅킹
   P.dir = P.vx > 1.2 ? 1 : P.vx < -1.2 ? -1 : 0;
@@ -348,7 +373,10 @@ function update() {
 
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
-    const hitR = it.kind === 'obs' && (it.spriteKey || '').startsWith('barrier') ? 38 : 26;
+    // 이미지 실제 크기 기준: 플레이어~18px + 아이템별 반지름
+    const hitR = it.kind === 'obs'
+      ? (it.obsType === 'damage' ? 42 : 36)
+      : it.kind === 'bonus' ? 38 : 36;
 
     if (dx < hitR && dy < hitR && (P.inv === 0 || it.kind !== 'obs')) {
       if (it.kind === 'obs') {
@@ -622,6 +650,14 @@ function drawItems() {
           cx.font=`${r}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('✨',it.x,it.y);
         }
         cx.shadowBlur = 0;
+        // "시간 추가!" 텍스트 배지
+        cx.save();
+        cx.fillStyle = 'rgba(245,196,0,0.92)';
+        cx.beginPath(); cx.roundRect(it.x - 28, it.y - r - 2, 56, 16, 5); cx.fill();
+        cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
+        cx.fillStyle = '#000'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText('시간 추가!', it.x, it.y - r + 6);
+        cx.restore();
       } else {
         const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
         cx.globalAlpha = glow;
