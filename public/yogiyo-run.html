@@ -252,6 +252,21 @@ function randX(margin = 30) {
   return margin + Math.random() * (W - margin * 2);
 }
 
+// 기존 아이템과 겹치는지 검사 (화면 상단 영역만 체크)
+function hasOverlap(x, y, minDist = 70) {
+  return items.some(it => {
+    const dx = it.x - x, dy = it.y - y;
+    return Math.sqrt(dx*dx + dy*dy) < minDist;
+  });
+}
+function safeX(margin = 40, minDist = 70, spawnY = -40) {
+  for (let i = 0; i < 8; i++) {
+    const x = randX(margin);
+    if (!hasOverlap(x, spawnY, minDist)) return x;
+  }
+  return randX(margin); // 8회 시도 후 포기
+}
+
 
 function makeItem(x, kind, obsType, bonusType) {
   // 음식 점수 배율 — 70%: ×1, 25%: ×2, 5%: ×3
@@ -278,42 +293,36 @@ function makeItem(x, kind, obsType, bonusType) {
 // 중앙 점수: 1,690 / 상위10%: 3,540
 function spawn() {
   const tier = getDifficultyTier();
-  const obsChance  = [0.04, 0.08, 0.16, 0.28, 0.40][tier];
-  const bonusChance = 0; // golden_time 별도 스폰
-
-  const obsPool   = OBS_TYPES;
-  const bonusPool = [];
-
-  // 음식 확률
-  const foodChance = [0.80, 0.72, 0.64, 0.56, 0.50][tier];
+  // 속도 변경 없이 수만 줄임 — 스폰 간격과 확률 모두 낮춤
+  const obsChance  = [0.025, 0.045, 0.08, 0.13, 0.18][tier];
+  const foodChance = [0.55,  0.50,  0.45, 0.40, 0.35][tier];
 
   const rand = Math.random();
   let kind = null;
-  if (obsPool.length > 0 && rand < obsChance)                              kind = 'obs';
-  else if (bonusPool.length > 0 && rand < obsChance + bonusChance)         kind = 'bonus';
-  else if (rand < obsChance + bonusChance + foodChance)                    kind = 'food';
+  if (rand < obsChance)                  kind = 'obs';
+  else if (rand < obsChance + foodChance) kind = 'food';
   if (!kind) return;
 
-  const obsType   = kind === 'obs'   ? obsPool[Math.floor(Math.random() * obsPool.length)] : null;
-  const bonusType = kind === 'bonus' ? bonusPool[Math.floor(Math.random() * bonusPool.length)] : null;
-
-  items.push(makeItem(randX(), kind, obsType, bonusType));
+  const x = safeX(40, 65);
+  items.push(makeItem(x, kind, kind === 'obs' ? 'damage' : null, null));
 }
 
-// 장애물 2개 페어 스폰 — 한쪽에 몰아서 압박감만 줌
+// 장애물 페어 스폰 — 25초 이후, 매우 드물게
 function spawnPair() {
   const tier = getDifficultyTier();
-  if (tier < 2) return; // 25초 이후부터
+  if (tier < 2) return;
   const spd = baseSpeed * (0.9 + Math.random() * 0.2);
-  // 왼쪽 또는 오른쪽 구역에 2개, 반대편은 비워둠
-  const side = Math.random() < 0.5 ? 0 : 1; // 0=왼쪽 구역, 1=오른쪽
-  const base = side === 0 ? 40 : W - 40;
-  const spread = 60;
+  const side = Math.random() < 0.5 ? 0 : 1;
+  const base = side === 0 ? 55 : W - 55;
+  const spread = 55;
+  let placed = 0;
   for (let i = 0; i < 2; i++) {
     const x = base + (i === 0 ? -spread * 0.3 : spread * 0.3) * (side === 0 ? 1 : -1);
+    if (hasOverlap(x, -40, 65)) continue;
     const it = makeItem(x, 'obs', 'damage', null);
     it.spd = spd;
     items.push(it);
+    placed++;
   }
 }
 
@@ -331,8 +340,8 @@ function popup(x, y, t, col) {
 
 // ── 업데이트 ──────────────────────────────────────
 function update() {
+  frame++; // start/over 화면 애니메이션용으로 항상 증가
   if (S !== 'play') return;
-  frame++;
 
   // EXTRA TIME 연출 카운트다운
   if (extraTimeAnim > 0) extraTimeAnim--;
@@ -363,7 +372,7 @@ function update() {
   // 황금 물약 — 10초 남았을 때 1회만 스폰 (느리게 내려옴)
   if (!goldenSpawned && timeLeft <= 600 && timeLeft > 0) {
     goldenSpawned = true;
-    const gt = makeItem(randX(), 'bonus', null, 'golden_time');
+    const gt = makeItem(safeX(50, 60), 'bonus', null, 'golden_time');
     gt.spd = 1.5; // 천천히 내려오게
     items.push(gt);
   }
@@ -372,7 +381,7 @@ function update() {
   if (!invincibleOnScreen && frame >= 1500 && P.invincibleTimer === 0) {
     const chance = lives === 1 ? 0.0025 : 0.0007; // 라이프1: ~6초마다 / 정상: ~24초마다
     if (Math.random() < chance) {
-      const it = makeItem(randX(70), 'bonus', null, 'invincible');
+      const it = makeItem(safeX(70, 80), 'bonus', null, 'invincible');
       it.spd      = 1.0;          // 느린 하강
       it.baseX    = it.x;         // 살랑살랑 기준 X
       it.animFrame = 0;           // 날개 애니 카운터
@@ -413,11 +422,11 @@ function update() {
 
   // 스폰 간격도 시간 기반
   const tier = getDifficultyTier();
-  const spawnRate = [58, 50, 40, 30, 22][tier];
+  const spawnRate = [85, 72, 58, 45, 33][tier]; // 속도 대신 수를 줄임
   if (frame % spawnRate === 0) spawn();
 
-  // 페어 스폰: 25초(tier2)부터, 드물게
-  const pairRate = [0, 0, 420, 320, 240][tier];
+  // 페어 스폰: 25초(tier2)부터, 아주 드물게
+  const pairRate = [0, 0, 700, 560, 420][tier];
   if (pairRate > 0 && frame % pairRate === 0) spawnPair();
 
   items = items.filter(it => {
@@ -432,26 +441,38 @@ function update() {
 
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
-    // 이미지 실제 크기 기준: 플레이어~18px + 아이템별 반지름
+    // 캐릭터 72px 기준 충돌 반지름
     const hitR = it.kind === 'obs'
-      ? (it.obsType === 'damage' ? 42 : 36)
-      : it.kind === 'bonus' ? 38 : 36;
+      ? (it.obsType === 'damage' ? 55 : 48)
+      : it.kind === 'bonus' ? 50 : 46;
 
-    // 무적 중 장애물 — 가장 먼저 체크, 데미지 없이 제거
-    if (it.kind === 'obs' && P.invincibleTimer > 0 && dx < hitR && dy < hitR) {
-      burst(it.x, it.y, '#ffffff88', 8);
-      return false;
+    const colliding = dx < hitR && dy < hitR;
+    if (!colliding) {
+      const alive = it.y < H + 60;
+      if (!alive && it.bonusType === 'invincible') invincibleOnScreen = false;
+      return alive;
     }
 
-    if (dx < hitR && dy < hitR && (P.inv === 0 || it.kind !== 'obs')) {
-      if (it.kind === 'obs') {
-        lives--;
-        P.inv = 80; P.shake = 18; P.bump = 10;
-        burst(it.x, it.y, COL.primary, 12);
-        popup(P.x, P.y - 40, '💀 −1 LIFE', COL.primary);
-        if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
+    // ── 충돌 처리 ───────────────────────────────
+    if (it.kind === 'obs') {
+      if (P.invincibleTimer > 0) {
+        // 무적 상태 — 장애물 파괴, 데미지 없음
+        burst(it.x, it.y, '#ffffff', 10);
+        burst(it.x, it.y, '#ffd700', 6);
         return false;
-      } else if (it.kind === 'bonus') {
+      }
+      if (P.inv > 0) {
+        // 데미지 무적(피격 후 80프레임) — 통과
+        return it.y < H + 60;
+      }
+      // 데미지
+      lives--;
+      P.inv = 80; P.shake = 18; P.bump = 10;
+      burst(it.x, it.y, COL.primary, 12);
+      popup(P.x, P.y - 40, '💀 −1 LIFE', COL.primary);
+      if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
+      return false;
+    } else if (it.kind === 'bonus') {
         if (it.bonusType === 'invincible') {
           P.invincibleTimer = 300; // 5초 무적
           invincibleOnScreen = false;
@@ -514,9 +535,7 @@ function update() {
         return false;
       }
     }
-    const alive = it.y < H + 60;
-    if (!alive && it.bonusType === 'invincible') invincibleOnScreen = false;
-    return alive;
+    return false; // unreachable but safe fallback
   });
 
   particles = particles.filter(p => {
@@ -707,22 +726,22 @@ function drawPlayer() {
   const px = P.x + sx, py = P.y + sy;
 
   cx.globalAlpha = 0.18; cx.fillStyle = '#000';
-  cx.beginPath(); cx.ellipse(px, py + 28, 20, 7, 0, 0, Math.PI * 2); cx.fill();
+  cx.beginPath(); cx.ellipse(px, py + 44, 36, 12, 0, 0, Math.PI * 2); cx.fill();
   cx.globalAlpha = 1;
 
   // 이동 잔상 (vx 기반)
   const speed = Math.abs(P.vx);
   if (speed > 1) {
-    drawJori(px - P.vx * 1.2, py + 5, 26, 0.15 + speed * 0.02, P.dir);
-    drawJori(px - P.vx * 2.4, py + 8, 18, 0.06 + speed * 0.01, P.dir);
+    drawJori(px - P.vx * 1.2, py + 5, 52, 0.15 + speed * 0.02, P.dir);
+    drawJori(px - P.vx * 2.4, py + 8, 36, 0.06 + speed * 0.01, P.dir);
   }
 
-  drawJori(px, py, 36, 1, P.dir);
+  drawJori(px, py, 72, 1, P.dir);
 
   if (P.inv > 0) {
     cx.strokeStyle = `rgba(250,0,80,${P.inv / 80 * 0.8})`;
     cx.lineWidth = 2.5;
-    cx.beginPath(); cx.arc(px, py, 32, 0, Math.PI * 2); cx.stroke();
+    cx.beginPath(); cx.arc(px, py, 50, 0, Math.PI * 2); cx.stroke();
   }
 
   // 무적 상태 — 금색 오라 + 빠른 깜빡임
@@ -734,12 +753,12 @@ function drawPlayer() {
     cx.lineWidth = 3;
     cx.shadowColor = '#ffd700';
     cx.shadowBlur  = 16 + Math.sin(frame * 0.4) * 8;
-    cx.beginPath(); cx.arc(px, py, 40, 0, Math.PI * 2); cx.stroke();
+    cx.beginPath(); cx.arc(px, py, 62, 0, Math.PI * 2); cx.stroke();
     // 남은 시간에 따라 링 2개
     if (P.invincibleTimer > 60) {
       cx.strokeStyle = `rgba(255,255,200,${auraA * 0.5})`;
       cx.lineWidth = 1.5;
-      cx.beginPath(); cx.arc(px, py, 52, 0, Math.PI * 2); cx.stroke();
+      cx.beginPath(); cx.arc(px, py, 78, 0, Math.PI * 2); cx.stroke();
     }
     cx.restore();
     cx.globalAlpha = 1;
@@ -750,7 +769,7 @@ function drawPlayer() {
   // 콤보 타이머 링 — 3초 안에 먹어야 콤보 유지
   if (combo > 0 && comboT > 0) {
     const timerPct = comboT / COMBO_TIMER;
-    const ringR = 44;
+    const ringR = 68;
     const tierInfo = COMBO_TIERS.slice().reverse().find(t => combo >= t.at);
     const ringCol = timerPct > 0.5 ? (tierInfo ? tierInfo.col : '#ffffff')
                   : timerPct > 0.25 ? '#ff9900' : '#ff2200';
@@ -1041,7 +1060,6 @@ function drawOver() {
 
 // ── 메인 루프 ─────────────────────────────────────
 function loop() {
-  frame++;
   update();
   drawBG();
   drawItems();
