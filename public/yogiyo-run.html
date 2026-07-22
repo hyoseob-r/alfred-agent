@@ -81,9 +81,9 @@ window.addEventListener('resize', resize);
 
 // ── 상수 ──────────────────────────────────────────
 const PLAYER_Y     = 500;
-const PLAYER_SPEED = 7;    // 최대 속도 px/frame
-const PLAYER_ACCEL = 1.8;  // 가속도
-const PLAYER_FRIC  = 0.78; // 마찰 (낮을수록 빠르게 멈춤)
+const PLAYER_SPEED = 5;    // 최대 속도 px/frame
+const PLAYER_ACCEL = 0.7;  // 가속도
+const PLAYER_FRIC  = 0.82; // 마찰
 const TIME_INIT    = 30 * 60;
 
 const OBS_TYPES   = ['damage', 'reverse', 'blind'];
@@ -149,10 +149,10 @@ function processInput() {
   const speed = PLAYER_SPEED * (P.dashTimer > 0 ? 1.7 : 1);
 
   if (touchX !== null) {
-    // 터치: 손가락 위치로 스르르 따라가기
-    const diff = touchX - P.x;
-    const pull = diff * 0.18;
-    P.vx = Math.max(-speed, Math.min(speed, pull));
+    // 터치: 화면 좌/우 기준으로 방향만 보고 찔끔 가속 (위치 추적 X)
+    const dir = touchX < W / 2 ? -1 : 1;
+    P.vx += dir * PLAYER_ACCEL;
+    P.vx = Math.max(-speed, Math.min(speed, P.vx));
   } else {
     // 키보드: 가속 + 마찰
     let dir = 0;
