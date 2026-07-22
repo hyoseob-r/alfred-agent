@@ -285,7 +285,7 @@ function makeItem(x, kind, obsType, bonusType) {
     foodMult,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
-    spd: kind === 'food' ? 1.8 + Math.random() * 0.4 : baseSpeed * (0.65 + Math.random() * 0.2),
+    spd: kind === 'food' ? 1.8 + Math.random() * 0.4 : baseSpeed * (0.38 + Math.random() * 0.12),
     r: 22,
   };
 }
@@ -316,7 +316,7 @@ function spawn() {
 function spawnPair() {
   const tier = getDifficultyTier();
   if (tier < 2) return;
-  const spd = baseSpeed * (0.65 + Math.random() * 0.2);
+  const spd = baseSpeed * (0.38 + Math.random() * 0.12);
   const side = Math.random() < 0.5 ? 0 : 1;
   const base = side === 0 ? 55 : W - 55;
   const spread = 55;
