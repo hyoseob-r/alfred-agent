@@ -1010,15 +1010,14 @@ function drawStart() {
   // 타이틀 이미지 (둥실둥실)
   const floatY = Math.sin(frame * 0.04) * 8;
   if (titleImg.complete && titleImg.naturalWidth > 0) {
-    const imgW = Math.min(460, W * 0.88);
+    const imgW = Math.min(380, W * 0.78);
     const imgH = imgW * (titleImg.naturalHeight / titleImg.naturalWidth);
-    cx.drawImage(titleImg, W/2 - imgW/2, 120 + floatY, imgW, imgH);
+    cx.drawImage(titleImg, W/2 - imgW/2, 80 + floatY, imgW, imgH);
   } else {
     cx.shadowColor = COL.primary; cx.shadowBlur = 24;
     btxt('Run Jory Run', W/2, 200, 38, COL.white);
     cx.shadowBlur = 0;
   }
-  txt('시즌 챌린지', W/2, 245, 13, 'rgba(255,255,255,0.4)');
 
   // 조리 — 하단, 달릴 준비 (좌우 발 번갈아 + 위아래 바운스)
   const bounce = Math.abs(Math.sin(frame * 0.12)) * 10;
