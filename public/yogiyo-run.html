@@ -285,7 +285,7 @@ function makeItem(x, kind, obsType, bonusType) {
     foodMult,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
-    spd: kind === 'food' ? 1.8 + Math.random() * 0.4 : baseSpeed * (0.85 + Math.random() * 0.3),
+    spd: kind === 'food' ? 1.8 + Math.random() * 0.4 : baseSpeed * (0.65 + Math.random() * 0.2),
     r: 22,
   };
 }
@@ -299,9 +299,8 @@ function makeItem(x, kind, obsType, bonusType) {
 // 중앙 점수: 1,690 / 상위10%: 3,540
 function spawn() {
   const tier = getDifficultyTier();
-  // 속도 변경 없이 수만 줄임 — 스폰 간격과 확률 모두 낮춤
-  const obsChance  = [0.025, 0.045, 0.08, 0.13, 0.18][tier];
-  const foodChance = [0.55,  0.50,  0.45, 0.40, 0.35][tier];
+  const obsChance  = [0.07, 0.12, 0.18, 0.25, 0.32][tier]; // 초반도 장애물 적절히
+  const foodChance = [0.80, 0.72, 0.64, 0.56, 0.48][tier]; // 음식 더 자주
 
   const rand = Math.random();
   let kind = null;
@@ -317,7 +316,7 @@ function spawn() {
 function spawnPair() {
   const tier = getDifficultyTier();
   if (tier < 2) return;
-  const spd = baseSpeed * (0.9 + Math.random() * 0.2);
+  const spd = baseSpeed * (0.65 + Math.random() * 0.2);
   const side = Math.random() < 0.5 ? 0 : 1;
   const base = side === 0 ? 55 : W - 55;
   const spread = 55;
@@ -439,7 +438,7 @@ function update() {
 
   // 스폰 간격도 시간 기반
   const tier = getDifficultyTier();
-  const spawnRate = [85, 72, 58, 45, 33][tier]; // 속도 대신 수를 줄임
+  const spawnRate = [55, 46, 38, 30, 24][tier];
   if (frame % spawnRate === 0) spawn();
 
   // 페어 스폰: 25초(tier2)부터, 아주 드물게
