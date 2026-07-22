@@ -179,7 +179,7 @@ C.addEventListener('click', () => { if (S !== 'play') startGame(); });
 function processInput() {
   if (S !== 'play') return;
 
-  const speed = PLAYER_SPEED * (P.dashTimer > 0 ? 1.7 : 1);
+  const speed = PLAYER_SPEED * (P.dashTimer > 0 ? 1.7 : 1) * (P.invincibleTimer > 0 ? 2 : 1);
 
   if (touchX !== null) {
     // 터치: 좌/우 방향 (X), 위/아래 방향 (Y) — 찔끔 가속
@@ -431,7 +431,7 @@ function update() {
   if (pairRate > 0 && frame % pairRate === 0) spawnPair();
 
   items = items.filter(it => {
-    const spd = P.slowTimer > 0 ? it.spd * 0.4 : it.spd;
+    const spd = P.invincibleTimer > 0 ? it.spd * 2 : (P.slowTimer > 0 ? it.spd * 0.4 : it.spd);
     it.y += spd;
 
     // 무적 포션: 좌우 살랑살랑 이동 + 날개 애니 카운터 증가
@@ -479,9 +479,9 @@ function update() {
           invincibleOnScreen = false;
           burst(it.x, it.y, '#fff', 20);
           burst(it.x, it.y, '#ffd700', 16);
-          urgentMsg = { text: '✨ INVINCIBLE! ✨', col: '#fff', life: 100, maxLife: 100 };
+          urgentMsg = { text: '⚡ SUPER JORY! ×2 SPEED ⚡', col: '#ffd700', life: 120, maxLife: 120 };
           lastUrgentSec = -99;
-          popup(P.x, P.y - 50, '🛡 무적 5초!', '#ffd700');
+          popup(P.x, P.y - 50, '⚡ SUPER JORY 12s!', '#ffd700');
         } else if (it.bonusType === 'golden_time') {
           timeLeft += 30 * 60; // +30초
           goldenSpawned = false;
@@ -598,7 +598,7 @@ function drawBG() {
   if (bgReady) {
     const scale = W / bgImg.width;
     const bh = bgImg.height * scale;
-    if (S === 'play') { bgY += baseSpeed * 0.6; if (bgY >= bh) bgY -= bh; }
+    if (S === 'play') { bgY += baseSpeed * 0.6 * (P.invincibleTimer > 0 ? 2 : 1); if (bgY >= bh) bgY -= bh; }
     const startY = bgY - bh;
     for (let i = 0; i < 3; i++) cx.drawImage(bgImg, 0, startY + bh * i, W, bh);
   }
@@ -829,11 +829,11 @@ function drawItems() {
         cx.shadowBlur = 0;
         // "무적!" 배지
         cx.save();
-        cx.fillStyle = 'rgba(255,215,0,0.92)';
-        cx.beginPath(); cx.roundRect(it.x - 20, it.y - r - 2, 40, 16, 5); cx.fill();
+        cx.fillStyle = 'rgba(255,215,0,0.95)';
+        cx.beginPath(); cx.roundRect(it.x - 32, it.y - r - 2, 64, 16, 5); cx.fill();
         cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
         cx.fillStyle = '#000'; cx.textAlign='center'; cx.textBaseline='middle';
-        cx.fillText('무적!', it.x, it.y - r + 6);
+        cx.fillText('SUPER JORY', it.x, it.y - r + 6);
         cx.restore();
       } else if (it.bonusType === 'golden_time') {
         // glow만 켜졌다 꺼졌다 — 이미지 크기는 고정 (음식과 동일)
