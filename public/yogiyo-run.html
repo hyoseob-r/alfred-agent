@@ -33,14 +33,13 @@ const foodImgs = Array.from({length: 16}, (_, i) => {
 const bonusImgs = {
   magnet: new Image(), slow: new Image(),
   fever:  new Image(), dash: new Image(),
-  time:   new Image(), golden_time: new Image(),
+  golden_time: new Image(),
 };
-bonusImgs.magnet.src      = 'bonus_heart.png';    // KEY TO HEART → 자석
-bonusImgs.slow.src        = 'bonus_mist.png';     // MIASMA MIST → 슬로우
-bonusImgs.fever.src       = 'bonus_grain.png';    // GRAIN ESSENCE → 점수 2배
-bonusImgs.dash.src        = 'bonus_chili.png';    // SPICY HEAT → 초고속
-bonusImgs.time.src        = 'clock.png';          // 시계 (제공 예정)
-bonusImgs.golden_time.src = 'bonus_golden_time.png';
+bonusImgs.magnet.src      = 'bonus_heart.png';      // KEY TO HEART → 자석
+bonusImgs.slow.src        = 'bonus_mist.png';       // MIASMA MIST → 슬로우
+bonusImgs.fever.src       = 'bonus_grain.png';      // GRAIN ESSENCE → 점수 2배
+bonusImgs.dash.src        = 'bonus_chili.png';      // SPICY HEAT → 초고속
+bonusImgs.golden_time.src = 'bonus_golden_time.png'; // 황금 물약 → 시간 원복
 
 // 장애물 디버프 이미지 (reverse/blind용 포션)
 const debuffImgs = {
@@ -95,8 +94,8 @@ const PLAYER_FRIC  = 0.82; // 마찰
 const TIME_INIT    = 30 * 60;
 
 const OBS_TYPES   = ['damage', 'reverse', 'blind'];
-const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash', 'time'];
-// golden_time은 별도 희귀 스폰으로 관리 (BONUS_TYPES 풀 외)
+const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash'];
+// golden_time은 별도 희귀 스폰으로 관리 (10초 남을 때 1회)
 
 const COL = {
   bg: '#0a0e1a', primary: '#fa0050', gold: '#f5c400',
@@ -220,13 +219,19 @@ function makeItem(x, kind, obsType, bonusType) {
   };
 }
 
+// 난이도 시뮬레이션 기준 (장애물/초 = obsChance * 60 / spawnRate):
+// tier 0: 0.03 * 60/55 = 0.03/s  (거의 없음, 조작 익히는 구간)
+// tier 1: 0.10 * 60/45 = 0.13/s  (슬슬 시작)
+// tier 2: 0.20 * 60/32 = 0.38/s  (중간)
+// tier 3: 0.32 * 60/22 = 0.87/s  (빠듯함)
+// tier 4: 0.44 * 60/15 = 1.76/s  (고난이도)
 function spawn() {
   const tier = getDifficultyTier();
-  const obsChance   = [0.05, 0.20, 0.35, 0.48, 0.58][tier];
-  const bonusChance = [0,    0.05, 0.09, 0.13, 0.18][tier];
+  const obsChance   = [0.03, 0.10, 0.20, 0.32, 0.44][tier];
+  const bonusChance = [0,    0.05, 0.09, 0.13, 0.16][tier];
 
   const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
-  const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 5][tier]);
+  const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
 
   const rand = Math.random();
   let kind = 'food';
@@ -316,7 +321,7 @@ function update() {
   if (P.dashTimer    > 0) P.dashTimer--;
   if (comboT > 0) comboT--; else combo = 0;
 
-  const spawnRate = score < 500 ? 50 : score < 1500 ? 38 : score < 3000 ? 28 : score < 5000 ? 20 : 14;
+  const spawnRate = score < 500 ? 55 : score < 1500 ? 45 : score < 3000 ? 32 : score < 5000 ? 22 : 15;
   if (frame % spawnRate === 0) spawn();
 
   const wallRate = score < 500 ? 0 : score < 1500 ? 220 : score < 3000 ? 170 : score < 5000 ? 130 : 90;
@@ -367,10 +372,6 @@ function update() {
         } else if (it.bonusType === 'dash') {
           P.dashTimer = 300; burst(it.x, it.y, '#f97316', 10);
           popup(P.x, P.y - 40, '🌶 초고속!', '#f97316');
-        } else if (it.bonusType === 'time') {
-          timeLeft = Math.min(timeLeft + 10 * 60, TIME_INIT * 1.5);
-          burst(it.x, it.y, COL.time, 12);
-          popup(P.x, P.y - 40, '⏰ +10초!', COL.time);
         } else if (it.bonusType === 'golden_time') {
           timeLeft = TIME_INIT; // 시간 100% 원복
           goldenSpawned = false; // 다음 위기 때 또 스폰 가능
@@ -613,12 +614,7 @@ function drawItems() {
       } else {
         const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
         cx.globalAlpha = glow;
-        if (it.bonusType === 'time') {
-          if (bonusImgs.time.complete && bonusImgs.time.naturalWidth > 0) drawItemImg(bonusImgs.time, it.x, it.y, r*1.1);
-          else { cx.font=`${r*1.2}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('⏰',it.x,it.y); }
-        } else {
-          drawItemImg(bonusImgs[it.bonusType], it.x, it.y, r*1.1);
-        }
+        drawItemImg(bonusImgs[it.bonusType], it.x, it.y, r*1.1);
         cx.globalAlpha = 1;
       }
     } else {
