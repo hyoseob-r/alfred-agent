@@ -89,9 +89,9 @@ resize();
 window.addEventListener('resize', resize);
 
 // ── 상수 ──────────────────────────────────────────
-const PLAYER_SPEED = 2.7;  // 최대 속도 px/frame (2/3 감소)
-const PLAYER_ACCEL = 0.33; // 가속도 (2/3 감소)
-const PLAYER_FRIC  = 0.80; // 마찰
+const PLAYER_SPEED = 3.6;  // 최대 속도 px/frame
+const PLAYER_ACCEL = 3.6; // 가속도 (이징 없음 — 즉시 최대속도)
+const PLAYER_FRIC  = 0.0; // 마찰 없음 (즉시 정지)
 const PLAYER_Y_MIN = 160;  // 세로 이동 상한
 const PLAYER_Y_MAX = 600;  // 세로 이동 하한
 const TIME_INIT    = 60 * 60; // 1분
@@ -202,13 +202,7 @@ function processInput() {
     if (keys['ArrowRight'] || keys['d'] || keys['D']) dir =  1;
     if (P.reverseTimer > 0) dir *= -1;
 
-    if (dir !== 0) {
-      P.vx += dir * PLAYER_ACCEL;
-      P.vx = Math.max(-speed, Math.min(speed, P.vx));
-    } else {
-      P.vx *= PLAYER_FRIC;
-      if (Math.abs(P.vx) < 0.15) P.vx = 0;
-    }
+    P.vx = dir !== 0 ? dir * speed : 0;
 
     // 키보드: 수직
     let dirY = 0;
@@ -216,13 +210,7 @@ function processInput() {
     if (keys['ArrowDown'] || keys['s'] || keys['S']) dirY =  1;
     if (P.reverseTimer > 0) dirY *= -1;
 
-    if (dirY !== 0) {
-      P.vy += dirY * PLAYER_ACCEL;
-      P.vy = Math.max(-speed, Math.min(speed, P.vy));
-    } else {
-      P.vy *= PLAYER_FRIC;
-      if (Math.abs(P.vy) < 0.15) P.vy = 0;
-    }
+    P.vy = dirY !== 0 ? dirY * speed : 0;
   }
 }
 
@@ -773,10 +761,12 @@ function drawPlayer() {
     cx.beginPath(); cx.arc(px, py, 50, 0, Math.PI * 2); cx.stroke();
   }
 
-  // 무적 상태 — 금색 링 (shadowBlur 제거)
+  // 무적 상태 — 금색 링 + glow
   if (P.invincibleTimer > 0) {
     const blink = Math.floor(P.invincibleTimer / 4) % 2 === 0;
     const auraA = 0.5 + Math.sin(frame * 0.3) * 0.2;
+    cx.shadowColor = '#ffd700';
+    cx.shadowBlur = 18 + Math.sin(frame * 0.3) * 6;
     cx.strokeStyle = `rgba(255,215,0,${auraA})`;
     cx.lineWidth = 3;
     cx.beginPath(); cx.arc(px, py, 62, 0, Math.PI * 2); cx.stroke();
@@ -785,15 +775,19 @@ function drawPlayer() {
       cx.lineWidth = 1.5;
       cx.beginPath(); cx.arc(px, py, 78, 0, Math.PI * 2); cx.stroke();
     }
+    cx.shadowBlur = 0;
     cx.globalAlpha = 1;
     if (P.invincibleTimer < 180 && blink) cx.globalAlpha = 0.4;
   }
 
-  // 자석 오라 — 단순 링만 (shadowBlur·setLineDash 제거)
+  // 자석 오라 — 링 + glow
   if (P.magnetTimer > 0) {
-    cx.strokeStyle = `rgba(0,180,255,0.25)`;
+    cx.shadowColor = '#00b4ff';
+    cx.shadowBlur = 14 + Math.sin(frame * 0.25) * 4;
+    cx.strokeStyle = `rgba(0,180,255,0.35)`;
     cx.lineWidth = 1.5;
     cx.beginPath(); cx.arc(px, py, 200, 0, Math.PI * 2); cx.stroke();
+    cx.shadowBlur = 0;
     cx.globalAlpha = 1;
     if (P.magnetTimer < 180) cx.globalAlpha = 0.5 + Math.sin(frame * 0.4) * 0.5;
   }
