@@ -688,7 +688,9 @@ function drawJori(x, y, size, alpha = 1, dir = 0) {
     ready = useF1 ? imgReady.front1 : imgReady.front2;
   }
   if (ready && img.naturalWidth > 0) {
-    const ratio = img.naturalHeight / img.naturalWidth, w = size, h = size * ratio;
+    // contain fit — 모든 방향 스프라이트를 size×size 박스 기준으로 균일하게
+    const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+    const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
     cx.drawImage(img, -w/2, -h/2, w, h);
   } else {
     cx.font = `${size*0.9}px serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
