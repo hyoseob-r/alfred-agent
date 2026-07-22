@@ -352,8 +352,11 @@ function update() {
         const mult = P.feverTimer > 0 ? 2 : 1;
         const pts = Math.floor(10 * mult * (1 + combo * 0.4));
         score += pts; combo++; comboT = 70;
+        timeLeft = Math.min(timeLeft + 3 * 60, TIME_INIT * 2);
         burst(it.x, it.y, P.feverTimer > 0 ? COL.gold : '#fff', 7);
-        popup(it.x, it.y - 10, combo > 2 ? `+${pts} ×${combo}🔥` : `+${pts}`, COL.gold);
+        const scoreLabel = combo > 2 ? `+${pts} ×${combo}🔥` : `+${pts}`;
+        popup(it.x, it.y - 10, scoreLabel, COL.gold);
+        popup(it.x, it.y - 28, '+3s ⏰', COL.time);
         return false;
       }
     }
