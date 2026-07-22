@@ -94,8 +94,8 @@ const PLAYER_Y_MIN = 160;  // 세로 이동 상한
 const PLAYER_Y_MAX = 600;  // 세로 이동 하한
 const TIME_INIT    = 60 * 60; // 1분
 
-const OBS_TYPES   = ['damage', 'reverse', 'blind'];
-const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash'];
+const OBS_TYPES   = ['damage']; // reverse/blind 제거
+const BONUS_TYPES = [];         // magnet/slow/fever/dash 제거 — golden_time만 별도 스폰
 // golden_time은 별도 희귀 스폰으로 관리 (10초 남을 때 1회)
 
 // 콤보 마일스톤: [임계값, 배율, 색상, 메시지]
@@ -277,8 +277,8 @@ function spawn() {
   const obsChance   = [0.03, 0.06, 0.13, 0.25, 0.38][tier];
   const bonusChance = [0,    0.04, 0.08, 0.12, 0.15][tier];
 
-  const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
-  const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
+  const obsPool   = OBS_TYPES; // damage만
+  const bonusPool = [];        // golden_time은 별도 스폰, 여기선 없음
 
   // 음식 등장 확률 (나머지는 아무것도 안 스폰) — 초반 음식 충분히
   const foodChance = [0.75, 0.70, 0.65, 0.60, 0.55][tier];
@@ -420,36 +420,14 @@ function update() {
 
     if (dx < hitR && dy < hitR && (P.inv === 0 || it.kind !== 'obs')) {
       if (it.kind === 'obs') {
-        if (it.obsType === 'damage') {
-          lives--;
-          P.inv = 80; P.shake = 18; P.bump = 10;
-          burst(it.x, it.y, COL.primary, 12);
-          popup(P.x, P.y - 40, '💀 −1 LIFE', COL.primary);
-          if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
-        } else if (it.obsType === 'reverse') {
-          P.reverseTimer = 180; P.shake = 10;
-          burst(it.x, it.y, '#a855f7', 10);
-          popup(P.x, P.y - 40, '🌀 조작 반전!', '#a855f7');
-        } else if (it.obsType === 'blind') {
-          P.blindTimer = 300; P.shake = 8;
-          burst(it.x, it.y, '#1a1a1a', 10);
-          popup(P.x, P.y - 40, '😴 시야 좁아짐!', '#888');
-        }
+        lives--;
+        P.inv = 80; P.shake = 18; P.bump = 10;
+        burst(it.x, it.y, COL.primary, 12);
+        popup(P.x, P.y - 40, '💀 −1 LIFE', COL.primary);
+        if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
         return false;
       } else if (it.kind === 'bonus') {
-        if (it.bonusType === 'magnet') {
-          P.magnetTimer = 300; burst(it.x, it.y, '#f472b6', 10);
-          popup(P.x, P.y - 40, '🧲 자석!', '#f472b6');
-        } else if (it.bonusType === 'slow') {
-          P.slowTimer = 180; burst(it.x, it.y, '#c4b5fd', 10);
-          popup(P.x, P.y - 40, '⏱ 슬로우!', '#c4b5fd');
-        } else if (it.bonusType === 'fever') {
-          P.feverTimer = 300; burst(it.x, it.y, COL.gold, 12);
-          popup(P.x, P.y - 40, '🌾 점수 2배!', COL.gold);
-        } else if (it.bonusType === 'dash') {
-          P.dashTimer = 300; burst(it.x, it.y, '#f97316', 10);
-          popup(P.x, P.y - 40, '🌶 초고속!', '#f97316');
-        } else if (it.bonusType === 'golden_time') {
+        if (it.bonusType === 'golden_time') {
           timeLeft = TIME_INIT; // 시간 100% 원복
           goldenSpawned = false; // 다음 위기 때 또 스폰 가능
           extraTimeAnim = 150;  // EXTRA TIME! 연출 시작
@@ -754,21 +732,6 @@ function drawItems() {
         } else {
           cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🛞',it.x,it.y);
         }
-      } else {
-        // reverse/blind — 포션 이미지, 보라 glow 펄스
-        const debuffImg = debuffImgs[it.obsType];
-        const glowCol = it.obsType === 'reverse' ? '#a855f7' : '#6b7280';
-        const glowAmt = 10 + Math.abs(Math.sin(frame * 0.14 + it.y * 0.04)) * 12;
-        cx.shadowColor = glowCol; cx.shadowBlur = glowAmt;
-        if (debuffImg && debuffImg.complete && debuffImg.naturalWidth > 0) {
-          const aspect = debuffImg.naturalHeight / debuffImg.naturalWidth;
-          const w = r * 2, h = w * aspect;
-          cx.drawImage(debuffImg, it.x - w/2, it.y - h/2, w, h);
-        } else {
-          cx.font=`${r*1.2}px serif`; cx.textAlign='center'; cx.textBaseline='middle';
-          cx.fillText(it.obsType === 'reverse' ? '🌀' : '😴', it.x, it.y);
-        }
-        cx.shadowBlur = 0;
       }
     } else if (it.kind === 'bonus') {
       if (it.bonusType === 'golden_time') {
@@ -793,11 +756,6 @@ function drawItems() {
         cx.fillStyle = '#000'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
         cx.fillText('시간 추가!', it.x, it.y - r + 6);
         cx.restore();
-      } else {
-        const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
-        cx.globalAlpha = glow;
-        drawItemImg(bonusImgs[it.bonusType], it.x, it.y, r*1.1);
-        cx.globalAlpha = 1;
       }
     } else {
       drawItemImg(foodImgs[it.foodIdx], it.x, it.y, r);
@@ -841,46 +799,11 @@ function drawFX() {
 
 // ── 특수 이펙트 ───────────────────────────────────
 function drawSpecialFX() {
-  if (P.blindTimer > 0) {
-    const visionR = 80 + Math.sin(frame * 0.08) * 10;
-    const grad = cx.createRadialGradient(P.x, P.y, visionR*0.3, P.x, P.y, visionR);
-    grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.96)');
-    cx.fillStyle = grad; cx.fillRect(0, 0, W, H);
-  }
-  if (P.reverseTimer > 0) {
-    const a = 0.3 + Math.sin(frame * 0.2) * 0.2;
-    cx.strokeStyle = `rgba(168,85,247,${a})`; cx.lineWidth = 8;
-    cx.strokeRect(4, 4, W-8, H-8);
-  }
-  if (P.feverTimer > 0) {
-    const a = 0.25 + Math.sin(frame * 0.15) * 0.15;
-    cx.strokeStyle = `rgba(245,196,0,${a})`; cx.lineWidth = 10;
-    cx.strokeRect(4, 4, W-8, H-8);
-  }
-  if (P.dashTimer > 0) {
-    const a = 0.2 + Math.sin(frame * 0.25) * 0.15;
-    cx.strokeStyle = `rgba(249,115,22,${a})`; cx.lineWidth = 8;
-    cx.strokeRect(4, 4, W-8, H-8);
-  }
   if (timeLeft < 600) {
     const a = 0.15 + Math.sin(frame * 0.35) * 0.15;
     cx.strokeStyle = `rgba(255,51,51,${a})`; cx.lineWidth = 6;
     cx.strokeRect(4, 4, W-8, H-8);
   }
-
-  const badges = [];
-  if (P.reverseTimer > 0) badges.push({ label: '🌀 반전', col: '#a855f7' });
-  if (P.blindTimer   > 0) badges.push({ label: '😴 암흑', col: '#6b7280' });
-  if (P.magnetTimer  > 0) badges.push({ label: '🧲 자석', col: '#f472b6' });
-  if (P.slowTimer    > 0) badges.push({ label: '⏱ 슬로우', col: '#c4b5fd' });
-  if (P.feverTimer   > 0) badges.push({ label: '🌾 2배', col: COL.gold });
-  if (P.dashTimer    > 0) badges.push({ label: '🌶 대시', col: '#f97316' });
-  badges.forEach((b, i) => {
-    const bx = 12, by = 88 + i * 24;
-    rrect(bx, by-9, 90, 18, 9, `${b.col}33`);
-    cx.strokeStyle = b.col; cx.lineWidth = 1; rrect(bx, by-9, 90, 18, 9); cx.stroke();
-    btxt(b.label, bx+45, by, 10, b.col);
-  });
 }
 
 // ── 긴박 메시지 (HURRY UP! 등) ───────────────────────
