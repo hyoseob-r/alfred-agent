@@ -152,11 +152,16 @@ const P = {
 const keys = {};
 let touchX = null, touchY = null; // 현재 터치 위치
 
+// 한/영 키 매핑 (wasd ↔ ㅈㅁㄴㅇ)
+const KO_MAP = { 'ㅈ': 'w', 'ㅁ': 'a', 'ㄴ': 's', 'ㅇ': 'd' };
+function normalizeKey(k) { return KO_MAP[k] || k; }
+
 document.addEventListener('keydown', e => {
-  keys[e.key] = true;
-  if ((e.key === ' ' || e.key === 'Enter') && S !== 'play') startGame();
+  const k = normalizeKey(e.key);
+  keys[k] = true;
+  if ((k === ' ' || k === 'Enter') && S !== 'play') startGame();
 });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keyup', e => { keys[normalizeKey(e.key)] = false; });
 
 C.addEventListener('touchstart', e => {
   e.preventDefault();
