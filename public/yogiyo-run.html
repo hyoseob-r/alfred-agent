@@ -352,11 +352,11 @@ function update() {
         const mult = P.feverTimer > 0 ? 2 : 1;
         const pts = Math.floor(10 * mult * (1 + combo * 0.4));
         score += pts; combo++; comboT = 70;
-        timeLeft = Math.min(timeLeft + 3 * 60, TIME_INIT * 2);
+        timeLeft = Math.min(timeLeft + 1 * 60, TIME_INIT * 2);
         burst(it.x, it.y, P.feverTimer > 0 ? COL.gold : '#fff', 7);
         const scoreLabel = combo > 2 ? `+${pts} ×${combo}🔥` : `+${pts}`;
         popup(it.x, it.y - 10, scoreLabel, COL.gold);
-        popup(it.x, it.y - 28, '+3s ⏰', COL.time);
+        popup(it.x, it.y - 28, '+1s ⏰', COL.time);
         return false;
       }
     }
@@ -413,55 +413,60 @@ function drawBG() {
 
 // ── HUD ───────────────────────────────────────────
 function drawHUD() {
-  const g = cx.createLinearGradient(0, 0, 0, 72);
-  g.addColorStop(0, 'rgba(10,14,26,0.92)'); g.addColorStop(1, 'rgba(10,14,26,0)');
-  cx.fillStyle = g; cx.fillRect(0, 0, W, 72);
-
-  btxt(score.toLocaleString(), W/2, 18, 22, COL.gold);
-  txt('SCORE', W/2, 35, 9, 'rgba(255,255,255,0.35)');
-
-  for (let i = 0; i < 3; i++) {
-    cx.globalAlpha = i < lives ? 1 : 0.18;
-    em('❤️', W - 24 - i * 28, 20, 16);
-  }
-  cx.globalAlpha = 1;
-
-  if (hi > 0) txt(`HI ${hi.toLocaleString()}`, 16, 18, 10, 'rgba(255,255,255,0.3)', 'left');
-
-  // 타이머 바
-  const tPct   = Math.max(0, timeLeft / TIME_INIT);
-  const secs   = Math.ceil(timeLeft / 60);
   const danger = timeLeft < 600;
   const warn   = timeLeft < 1200;
   const tCol   = danger ? '#ff3333' : warn ? '#ffaa00' : COL.time;
+  const secs   = Math.ceil(timeLeft / 60);
+  const tPct   = Math.max(0, timeLeft / TIME_INIT);
 
-  const bx = 16, by = 44, bw = W - 32, bh = 6;
-  cx.fillStyle = 'rgba(255,255,255,0.1)';
+  // 상단 그라데이션
+  const g = cx.createLinearGradient(0, 0, 0, 84);
+  g.addColorStop(0, 'rgba(10,14,26,0.95)'); g.addColorStop(1, 'rgba(10,14,26,0)');
+  cx.fillStyle = g; cx.fillRect(0, 0, W, 84);
+
+  // ── 타이머 (중앙, 크게) ──────────────────────────
+  // 숫자
+  if (danger) {
+    cx.shadowColor = tCol;
+    cx.shadowBlur  = 16 + Math.sin(frame * 0.3) * 6;
+  }
+  btxt(`${secs}`, W/2, 22, 32, tCol);
+  cx.shadowBlur = 0;
+  txt('TIME', W/2, 42, 9, `${tCol}99`);
+
+  // 타이머 바 (상단 전체 폭)
+  const bx = 16, by = 52, bw = W - 32, bh = 5;
+  cx.fillStyle = 'rgba(255,255,255,0.08)';
   cx.beginPath(); cx.roundRect(bx, by, bw, bh, 3); cx.fill();
-
   if (tPct > 0) {
-    const fg = cx.createLinearGradient(bx, 0, bx + bw * tPct, 0);
+    const fg = cx.createLinearGradient(bx, 0, bx + bw, 0);
     fg.addColorStop(0, tCol);
-    fg.addColorStop(1, danger ? '#ff7777' : warn ? '#ffdd66' : '#00f0ff');
+    fg.addColorStop(1, danger ? '#ff8866' : warn ? '#ffdd44' : '#00f0ff');
     cx.fillStyle = fg;
+    if (danger) { cx.shadowColor = tCol; cx.shadowBlur = 6 + Math.sin(frame * 0.3) * 3; }
     cx.beginPath(); cx.roundRect(bx, by, bw * tPct, bh, 3); cx.fill();
-    if (danger) {
-      cx.shadowColor = tCol; cx.shadowBlur = 8 + Math.sin(frame * 0.3) * 4;
-      cx.fillStyle = tCol;
-      cx.beginPath(); cx.roundRect(bx, by, bw * tPct, bh, 3); cx.fill();
-      cx.shadowBlur = 0;
-    }
+    cx.shadowBlur = 0;
   }
 
-  txt(`${secs}s`, W/2, by + bh/2, 9, `${tCol}cc`);
+  // ── 점수 (왼쪽) ──────────────────────────────────
+  btxt(score.toLocaleString(), 20, 20, 18, COL.gold, 'left');
+  txt('SCORE', 20, 36, 8, 'rgba(255,255,255,0.3)', 'left');
 
+  // ── 라이프 (오른쪽) ──────────────────────────────
+  for (let i = 0; i < 3; i++) {
+    cx.globalAlpha = i < lives ? 1 : 0.18;
+    em('❤️', W - 18 - i * 26, 20, 14);
+  }
+  cx.globalAlpha = 1;
+
+  // ── 콤보 ─────────────────────────────────────────
   if (combo > 2) {
     cx.globalAlpha = 0.7 + Math.sin(frame * 0.25) * 0.3;
-    btxt(`🔥 ×${combo} COMBO`, W/2, 80, 13, COL.gold);
+    btxt(`🔥 ×${combo} COMBO`, W/2, 72, 13, COL.gold);
     cx.globalAlpha = 1;
   }
 
-  // 스피드바 (하단)
+  // ── 스피드바 (하단) ───────────────────────────────
   const pct = Math.min((baseSpeed - 4) / 6, 1);
   cx.fillStyle = 'rgba(255,255,255,0.05)'; cx.fillRect(0, H - 4, W, 4);
   if (pct > 0) {
