@@ -1010,9 +1010,9 @@ function drawStart() {
   // 타이틀 이미지 (둥실둥실)
   const floatY = Math.sin(frame * 0.04) * 8;
   if (titleImg.complete && titleImg.naturalWidth > 0) {
-    const imgW = Math.min(380, W * 0.8);
+    const imgW = Math.min(460, W * 0.88);
     const imgH = imgW * (titleImg.naturalHeight / titleImg.naturalWidth);
-    cx.drawImage(titleImg, W/2 - imgW/2, 155 + floatY, imgW, imgH);
+    cx.drawImage(titleImg, W/2 - imgW/2, 120 + floatY, imgW, imgH);
   } else {
     cx.shadowColor = COL.primary; cx.shadowBlur = 24;
     btxt('Run Jory Run', W/2, 200, 38, COL.white);
