@@ -33,24 +33,86 @@ const foodImgs = Array.from({length: 16}, (_, i) => {
   return img;
 });
 
-// 장애물 이미지
-const obsImgs = { damage: new Image(), reverse: new Image(), blind: new Image() };
-obsImgs.damage.src  = 'obs_damage.png';
-obsImgs.reverse.src = 'obs_reverse.png';
-obsImgs.blind.src   = 'obs_blind.png';
+// 장애물 이미지 (스프라이트시트 추출 전 폴백용)
+const obsImgsFallback = { damage: new Image(), reverse: new Image(), blind: new Image() };
+obsImgsFallback.damage.src  = 'obs_damage.png';
+obsImgsFallback.reverse.src = 'obs_reverse.png';
+obsImgsFallback.blind.src   = 'obs_blind.png';
 
 // 보너스 아이템 이미지
-const bonusImgs = { magnet: new Image(), slow: new Image(), fever: new Image(), dash: new Image() };
+const bonusImgs = {
+  magnet: new Image(), slow: new Image(),
+  fever: new Image(),  dash: new Image(),
+  time:  new Image(),
+};
 bonusImgs.magnet.src = 'bonus_magnet.png';
 bonusImgs.slow.src   = 'bonus_slow.png';
 bonusImgs.fever.src  = 'bonus_fever.png';
 bonusImgs.dash.src   = 'bonus_dash.png';
+bonusImgs.time.src   = 'clock.png';
 
 // 배경 이미지
 const bgImg = new Image();
-bgImg.src = 'bg.jpeg';
+bgImg.src = 'road-bg.png';
 let bgReady = false, bgY = 0;
 bgImg.onload = () => { bgReady = true; };
+
+// ── 장애물 스프라이트시트 ────────────────────────────
+// obs-sheet.png: 2816×1536
+// Row 1 (11 barrels):  each 256×307, y=0
+// Row 2 (11 cones):    each 256×307, y=307
+// Row 3 (5 barriers):  each 563×307, y=614
+// Row 4 (6 items):     each 469×307, y=921  (0-2:debris, 3-5:road closed)
+// Row 5 (5 misc):      each 563×308, y=1228 (4:tire)
+const SPRITE_DEFS = {
+  barrel1:     { sx: 0,    sy: 0,    sw: 256, sh: 307 },
+  barrel2:     { sx: 256,  sy: 0,    sw: 256, sh: 307 },
+  barrel3:     { sx: 512,  sy: 0,    sw: 256, sh: 307 },
+  cone1:       { sx: 0,    sy: 307,  sw: 256, sh: 307 },
+  cone2:       { sx: 256,  sy: 307,  sw: 256, sh: 307 },
+  cone3:       { sx: 512,  sy: 307,  sw: 256, sh: 307 },
+  barrier1:    { sx: 0,    sy: 614,  sw: 563, sh: 307 },
+  barrier2:    { sx: 563,  sy: 614,  sw: 563, sh: 307 },
+  roadclosed1: { sx: 1407, sy: 921,  sw: 469, sh: 307 },
+  roadclosed2: { sx: 1876, sy: 921,  sw: 469, sh: 307 },
+  tire:        { sx: 2252, sy: 1228, sw: 564, sh: 308 },
+};
+
+// OBS_TYPES별 사용할 스프라이트 키 풀
+const OBS_SPRITE_POOL = {
+  damage:  ['barrel1', 'barrel2', 'barrel3', 'cone1', 'cone2'],
+  reverse: ['roadclosed1', 'roadclosed2'],
+  blind:   ['barrier1', 'barrier2'],
+};
+
+const obsSheet = new Image();
+obsSheet.src = 'obs-sheet.png';
+let obsSheetReady = false;
+const obsCanvases = {}; // key → HTMLCanvasElement (누끼 처리됨)
+
+function extractSprite(def) {
+  const oc = document.createElement('canvas');
+  oc.width = def.sw; oc.height = def.sh;
+  const octx = oc.getContext('2d');
+  octx.drawImage(obsSheet, def.sx, def.sy, def.sw, def.sh, 0, 0, def.sw, def.sh);
+  // 흰 배경 제거 (흰색에 가까운 픽셀 → 투명)
+  const id = octx.getImageData(0, 0, def.sw, def.sh);
+  const d = id.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i] > 230 && d[i+1] > 230 && d[i+2] > 230) {
+      d[i+3] = 0;
+    }
+  }
+  octx.putImageData(id, 0, 0);
+  return oc;
+}
+
+obsSheet.onload = () => {
+  obsSheetReady = true;
+  for (const [key, def] of Object.entries(SPRITE_DEFS)) {
+    obsCanvases[key] = extractSprite(def);
+  }
+};
 
 // 조리 이미지 로드 (front 2프레임 + left + right)
 const imgs = {
@@ -70,7 +132,6 @@ imgs.right.onload  = () => { imgReady.right  = true; };
 const W = 375, H = 667;
 const DPR = window.devicePixelRatio || 1;
 
-// 캔버스 내부 해상도를 DPR만큼 키워서 레티나에서도 선명하게
 C.width  = W * DPR;
 C.height = H * DPR;
 cx.scale(DPR, DPR);
@@ -86,11 +147,12 @@ window.addEventListener('resize', resize);
 // ── 상수 ──────────────────────────────────────────
 const FPS        = 60;
 const PLAYER_Y   = 500;
-const LANE_COUNT = 5;
+const LANE_COUNT = 4;
 const LANE_W     = W / LANE_COUNT;
+const TIME_INIT  = 30 * 60; // 30초 (60fps 기준)
 
 const OBS_TYPES   = ['damage', 'reverse', 'blind'];
-const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash'];
+const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash', 'time'];
 
 const COL = {
   bg:      '#0a0e1a',
@@ -99,43 +161,36 @@ const COL = {
   green:   '#05c896',
   white:   '#ffffff',
   dim:     'rgba(255,255,255,0.12)',
+  time:    '#00d4ff',
 };
 
 // ── 상태 ──────────────────────────────────────────
 let S = 'start'; // start | play | dead | over
-let score = 0, hi = 0, lives = 3, frame = 0;
+let score = 0, hi = 0, lives = 3, frame = 0, timeLeft = 0;
 let baseSpeed = 4, combo = 0, comboT = 0;
-let items = [], particles = [], popups = [], bgLines = [];
-
-// 배경 흐르는 선
-for (let i = 0; i < 30; i++) bgLines.push({
-  x: Math.random() * W,
-  y: Math.random() * H,
-  len: 20 + Math.random() * 60,
-  speed: 3 + Math.random() * 4,
-  alpha: 0.03 + Math.random() * 0.06,
-});
+let items = [], particles = [], popups = [];
 
 // ── 플레이어 ──────────────────────────────────────
 const P = {
-  lane: 2, x: W / 2, y: PLAYER_Y,
+  lane: 1, x: 0, y: PLAYER_Y,
   vx: 0, inv: 0, shake: 0, bump: 0,
-  dir: 0,          // -1=left 0=straight 1=right
-  dirTimer: 0,     // 방향 프레임 유지 타이머
-  moveTimer: 0,    // 연속 이동 쿨다운
-  reverseTimer: 0, // 조작 반전
-  blindTimer:   0, // 시야 좁아짐
-  magnetTimer:  0, // 자석
-  slowTimer:    0, // 슬로우
-  feverTimer:   0, // 점수 2배
-  dashTimer:    0, // 초고속 이동
+  dir: 0,
+  dirTimer: 0,
+  moveTimer: 0,
+  reverseTimer: 0,
+  blindTimer:   0,
+  magnetTimer:  0,
+  slowTimer:    0,
+  feverTimer:   0,
+  dashTimer:    0,
 };
+P.x = W / 2;
 
 function playerX(lane) { return LANE_W * lane + LANE_W / 2; }
 
 // ── 입력 ──────────────────────────────────────────
 const keys = {};
-let touchHoldX = null; // 현재 터치 중인 X 위치 (꾹 누르기용)
+let touchHoldX = null;
 
 document.addEventListener('keydown', e => {
   keys[e.key] = true;
@@ -165,17 +220,15 @@ C.addEventListener('touchend', e => {
 
 C.addEventListener('click', () => { if (S !== 'play') startGame(); });
 
-// 레인 이동 (방향 프레임 + 쿨다운 적용)
 function moveLane(dir) {
   if (S !== 'play') return;
   P.lane = Math.max(0, Math.min(LANE_COUNT - 1, P.lane + dir));
   P.dir = dir;
-  P.dirTimer = 18; // 이 프레임 수 동안 뱅킹 유지
+  P.dirTimer = 18;
 }
 
-// 꾹 누르기 처리 — update() 안에서 매 프레임 호출
 function processHoldInput() {
-  const interval = P.dashTimer > 0 ? 4 : 10; // dash 중엔 이동 4배 빠름
+  const interval = P.dashTimer > 0 ? 4 : 10;
   if (P.moveTimer > 0) { P.moveTimer--; return; }
 
   let dir = 0;
@@ -193,22 +246,28 @@ function processHoldInput() {
 // ── 게임 시작 ──────────────────────────────────────
 function startGame() {
   S = 'play';
-  score = 0; lives = 3; frame = 0;
+  score = 0; lives = 3; frame = 0; timeLeft = TIME_INIT;
   baseSpeed = 4; combo = 0; comboT = 0;
   items = []; particles = []; popups = [];
-  P.lane = 2; P.x = playerX(2); P.inv = 0; P.shake = 0; P.bump = 0;
+  P.lane = Math.floor(LANE_COUNT / 2) - 1;
+  P.x = playerX(P.lane);
+  P.inv = 0; P.shake = 0; P.bump = 0;
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
 }
 
 // ── 스폰 ──────────────────────────────────────────
-// 난이도 단계: score 기준으로 해금되는 아이템 풀 결정
 function getDifficultyTier() {
-  if (score < 500)  return 0; // 음식만
-  if (score < 1500) return 1; // + 장애물 1종
-  if (score < 3000) return 2; // + 장애물 2종, 보너스 1종
-  if (score < 5000) return 3; // + 장애물 3종, 보너스 2종
-  return 4;                   // 전체 해금
+  if (score < 500)  return 0;
+  if (score < 1500) return 1;
+  if (score < 3000) return 2;
+  if (score < 5000) return 3;
+  return 4;
+}
+
+function pickObsSprite(obsType) {
+  const pool = OBS_SPRITE_POOL[obsType] || ['barrel1'];
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function makeItem(lane, kind, obsType, bonusType) {
@@ -219,6 +278,7 @@ function makeItem(lane, kind, obsType, bonusType) {
     foodIdx:   kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
+    spriteKey: kind === 'obs' ? pickObsSprite(obsType) : null,
     spd: baseSpeed * (0.85 + Math.random() * 0.3),
     r: 22,
   };
@@ -232,7 +292,7 @@ function spawn() {
   const bonusChance = [0,    0.05, 0.09, 0.13, 0.18][tier];
 
   const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
-  const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
+  const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 5][tier]);
 
   const rand = Math.random();
   let kind = 'food';
@@ -245,28 +305,22 @@ function spawn() {
   items.push(makeItem(lane, kind, obsType, bonusType));
 }
 
-// 벽 스폰: 연속 2~3칸을 damage 장애물로 막고 나머지는 통로
 function spawnWall() {
   const tier = getDifficultyTier();
-  if (tier < 1) return; // tier 1 이상에서만 등장
+  if (tier < 1) return;
 
-  // 벽 너비: tier 1→2칸, tier 2→2칸, tier 3+→3칸
   const wallW = tier >= 3 ? 3 : 2;
-
-  // 통로 위치를 먼저 정하고 나머지를 막음
-  // 가능한 통로 수: LANE_COUNT - wallW
   const openStart = Math.floor(Math.random() * (LANE_COUNT - wallW + 1));
   const openLanes = new Set();
   for (let i = openStart; i < openStart + (LANE_COUNT - wallW); i++) {
     if (openLanes.size < LANE_COUNT - wallW) openLanes.add(i % LANE_COUNT);
   }
 
-  // 막힌 레인에 damage 스폰 (같은 속도로 동시 진입)
   const spd = baseSpeed * (0.9 + Math.random() * 0.2);
   for (let l = 0; l < LANE_COUNT; l++) {
     if (!openLanes.has(l)) {
       const it = makeItem(l, 'obs', 'damage', null);
-      it.spd = spd; // 벽은 같은 속도로 정렬
+      it.spd = spd;
       items.push(it);
     }
   }
@@ -290,14 +344,20 @@ function update() {
   if (S !== 'play') return;
   frame++;
 
-  // 속도 증가
+  // 타이머 카운트다운
+  if (timeLeft > 0) {
+    timeLeft--;
+  } else {
+    S = 'over';
+    if (score > hi) hi = score;
+    return;
+  }
+
   baseSpeed = 4 + score / 300;
   baseSpeed = Math.min(baseSpeed, 10);
 
-  // 꾹 누르기 입력 처리
   processHoldInput();
 
-  // 플레이어 X 보간
   const tx = playerX(P.lane);
   P.x += (tx - P.x) * 0.18;
   if (P.shake > 0) P.shake--;
@@ -314,26 +374,22 @@ function update() {
   if (comboT > 0) comboT--;
   else combo = 0;
 
-  // 일반 스폰
   const spawnRate = score < 500  ? 50 :
                     score < 1500 ? 38 :
                     score < 3000 ? 28 :
                     score < 5000 ? 20 : 14;
   if (frame % spawnRate === 0) spawn();
 
-  // 벽 스폰: 일정 주기로 연속 장애물 등장
-  const wallRate = score < 500  ? 0   :   // tier 0 없음
+  const wallRate = score < 500  ? 0   :
                    score < 1500 ? 220 :
                    score < 3000 ? 170 :
                    score < 5000 ? 130 : 90;
   if (wallRate > 0 && frame % wallRate === 0) spawnWall();
 
-  // 아이템 업데이트
   items = items.filter(it => {
     const spd = P.slowTimer > 0 ? it.spd * 0.4 : it.spd;
     it.y += spd;
 
-    // 자석: 음식 아이템을 플레이어 쪽으로 끌어당김
     if (P.magnetTimer > 0 && it.kind === 'food') {
       it.x += (P.x - it.x) * 0.06;
       it.y += (P.y - it.y) * 0.04;
@@ -379,6 +435,10 @@ function update() {
           P.dashTimer = 300;
           burst(it.x, it.y, '#f97316', 10);
           popup(P.x, P.y - 40, '🌶 초고속!', '#f97316');
+        } else if (it.bonusType === 'time') {
+          timeLeft = Math.min(timeLeft + 10 * 60, TIME_INIT);
+          burst(it.x, it.y, COL.time, 12);
+          popup(P.x, P.y - 40, '⏰ +10초!', COL.time);
         }
         return false;
       } else {
@@ -396,22 +456,14 @@ function update() {
     return it.y < H + 40;
   });
 
-  // 파티클
   particles = particles.filter(p => {
     p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.alpha -= 0.025;
     return p.alpha > 0;
   });
 
-  // 팝업
   popups = popups.filter(p => {
     p.y += p.vy; p.alpha -= 0.022;
     return p.alpha > 0;
-  });
-
-  // 배경선
-  bgLines.forEach(l => {
-    l.y += l.speed;
-    if (l.y > H + l.len) { l.y = -l.len; l.x = Math.random() * W; }
   });
 }
 
@@ -453,76 +505,92 @@ function rrect(x, y, w, h, r, fill, stroke, sw = 1) {
 
 // ── 배경 ──────────────────────────────────────────
 function drawBG() {
-  cx.fillStyle = '#b89a6a';
+  // 폴백 색
+  cx.fillStyle = '#4a5e30';
   cx.fillRect(0, 0, W, H);
 
   if (bgReady) {
-    // 이미지 비율 유지하며 캔버스 폭에 맞춤
     const scale = W / bgImg.width;
-    const bh = bgImg.height * scale; // 스크린에서의 이미지 높이
-
-    // 스크롤 업데이트 (play 중일 때만)
+    const bh = bgImg.height * scale;
     if (S === 'play') {
       bgY += baseSpeed * 0.6;
       if (bgY >= bh) bgY -= bh;
     }
-
-    // 이미지 2장 연속 출력 → 이음새 없는 루프
     const startY = bgY - bh;
     for (let i = 0; i < 3; i++) {
       cx.drawImage(bgImg, 0, startY + bh * i, W, bh);
     }
-
-    // 오버레이 (배경만 어둡게)
-    cx.fillStyle = 'rgba(0,0,0,0.28)';
-    cx.fillRect(0, 0, W, H);
-  } else {
-    // 이미지 로드 전 폴백
-    cx.fillStyle = COL.bg;
-    cx.fillRect(0, 0, W, H);
+    // 오버레이·레인선 없음 — 배경 이미지 그대로 사용
   }
-
-  // 레인 구분선
-  cx.strokeStyle = 'rgba(255,255,255,0.08)';
-  cx.lineWidth = 1;
-  for (let i = 1; i < LANE_COUNT; i++) {
-    cx.beginPath();
-    cx.setLineDash([8, 20]);
-    cx.moveTo(LANE_W * i, 0);
-    cx.lineTo(LANE_W * i, H);
-    cx.stroke();
-  }
-  cx.setLineDash([]);
 }
 
 // ── HUD ───────────────────────────────────────────
 function drawHUD() {
-  // 상단 바
-  const g = cx.createLinearGradient(0, 0, 0, 64);
-  g.addColorStop(0, 'rgba(10,14,26,0.95)');
+  // 상단 그라데이션 바
+  const g = cx.createLinearGradient(0, 0, 0, 72);
+  g.addColorStop(0, 'rgba(10,14,26,0.92)');
   g.addColorStop(1, 'rgba(10,14,26,0)');
   cx.fillStyle = g;
-  cx.fillRect(0, 0, W, 64);
+  cx.fillRect(0, 0, W, 72);
 
   // 점수
-  btxt(score.toLocaleString(), W/2, 20, 22, COL.gold);
-  txt('SCORE', W/2, 38, 9, 'rgba(255,255,255,0.35)');
+  btxt(score.toLocaleString(), W/2, 18, 22, COL.gold);
+  txt('SCORE', W/2, 35, 9, 'rgba(255,255,255,0.35)');
 
   // 라이프
   for (let i = 0; i < 3; i++) {
     cx.globalAlpha = i < lives ? 1 : 0.18;
-    em('❤️', W - 24 - i * 28, 22, 16);
+    em('❤️', W - 24 - i * 28, 20, 16);
   }
   cx.globalAlpha = 1;
 
   // 하이스코어
-  if (hi > 0) txt(`HI ${hi.toLocaleString()}`, 16, 20, 10, 'rgba(255,255,255,0.3)', 'left');
+  if (hi > 0) txt(`HI ${hi.toLocaleString()}`, 16, 18, 10, 'rgba(255,255,255,0.3)', 'left');
+
+  // ── 타이머 바 ──────────────────────────────────
+  const tPct   = Math.max(0, timeLeft / TIME_INIT);
+  const secs   = Math.ceil(timeLeft / 60);
+  const danger = timeLeft < 600;   // 10초 미만
+  const warn   = timeLeft < 1200;  // 20초 미만
+  const tCol   = danger ? '#ff3333' : warn ? '#ffaa00' : COL.time;
+
+  // 타이머 바 배경
+  const barX = 16, barY = 44, barW = W - 32, barH = 6;
+  cx.fillStyle = 'rgba(255,255,255,0.1)';
+  cx.beginPath();
+  cx.roundRect(barX, barY, barW, barH, 3);
+  cx.fill();
+
+  // 타이머 바 채움
+  if (tPct > 0) {
+    const fg = cx.createLinearGradient(barX, 0, barX + barW * tPct, 0);
+    fg.addColorStop(0, tCol);
+    fg.addColorStop(1, danger ? '#ff6666' : warn ? '#ffcc44' : '#00f0ff');
+    cx.fillStyle = fg;
+    cx.beginPath();
+    cx.roundRect(barX, barY, barW * tPct, barH, 3);
+    cx.fill();
+
+    // 위험 시 펄스 글로우
+    if (danger) {
+      cx.shadowColor = tCol;
+      cx.shadowBlur  = 8 + Math.sin(frame * 0.3) * 4;
+      cx.fillStyle   = tCol;
+      cx.beginPath();
+      cx.roundRect(barX, barY, barW * tPct, barH, 3);
+      cx.fill();
+      cx.shadowBlur = 0;
+    }
+  }
+
+  // 초 텍스트
+  txt(`${secs}s`, W/2, barY + barH/2, 9, `${tCol}cc`);
 
   // 콤보
   if (combo > 2) {
     const a = 0.7 + Math.sin(frame * 0.25) * 0.3;
     cx.globalAlpha = a;
-    btxt(`🔥 ×${combo} COMBO`, W/2, 70, 13, COL.gold);
+    btxt(`🔥 ×${combo} COMBO`, W/2, 78, 13, COL.gold);
     cx.globalAlpha = 1;
   }
 
@@ -540,7 +608,6 @@ function drawHUD() {
 }
 
 // ── 조리 드로우 헬퍼 ─────────────────────────────
-// size = 기준 최대 너비(px). 원본 비율 유지하여 렌더.
 function drawJori(x, y, size, alpha = 1, dir = 0) {
   cx.globalAlpha = alpha;
   cx.save();
@@ -550,7 +617,6 @@ function drawJori(x, y, size, alpha = 1, dir = 0) {
   if (dir < 0) { img = imgs.left;  ready = imgReady.left; }
   else if (dir > 0) { img = imgs.right; ready = imgReady.right; }
   else {
-    // 2프레임마다 front1/front2 교체 → 걷는 애니메이션
     const useF1 = Math.floor(frame / 30) % 2 === 0;
     img   = useF1 ? imgs.front1 : imgs.front2;
     ready = useF1 ? imgReady.front1 : imgReady.front2;
@@ -580,7 +646,6 @@ function drawPlayer() {
   const sy = P.bump  > 0 ? Math.sin(P.bump * 0.4) * -6 : 0;
   const px = P.x + sx, py = P.y + sy;
 
-  // 그림자
   cx.globalAlpha = 0.18;
   cx.fillStyle = '#000';
   cx.beginPath();
@@ -588,14 +653,10 @@ function drawPlayer() {
   cx.fill();
   cx.globalAlpha = 1;
 
-  // 속도 잔상
   drawJori(px, py + 7, 26, 0.2, P.dir);
   drawJori(px, py + 13, 19, 0.08, P.dir);
-
-  // 캐릭터 본체
   drawJori(px, py, 36, 1, P.dir);
 
-  // 무적 실드
   if (P.inv > 0) {
     cx.strokeStyle = `rgba(250,0,80,${P.inv / 80 * 0.8})`;
     cx.lineWidth = 2.5;
@@ -614,16 +675,50 @@ function drawItemImg(img, x, y, r) {
   }
 }
 
+function drawObsSprite(key, x, y, r) {
+  const sc = obsCanvases[key];
+  if (!sc) {
+    // 폴백: 텍스트
+    cx.font = `${r * 1.4}px serif`;
+    cx.textAlign = 'center';
+    cx.textBaseline = 'middle';
+    cx.fillText('🚧', x, y);
+    return;
+  }
+  const aspect = sc.height / sc.width;
+  // 배리어는 가로가 길어서 크기 조정
+  const w = r * (aspect < 0.6 ? 3.0 : 2.2);
+  const h = w * aspect;
+  cx.drawImage(sc, x - w/2, y - h/2, w, h);
+}
+
 function drawItems() {
   items.forEach(it => {
     const r = 26;
 
     if (it.kind === 'obs') {
-      drawItemImg(obsImgs[it.obsType], it.x, it.y, r);
+      if (obsSheetReady && it.spriteKey) {
+        drawObsSprite(it.spriteKey, it.x, it.y, r);
+      } else {
+        drawItemImg(obsImgsFallback[it.obsType], it.x, it.y, r);
+      }
     } else if (it.kind === 'bonus') {
       const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
       cx.globalAlpha = glow;
-      drawItemImg(bonusImgs[it.bonusType], it.x, it.y, r * 1.1);
+      if (it.bonusType === 'time') {
+        // 시계 아이템 특별 처리
+        const clockReady = bonusImgs.time.complete && bonusImgs.time.naturalWidth > 0;
+        if (clockReady) {
+          drawItemImg(bonusImgs.time, it.x, it.y, r * 1.1);
+        } else {
+          cx.font = `${r * 1.2}px serif`;
+          cx.textAlign = 'center';
+          cx.textBaseline = 'middle';
+          cx.fillText('⏰', it.x, it.y);
+        }
+      } else {
+        drawItemImg(bonusImgs[it.bonusType], it.x, it.y, r * 1.1);
+      }
       cx.globalAlpha = 1;
     } else {
       drawItemImg(foodImgs[it.foodIdx], it.x, it.y, r);
@@ -651,7 +746,6 @@ function drawFX() {
 
 // ── 특수 이펙트 오버레이 ──────────────────────────
 function drawSpecialFX() {
-  // BLIND: 라디얼 그라데이션으로 시야 좁히기
   if (P.blindTimer > 0) {
     const visionR = 80 + Math.sin(frame * 0.08) * 10;
     const grad = cx.createRadialGradient(P.x, P.y, visionR * 0.3, P.x, P.y, visionR);
@@ -661,7 +755,6 @@ function drawSpecialFX() {
     cx.fillRect(0, 0, W, H);
   }
 
-  // REVERSE: 화면 테두리 보라색 펄스
   if (P.reverseTimer > 0) {
     const a = 0.3 + Math.sin(frame * 0.2) * 0.2;
     cx.strokeStyle = `rgba(168,85,247,${a})`;
@@ -669,7 +762,6 @@ function drawSpecialFX() {
     cx.strokeRect(4, 4, W - 8, H - 8);
   }
 
-  // FEVER: 화면 테두리 골드 글로우
   if (P.feverTimer > 0) {
     const a = 0.25 + Math.sin(frame * 0.15) * 0.15;
     cx.strokeStyle = `rgba(245,196,0,${a})`;
@@ -677,7 +769,6 @@ function drawSpecialFX() {
     cx.strokeRect(4, 4, W - 8, H - 8);
   }
 
-  // DASH: 화면 테두리 오렌지
   if (P.dashTimer > 0) {
     const a = 0.2 + Math.sin(frame * 0.25) * 0.15;
     cx.strokeStyle = `rgba(249,115,22,${a})`;
@@ -685,7 +776,14 @@ function drawSpecialFX() {
     cx.strokeRect(4, 4, W - 8, H - 8);
   }
 
-  // 활성 효과 뱃지 (우상단 HUD 아래)
+  // 타이머 위험 테두리
+  if (timeLeft < 600) {
+    const a = 0.15 + Math.sin(frame * 0.35) * 0.15;
+    cx.strokeStyle = `rgba(255,51,51,${a})`;
+    cx.lineWidth = 6;
+    cx.strokeRect(4, 4, W - 8, H - 8);
+  }
+
   const badges = [];
   if (P.reverseTimer > 0) badges.push({ label: '🌀 반전', col: '#a855f7', t: P.reverseTimer });
   if (P.blindTimer   > 0) badges.push({ label: '😴 암흑', col: '#6b7280', t: P.blindTimer });
@@ -695,7 +793,7 @@ function drawSpecialFX() {
   if (P.dashTimer    > 0) badges.push({ label: '🌶 대시', col: '#f97316', t: P.dashTimer });
 
   badges.forEach((b, i) => {
-    const bx = 12, by = 80 + i * 24;
+    const bx = 12, by = 88 + i * 24;
     rrect(bx, by - 9, 90, 18, 9, `${b.col}33`);
     cx.strokeStyle = b.col; cx.lineWidth = 1;
     rrect(bx, by - 9, 90, 18, 9); cx.stroke();
@@ -705,29 +803,29 @@ function drawSpecialFX() {
 
 // ── 시작 화면 ─────────────────────────────────────
 function drawStart() {
-  // 조리 글로우
   const joriY = 195 + Math.sin(frame * 0.04) * 7;
   cx.shadowColor = COL.primary;
   cx.shadowBlur  = 30;
   drawJori(W/2, joriY, 55);
   cx.shadowBlur = 0;
 
-  // 이름 태그
   rrect(W/2 - 36, joriY + 50, 72, 22, 11, 'rgba(250,0,80,0.15)', COL.primary, 1);
   btxt('조리', W/2, joriY + 61, 12, COL.primary);
 
   btxt('요기요 런', W/2, 308, 32, COL.white);
   txt('시즌 챌린지 · 고득점으로 랭킹에 도전하세요', W/2, 336, 12, 'rgba(255,255,255,0.45)');
 
-  // 미니 설명
   rrect(40, 368, W - 80, 58, 10, 'rgba(255,255,255,0.04)');
   txt('← → 방향키  또는  스와이프로 레인 이동', W/2, 390, 11, 'rgba(255,255,255,0.5)');
 
   const fds = ['🍗','🍕','🍔','🌮','🥗'];
   fds.forEach((f, i) => em(f, 80 + i * 44, 413, 22));
-  txt('음식 모으기 = 점수 UP   ⛔💨 장애물 = 라이프 DOWN', W/2, 435, 10, 'rgba(255,255,255,0.3)');
+  txt('음식 모으기 = 점수 UP   🚧🚦 장애물 = 라이프 DOWN', W/2, 435, 10, 'rgba(255,255,255,0.3)');
 
-  // 시작 버튼
+  // 타이머 안내
+  rrect(W/2 - 80, 452, 160, 22, 11, `${COL.time}22`, COL.time, 0.8);
+  txt('⏰ 아이템으로 시간 연장 필수!', W/2, 463, 10, COL.time);
+
   const by = 520, pulse = 1 + Math.sin(frame * 0.07) * 0.025;
   cx.save();
   cx.translate(W/2, by); cx.scale(pulse, pulse);
@@ -743,11 +841,9 @@ function drawStart() {
 
 // ── 게임오버 화면 ─────────────────────────────────
 function drawOver() {
-  // 오버레이
   cx.fillStyle = 'rgba(10,14,26,0.82)';
   cx.fillRect(0, 0, W, H);
 
-  // 조리 (쓰러진 느낌 — 뒤집기)
   cx.save();
   cx.translate(W/2, 178);
   cx.rotate(Math.PI);
@@ -755,7 +851,6 @@ function drawOver() {
   cx.restore();
   btxt('GAME OVER', W/2, 258, 26, COL.white);
 
-  // 점수 카드
   rrect(50, 285, W - 100, 100, 14, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.1)', 1);
   btxt(score.toLocaleString(), W/2, 325, 38, COL.gold);
   txt('이번 기록', W/2, 362, 11, 'rgba(255,255,255,0.35)');
@@ -768,14 +863,12 @@ function drawOver() {
     txt(`최고 기록  ${hi.toLocaleString()}`, W/2, 400, 12, 'rgba(255,255,255,0.3)');
   }
 
-  // 시즌 랭킹 연결 박스
   rrect(40, 422, W - 80, 68, 12, 'rgba(245,196,0,0.08)', 'rgba(245,196,0,0.25)', 1);
   em('🏅', 66, 451, 18);
   btxt('이 점수가 시즌 랭킹에 반영됩니다', W/2 + 10, 443, 12, 'rgba(255,255,255,0.75)');
   txt('강남구 치킨 랭킹 · 이번 달 23위 → 도전!', W/2 + 10, 465, 11, 'rgba(255,255,255,0.35)');
   txt('혜택탭에서 순위 확인 및 쿠폰 수령 가능', W/2 + 10, 481, 10, 'rgba(245,196,0,0.5)');
 
-  // 다시 버튼
   const by = 554, pulse = 1 + Math.sin(frame * 0.09) * 0.02;
   cx.save();
   cx.translate(W/2, by); cx.scale(pulse, pulse);
