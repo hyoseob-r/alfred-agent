@@ -51,6 +51,10 @@ const debuffImgs = {
 debuffImgs.reverse.src = 'debuff_reverse.png'; // 소용돌이 포션
 debuffImgs.blind.src   = 'debuff_blind.png';   // 수면 포션
 
+// 타이틀 이미지
+const titleImg = new Image();
+titleImg.src = 'title-runjoryrun.png';
+
 // 배경
 const bgImg = new Image();
 bgImg.src = 'road-bg.png';
@@ -1003,11 +1007,18 @@ function drawUrgentMsg() {
 
 // ── 시작 화면 ─────────────────────────────────────
 function drawStart() {
-  // 타이틀
-  cx.shadowColor = COL.primary; cx.shadowBlur = 24;
-  btxt('Run Jory Run', W/2, 200, 38, COL.white);
-  cx.shadowBlur = 0;
-  txt('시즌 챌린지', W/2, 235, 13, 'rgba(255,255,255,0.4)');
+  // 타이틀 이미지 (둥실둥실)
+  const floatY = Math.sin(frame * 0.04) * 8;
+  if (titleImg.complete && titleImg.naturalWidth > 0) {
+    const imgW = Math.min(380, W * 0.8);
+    const imgH = imgW * (titleImg.naturalHeight / titleImg.naturalWidth);
+    cx.drawImage(titleImg, W/2 - imgW/2, 155 + floatY, imgW, imgH);
+  } else {
+    cx.shadowColor = COL.primary; cx.shadowBlur = 24;
+    btxt('Run Jory Run', W/2, 200, 38, COL.white);
+    cx.shadowBlur = 0;
+  }
+  txt('시즌 챌린지', W/2, 245, 13, 'rgba(255,255,255,0.4)');
 
   // 조리 — 하단, 달릴 준비 (좌우 발 번갈아 + 위아래 바운스)
   const bounce = Math.abs(Math.sin(frame * 0.12)) * 10;
