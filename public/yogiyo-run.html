@@ -100,6 +100,8 @@ let S = 'start';
 let score = 0, hi = 0, lives = 3, frame = 0, timeLeft = 0;
 let baseSpeed = 4, combo = 0, comboT = 0;
 let items = [], particles = [], popups = [];
+let extraTimeAnim = 0;   // EXTRA TIME! 연출 카운트다운 (150프레임)
+let goldenSpawned = false; // 이번 게임에서 황금 물약 스폰 여부
 
 // ── 플레이어 ──────────────────────────────────────
 const P = {
@@ -181,6 +183,7 @@ function startGame() {
   P.inv = 0; P.shake = 0; P.bump = 0; P.dir = 0;
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
+  extraTimeAnim = 0; goldenSpawned = false;
 }
 
 // ── 스폰 (레인 없음 — 랜덤 X) ──────────────────────
@@ -226,11 +229,6 @@ function spawn() {
   const bonusType = kind === 'bonus' ? bonusPool[Math.floor(Math.random() * bonusPool.length)] : null;
 
   items.push(makeItem(randX(), kind, obsType, bonusType));
-
-  // 황금 물약 — 독립적으로 3% 확률 희귀 스폰
-  if (Math.random() < 0.03) {
-    items.push(makeItem(randX(), 'bonus', null, 'golden_time'));
-  }
 }
 
 // 장애물 줄 스폰 — 가로 전체에 퍼뜨리고 통로 하나만 비움
@@ -269,9 +267,21 @@ function update() {
   if (S !== 'play') return;
   frame++;
 
-  // 타이머
-  if (timeLeft > 0) timeLeft--;
-  else { S = 'over'; if (score > hi) hi = score; return; }
+  // EXTRA TIME 연출 카운트다운
+  if (extraTimeAnim > 0) extraTimeAnim--;
+
+  // 타이머 (연출 중 일시 슬로우)
+  const timerFrozen = extraTimeAnim > 90; // 연출 초반 1.5초간 시간 멈춤
+  if (!timerFrozen) {
+    if (timeLeft > 0) timeLeft--;
+    else { S = 'over'; if (score > hi) hi = score; return; }
+  }
+
+  // 황금 물약 — 10초 남았을 때 1회만 스폰
+  if (!goldenSpawned && timeLeft <= 600 && timeLeft > 0) {
+    goldenSpawned = true;
+    items.push(makeItem(randX(), 'bonus', null, 'golden_time'));
+  }
 
   baseSpeed = Math.min(4 + score / 300, 10);
 
@@ -354,11 +364,11 @@ function update() {
           burst(it.x, it.y, COL.time, 12);
           popup(P.x, P.y - 40, '⏰ +10초!', COL.time);
         } else if (it.bonusType === 'golden_time') {
-          timeLeft = Math.min(timeLeft * 2, TIME_INIT * 3);
+          timeLeft = TIME_INIT; // 시간 100% 원복
+          goldenSpawned = false; // 다음 위기 때 또 스폰 가능
+          extraTimeAnim = 150;  // EXTRA TIME! 연출 시작
           burst(it.x, it.y, COL.gold, 20);
-          burst(it.x, it.y, '#fff', 10);
-          popup(P.x, P.y - 50, '✨ 시간 2배!', COL.gold);
-          popup(P.x, P.y - 30, '⏰ GOLDEN!', '#ffe066');
+          burst(it.x, it.y, '#fff', 12);
         }
         return false;
       } else {
@@ -678,6 +688,77 @@ function drawStart() {
   if (hi > 0) { em('🏆', W/2-55, 590, 16); txt(`최고 기록  ${hi.toLocaleString()}`, W/2+10, 590, 13, COL.gold); }
 }
 
+// ── EXTRA TIME! 연출 ──────────────────────────────
+// 총 150프레임 (2.5초)
+// 150-110: 금빛 플래시 + 슬로우
+// 110-40:  "EXTRA TIME!" 텍스트 슬램인
+// 40-0:    페이드아웃
+function drawExtraTime() {
+  if (extraTimeAnim <= 0) return;
+  const t = extraTimeAnim; // 150→0
+
+  // ① 금빛 스크린 플래시 (150~100 구간)
+  if (t > 100) {
+    const flashA = (t - 100) / 50 * 0.55; // 0→0.55→0
+    cx.fillStyle = `rgba(245,196,0,${flashA})`;
+    cx.fillRect(0, 0, W, H);
+  }
+
+  // ② 테두리 금빛 펄스 (전 구간)
+  const borderA = Math.min(t / 40, 1) * 0.8;
+  cx.strokeStyle = `rgba(245,196,0,${borderA})`;
+  cx.lineWidth = 12;
+  cx.strokeRect(6, 6, W - 12, H - 12);
+
+  // ③ "EXTRA TIME!" 텍스트 슬램인 (110~0 구간)
+  if (t < 115) {
+    const progress = Math.min((115 - t) / 30, 1); // 0→1 (슬램인)
+    // ease-out: 처음엔 크게, 빠르게 안착
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const scale = 2.8 - eased * 1.8; // 2.8→1.0
+
+    // 페이드: t < 40부터 사라짐
+    const fadeA = t < 40 ? t / 40 : 1;
+
+    cx.save();
+    cx.translate(W / 2, H / 2 - 20);
+    cx.scale(scale, scale);
+    cx.globalAlpha = fadeA;
+
+    // 글로우
+    cx.shadowColor = '#f5c400';
+    cx.shadowBlur  = 30 + Math.sin(frame * 0.3) * 10;
+
+    // 메인 텍스트
+    cx.font = `bold 38px Pretendard, -apple-system, sans-serif`;
+    cx.fillStyle = '#fff';
+    cx.textAlign = 'center';
+    cx.textBaseline = 'middle';
+    cx.fillText('EXTRA TIME!', 0, 0);
+
+    // 금색 아웃라인
+    cx.strokeStyle = '#f5c400';
+    cx.lineWidth = 2 / scale;
+    cx.strokeText('EXTRA TIME!', 0, 0);
+
+    cx.shadowBlur = 0;
+    cx.restore();
+    cx.globalAlpha = 1;
+
+    // 서브 텍스트 "TIME FULLY RESTORED"
+    if (t < 80 && t > 20) {
+      const subA = Math.min((80 - t) / 20, 1) * (t / 20);
+      cx.globalAlpha = Math.min(subA, fadeA) * 0.85;
+      cx.font = `bold 13px Pretendard, -apple-system, sans-serif`;
+      cx.fillStyle = '#ffe066';
+      cx.textAlign = 'center';
+      cx.textBaseline = 'middle';
+      cx.fillText('TIME FULLY RESTORED', W / 2, H / 2 + 28);
+      cx.globalAlpha = 1;
+    }
+  }
+}
+
 // ── 게임오버 화면 ─────────────────────────────────
 function drawOver() {
   cx.fillStyle = 'rgba(10,14,26,0.82)'; cx.fillRect(0, 0, W, H);
@@ -709,7 +790,7 @@ function loop() {
   drawItems();
   drawFX();
   if (S === 'play' || S === 'over' || S === 'dead') drawPlayer();
-  if (S === 'play')  { drawSpecialFX(); drawHUD(); }
+  if (S === 'play')  { drawSpecialFX(); drawHUD(); drawExtraTime(); }
   if (S === 'start') drawStart();
   if (S === 'over')  { drawHUD(); drawOver(); }
   requestAnimationFrame(loop);
