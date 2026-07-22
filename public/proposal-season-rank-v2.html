@@ -613,17 +613,11 @@
             <div style="font-size:10px; color:rgba(255,255,255,0.85); flex:1;">PLAYYO 게임 실행 전 — 전면 광고 노출 <span style="color:rgba(255,255,255,0.45); font-size:9px;">(신설)</span></div>
             <div style="font-size:9px; background:var(--primary); color:white; padding:2px 8px; border-radius:4px; font-weight:700; white-space:nowrap;">신설 구좌 ②</div>
           </div>
-          <div style="margin-left:12px; border-left:1px dashed rgba(255,255,255,0.2); padding-left:16px; font-size:9px; color:rgba(255,255,255,0.4);">↓ 게임 플레이 (5회 기본 제공)</div>
+          <div style="margin-left:12px; border-left:1px dashed rgba(255,255,255,0.2); padding-left:16px; font-size:9px; color:rgba(255,255,255,0.4);">↓ 게임 플레이</div>
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:24px; height:24px; background:rgba(255,255,255,0.15); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;">3</div>
-            <div style="font-size:10px; color:rgba(255,255,255,0.85); flex:1;">횟수 소진 → 보상형 광고 시청으로 +3회 충전 <span style="color:rgba(255,255,255,0.45); font-size:9px;">(신설)</span></div>
-            <div style="font-size:9px; background:var(--primary); color:white; padding:2px 8px; border-radius:4px; font-weight:700; white-space:nowrap;">신설 구좌 ③</div>
-          </div>
-          <div style="margin-left:12px; border-left:1px dashed rgba(255,255,255,0.2); padding-left:16px; font-size:9px; color:rgba(255,255,255,0.4);">↓ 랭킹 확인</div>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:24px; height:24px; background:rgba(255,255,255,0.15); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;">4</div>
             <div style="font-size:10px; color:rgba(255,255,255,0.85); flex:1;">랭킹 페이지 내 네이티브 광고 <span style="color:rgba(255,255,255,0.45); font-size:9px;">(신설)</span></div>
-            <div style="font-size:9px; background:var(--primary); color:white; padding:2px 8px; border-radius:4px; font-weight:700; white-space:nowrap;">신설 구좌 ④</div>
+            <div style="font-size:9px; background:var(--primary); color:white; padding:2px 8px; border-radius:4px; font-weight:700; white-space:nowrap;">신설 구좌 ③</div>
           </div>
         </div>
       </div>
@@ -690,41 +684,43 @@
         <div style="margin-top: 6px; font-size: 10px; color: var(--text-tertiary); text-align: center;">게임은 혜택탭 안에서만 — 엔트리포인트 고정으로 광고 노출 필수화</div>
       </div>
 
-      <!-- 횟수 제한 + 광고 충전 -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
-        <div style="background: var(--bg-subtle); border: 1px solid var(--gray-100); border-radius: 12px; padding: 12px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">게임 횟수 설계</div>
-          <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px;">주문 완료 시 자동 5회 지급. 소진 시 혜택탭 보상형 광고 시청으로 +3회 충전.</div>
-          <div style="background: #fee2e2; border-radius: 8px; padding: 8px; font-size: 10px; color: #991b1b; line-height: 1.5;">
-            <strong>5회 소진 시:</strong><br>
-            "더 하고 싶으면 광고 한 편 보고<br>3회 더 받아가세요 📺"
-          </div>
-          <div style="margin-top: 6px; font-size: 9px; color: var(--text-tertiary); line-height: 1.4;">→ 유저가 원해서 보는 광고. 불쾌하지 않고 자발적.</div>
-        </div>
+      <!-- 게임 기회 획득 구조 -->
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">게임 기회 획득 — 요기요 핵심 행동과 연동</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
 
-        <div style="background: var(--bg-subtle); border: 1px solid var(--gray-100); border-radius: 12px; padding: 12px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">광고 충전 루프</div>
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; align-items: center; gap: 6px; background: white; border-radius: 8px; padding: 6px 8px; border: 1px solid var(--gray-100);">
-              <span style="font-size: 13px;">🎮</span>
-              <span style="font-size: 10px; color: var(--text-primary);">5회 소진</span>
+          <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; background: white; border: 1.5px solid var(--primary-100); border-radius: 10px; padding: 11px 14px;">
+            <div style="width: 36px; height: 36px; background: var(--primary); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px;">🛵</div>
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">주문 완료 시</div>
+              <div style="font-size: 9.5px; color: var(--text-secondary); line-height: 1.5;">주문이 확정되면 자동으로 게임 기회 지급. 주문할수록 더 많이 플레이할 수 있다.</div>
             </div>
-            <div style="text-align: center; font-size: 10px; color: var(--text-tertiary);">↓</div>
-            <div style="display: flex; align-items: center; gap: 6px; background: #eff6ff; border-radius: 8px; padding: 6px 8px; border: 1px solid #bfdbfe;">
-              <span style="font-size: 13px;">📺</span>
-              <span style="font-size: 10px; color: #1d4ed8; font-weight: 600;">보상형 광고 시청 (혜택탭 내)</span>
-            </div>
-            <div style="text-align: center; font-size: 10px; color: var(--text-tertiary);">↓</div>
-            <div style="display: flex; align-items: center; gap: 6px; background: #f0fdf4; border-radius: 8px; padding: 6px 8px; border: 1px solid #bbf7d0;">
-              <span style="font-size: 13px;">✅</span>
-              <span style="font-size: 10px; color: #166534; font-weight: 600;">+3회 충전 → 게임 재개</span>
-            </div>
+            <div style="text-align: right; font-size: 13px; font-weight: 800; color: var(--primary); white-space: nowrap;">+5회</div>
           </div>
+
+          <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; background: white; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 11px 14px;">
+            <div style="width: 36px; height: 36px; background: var(--green); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px;">👥</div>
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">친구를 랭킹에 초대 시</div>
+              <div style="font-size: 9.5px; color: var(--text-secondary); line-height: 1.5;">초대 링크를 공유하고 친구가 랭킹에 참여하면 보너스 기회 지급. 초반 경쟁 상대 풀 확대에도 기여.</div>
+            </div>
+            <div style="text-align: right; font-size: 13px; font-weight: 800; color: var(--green); white-space: nowrap;">+3회</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; background: white; border: 1.5px solid #fde68a; border-radius: 10px; padding: 11px 14px;">
+            <div style="width: 36px; height: 36px; background: #d97706; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px;">🎁</div>
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">친구추천으로 신규 가입 유도 시 <span style="font-size: 9px; font-weight: 400; color: var(--text-tertiary);">기존 기능 연계</span></div>
+              <div style="font-size: 9.5px; color: var(--text-secondary); line-height: 1.5;">요기요 미사용자에게 공유 → 가입 시 기존 친구추천 100p에 더해 게임 기회 추가 지급. 신규 유저 유입과 직결.</div>
+            </div>
+            <div style="text-align: right; font-size: 13px; font-weight: 800; color: #d97706; white-space: nowrap;">+5회</div>
+          </div>
+
         </div>
       </div>
 
       <div style="padding: 10px 14px; background: linear-gradient(135deg, #0f172a, #1e3a5f); border-radius: 10px; font-size: 11px; color: rgba(255,255,255,0.85); line-height: 1.7;">
-        <strong style="color:var(--gold);">핵심:</strong> 유저는 게임을 하러 혜택탭에 온다. 오는 과정과 더 하고 싶은 과정에서 광고를 본다. <strong style="color:#fff;">광고가 억지가 아니라 게임 욕구의 연장선</strong>에 있다.
+        <strong style="color:var(--gold);">설계 의도:</strong> 게임 기회를 주문·친구 초대와 연동하면 게임이 요기요 핵심 지표와 직결된다. 특히 <strong style="color:#fff;">서비스 초반 친구 초대는 경쟁 상대 풀을 빠르게 만드는 수단</strong>이기도 하다. 기존 친구추천 기능과 연계하면 별도 보상 체계 없이 자연스럽게 통합된다.
       </div>
     </div>
 
