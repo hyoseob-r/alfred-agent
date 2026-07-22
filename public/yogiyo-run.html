@@ -88,9 +88,9 @@ window.addEventListener('resize', resize);
 
 // ── 상수 ──────────────────────────────────────────
 const PLAYER_Y     = 500;
-const PLAYER_SPEED = 5;    // 최대 속도 px/frame
-const PLAYER_ACCEL = 0.7;  // 가속도
-const PLAYER_FRIC  = 0.82; // 마찰
+const PLAYER_SPEED = 4;    // 최대 속도 px/frame
+const PLAYER_ACCEL = 0.5;  // 가속도
+const PLAYER_FRIC  = 0.80; // 마찰
 const TIME_INIT    = 30 * 60;
 
 const OBS_TYPES   = ['damage', 'reverse', 'blind'];
@@ -208,10 +208,14 @@ function randX(margin = 30) {
 
 
 function makeItem(x, kind, obsType, bonusType) {
+  // 음식 점수 배율 — 70%: ×1, 25%: ×2, 5%: ×3
+  const fRand = Math.random();
+  const foodMult = kind === 'food' ? (fRand < 0.05 ? 3 : fRand < 0.30 ? 2 : 1) : 1;
   return {
     x, y: -50,
     kind,
     foodIdx:   kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
+    foodMult,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
     spd: baseSpeed * (0.85 + Math.random() * 0.3),
@@ -233,10 +237,15 @@ function spawn() {
   const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
   const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
 
+  // 음식 등장 확률 (나머지는 아무것도 안 스폰)
+  const foodChance = [0.45, 0.50, 0.55, 0.60, 0.65][tier];
+
   const rand = Math.random();
-  let kind = 'food';
-  if (obsPool.length > 0 && rand < obsChance)                     kind = 'obs';
-  else if (bonusPool.length > 0 && rand < obsChance + bonusChance) kind = 'bonus';
+  let kind = null;
+  if (obsPool.length > 0 && rand < obsChance)                              kind = 'obs';
+  else if (bonusPool.length > 0 && rand < obsChance + bonusChance)         kind = 'bonus';
+  else if (rand < obsChance + bonusChance + foodChance)                    kind = 'food';
+  if (!kind) return;
 
   const obsType   = kind === 'obs'   ? obsPool[Math.floor(Math.random() * obsPool.length)] : null;
   const bonusType = kind === 'bonus' ? bonusPool[Math.floor(Math.random() * bonusPool.length)] : null;
@@ -382,11 +391,13 @@ function update() {
         return false;
       } else {
         const mult = P.feverTimer > 0 ? 2 : 1;
-        const pts = Math.floor(10 * mult * (1 + combo * 0.4));
+        const foodMult = it.foodMult || 1;
+        const pts = Math.floor(10 * foodMult * mult * (1 + combo * 0.4));
         score += pts; combo++; comboT = 70;
         timeLeft = Math.min(timeLeft + 1 * 60, TIME_INIT * 2);
         burst(it.x, it.y, P.feverTimer > 0 ? COL.gold : '#fff', 7);
-        const scoreLabel = combo > 2 ? `+${pts} ×${combo}🔥` : `+${pts}`;
+        const multLabel = foodMult > 1 ? ` ×${foodMult}` : '';
+        const scoreLabel = combo > 2 ? `+${pts}${multLabel} ×${combo}🔥` : `+${pts}${multLabel}`;
         popup(it.x, it.y - 10, scoreLabel, COL.gold);
         popup(it.x, it.y - 28, '+1s ⏰', COL.time);
         return false;
@@ -619,6 +630,18 @@ function drawItems() {
       }
     } else {
       drawItemImg(foodImgs[it.foodIdx], it.x, it.y, r);
+      // ×2, ×3 배율 배지
+      if (it.foodMult > 1) {
+        const label = `×${it.foodMult}`;
+        const col = it.foodMult >= 3 ? '#ff5500' : COL.gold;
+        cx.save();
+        cx.fillStyle = col;
+        cx.beginPath(); cx.roundRect(it.x - 14, it.y - r + 1, 28, 16, 5); cx.fill();
+        cx.font = 'bold 11px Pretendard, -apple-system, sans-serif';
+        cx.fillStyle = '#000'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText(label, it.x, it.y - r + 9);
+        cx.restore();
+      }
     }
   });
 }
