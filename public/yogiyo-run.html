@@ -98,6 +98,22 @@ const OBS_TYPES   = ['damage', 'reverse', 'blind'];
 const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash'];
 // golden_time은 별도 희귀 스폰으로 관리 (10초 남을 때 1회)
 
+// 콤보 마일스톤: [임계값, 배율, 색상, 메시지]
+const COMBO_TIERS = [
+  { at:   5, mult:  2, col: '#ffd700', msg: 'COMBO ×5! 🔥'    },
+  { at:  10, mult:  3, col: '#ff9900', msg: 'COMBO ×10!! 🔥🔥' },
+  { at:  20, mult:  5, col: '#ff5500', msg: 'COMBO ×20!!! 🔥'  },
+  { at:  30, mult:  8, col: '#ff2200', msg: 'COMBO ×30!! 💥'   },
+  { at:  60, mult: 12, col: '#ff0055', msg: 'COMBO ×60!!! 💥💥' },
+  { at: 100, mult: 20, col: '#cc00ff', msg: 'LEGENDARY ×100 ✨' },
+];
+function getComboMult(c) {
+  let m = 1;
+  for (const t of COMBO_TIERS) { if (c >= t.at) m = t.mult; }
+  return m;
+}
+const COMBO_TIMER = 180; // 3초 = 180프레임
+
 const COL = {
   bg: '#0a0e1a', primary: '#fa0050', gold: '#f5c400',
   green: '#05c896', white: '#ffffff', time: '#00d4ff',
@@ -264,8 +280,8 @@ function spawn() {
   const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
   const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
 
-  // 음식 등장 확률 (나머지는 아무것도 안 스폰)
-  const foodChance = [0.45, 0.50, 0.55, 0.60, 0.65][tier];
+  // 음식 등장 확률 (나머지는 아무것도 안 스폰) — 초반 음식 충분히
+  const foodChance = [0.75, 0.70, 0.65, 0.60, 0.55][tier];
 
   const rand = Math.random();
   let kind = null;
@@ -376,7 +392,7 @@ function update() {
   if (P.slowTimer    > 0) P.slowTimer--;
   if (P.feverTimer   > 0) P.feverTimer--;
   if (P.dashTimer    > 0) P.dashTimer--;
-  if (comboT > 0) comboT--; else combo = 0;
+  if (comboT > 0) comboT--; else if (combo > 0) { combo = 0; comboT = 0; }
 
   const spawnRate = score < 500 ? 58 : score < 1500 ? 50 : score < 3000 ? 38 : score < 5000 ? 25 : 18;
   if (frame % spawnRate === 0) spawn();
@@ -442,19 +458,39 @@ function update() {
         }
         return false;
       } else {
-        const mult = P.feverTimer > 0 ? 2 : 1;
-        const foodMult = it.foodMult || 1;
-        const pts = Math.floor(10 * foodMult * mult * (1 + combo * 0.4));
-        score += pts; combo++; comboT = 70;
+        const feverMult = P.feverTimer > 0 ? 2 : 1;
+        const foodMult  = it.foodMult || 1;
+        const prevCombo = combo;
+        combo++; comboT = COMBO_TIMER;
+
+        // 콤보 마일스톤 달성 여부 체크 (새 combo 값 기준)
+        const milestone = COMBO_TIERS.find(t => t.at === combo);
+        const comboMult = getComboMult(combo);
+        // 마일스톤 도달 시 점수 추가 뻥튀기 (×2)
+        const milestoneMult = milestone ? 2 : 1;
+        const pts = Math.floor(10 * foodMult * feverMult * comboMult * milestoneMult);
+        score += pts;
         timeLeft = Math.min(timeLeft + 1 * 60, TIME_INIT * 2);
-        burst(it.x, it.y, P.feverTimer > 0 ? COL.gold : '#fff', 7);
+
+        // 이펙트
+        const burstCol = milestone ? milestone.col : (P.feverTimer > 0 ? COL.gold : '#fff');
+        burst(it.x, it.y, burstCol, milestone ? 18 : 7);
+
+        // 팝업 텍스트
         const multLabel = foodMult > 1 ? ` ×${foodMult}` : '';
-        const scoreLabel = combo > 2 ? `+${pts}${multLabel} ×${combo}🔥` : `+${pts}${multLabel}`;
-        popup(it.x, it.y - 10, scoreLabel, COL.gold);
+        const comboLabel = combo >= 5 ? ` [×${comboMult}콤보]` : '';
+        popup(it.x, it.y - 10, `+${pts}${multLabel}${comboLabel}`, milestone ? milestone.col : COL.gold);
         popup(it.x, it.y - 28, '+1s ⏰', COL.time);
+
+        // 마일스톤 메시지
+        if (milestone) {
+          urgentMsg = { text: milestone.msg, col: milestone.col, life: 100, maxLife: 100 };
+          lastUrgentSec = -99; // 다른 메시지와 충돌 방지
+        }
+
         // 점수 파티클 — HUD 점수 위치로 날아감
-        const pCol = foodMult >= 3 ? '#ff5500' : foodMult >= 2 ? COL.gold : '#ffffff';
-        const pCount = foodMult + 2 + (combo > 3 ? 2 : 0);
+        const pCol = milestone ? milestone.col : (foodMult >= 3 ? '#ff5500' : foodMult >= 2 ? COL.gold : '#ffffff');
+        const pCount = (foodMult + 2) * (milestone ? 3 : 1) + (combo > 10 ? 2 : 0);
         for (let i = 0; i < pCount; i++) {
           scoreParticles.push({
             x: it.x + (Math.random()-0.5)*20,
@@ -594,11 +630,27 @@ function drawHUD() {
   }
   cx.globalAlpha = 1;
 
-  // ── 콤보 ─────────────────────────────────────────
-  if (combo > 2) {
-    cx.globalAlpha = 0.7 + Math.sin(frame * 0.25) * 0.3;
-    btxt(`🔥 ×${combo} COMBO`, W/2, 72, 13, COL.gold);
+  // ── 콤보 HUD ─────────────────────────────────────
+  if (combo > 0) {
+    const tier = COMBO_TIERS.slice().reverse().find(t => combo >= t.at);
+    const comboCol = tier ? tier.col : 'rgba(255,255,255,0.7)';
+    const comboMult = getComboMult(combo);
+    const timerPct = comboT / COMBO_TIMER; // 1→0
+
+    // 콤보 텍스트
+    cx.globalAlpha = 0.85 + Math.sin(frame * 0.25) * 0.15;
+    btxt(combo >= 5 ? `🔥 ×${combo} COMBO  [×${comboMult}]` : `×${combo} COMBO`, W/2, 72, combo >= 5 ? 14 : 12, comboCol);
     cx.globalAlpha = 1;
+
+    // 콤보 타이머 바 (콤보 텍스트 아래)
+    const cw = 100, ch = 3, cx0 = W/2 - cw/2, cy0 = 81;
+    cx.fillStyle = 'rgba(255,255,255,0.1)';
+    cx.beginPath(); cx.roundRect(cx0, cy0, cw, ch, 2); cx.fill();
+    const barCol = timerPct > 0.5 ? comboCol : timerPct > 0.25 ? '#ff9900' : '#ff2200';
+    cx.fillStyle = barCol;
+    if (timerPct < 0.3) { cx.shadowColor = barCol; cx.shadowBlur = 6; }
+    cx.beginPath(); cx.roundRect(cx0, cy0, cw * timerPct, ch, 2); cx.fill();
+    cx.shadowBlur = 0;
   }
 
   // ── 스피드바 (하단) ───────────────────────────────
@@ -656,6 +708,25 @@ function drawPlayer() {
     cx.strokeStyle = `rgba(250,0,80,${P.inv / 80 * 0.8})`;
     cx.lineWidth = 2.5;
     cx.beginPath(); cx.arc(px, py, 32, 0, Math.PI * 2); cx.stroke();
+  }
+
+  // 콤보 타이머 링 — 3초 안에 먹어야 콤보 유지
+  if (combo > 0 && comboT > 0) {
+    const timerPct = comboT / COMBO_TIMER;
+    const ringR = 44;
+    const tierInfo = COMBO_TIERS.slice().reverse().find(t => combo >= t.at);
+    const ringCol = timerPct > 0.5 ? (tierInfo ? tierInfo.col : '#ffffff')
+                  : timerPct > 0.25 ? '#ff9900' : '#ff2200';
+    cx.save();
+    cx.strokeStyle = ringCol;
+    cx.lineWidth = timerPct < 0.3 ? 3 : 2;
+    cx.globalAlpha = 0.55 + timerPct * 0.35;
+    if (timerPct < 0.3) { cx.shadowColor = ringCol; cx.shadowBlur = 8; }
+    cx.beginPath();
+    cx.arc(px, py, ringR, -Math.PI / 2, -Math.PI / 2 + timerPct * Math.PI * 2);
+    cx.stroke();
+    cx.restore();
+    cx.globalAlpha = 1;
   }
 }
 
