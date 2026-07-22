@@ -87,12 +87,12 @@ resize();
 window.addEventListener('resize', resize);
 
 // ── 상수 ──────────────────────────────────────────
-const PLAYER_SPEED = 4;    // 최대 속도 px/frame
-const PLAYER_ACCEL = 0.5;  // 가속도
+const PLAYER_SPEED = 2.7;  // 최대 속도 px/frame (2/3 감소)
+const PLAYER_ACCEL = 0.33; // 가속도 (2/3 감소)
 const PLAYER_FRIC  = 0.80; // 마찰
 const PLAYER_Y_MIN = 160;  // 세로 이동 상한
 const PLAYER_Y_MAX = 600;  // 세로 이동 하한
-const TIME_INIT    = 30 * 60;
+const TIME_INIT    = 60 * 60; // 1분
 
 const OBS_TYPES   = ['damage', 'reverse', 'blind'];
 const BONUS_TYPES = ['magnet', 'slow', 'fever', 'dash'];
@@ -108,8 +108,13 @@ let S = 'start';
 let score = 0, hi = 0, lives = 3, frame = 0, timeLeft = 0;
 let baseSpeed = 4, combo = 0, comboT = 0;
 let items = [], particles = [], popups = [];
+let scoreParticles = []; // 점수 HUD로 날아가는 파티클
+let scorePop = 0;        // 점수 띠용 bounce 타이머
 let extraTimeAnim = 0;   // EXTRA TIME! 연출 카운트다운 (150프레임)
 let goldenSpawned = false; // 이번 게임에서 황금 물약 스폰 여부
+// 긴박 메시지 — Temple Run / Subway Surfers 스타일
+let urgentMsg = null;    // { text, col, life, maxLife }
+let lastUrgentSec = -1; // 중복 방지용 마지막 표시 초
 
 // ── 플레이어 ──────────────────────────────────────
 const P = {
@@ -211,6 +216,8 @@ function startGame() {
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
   extraTimeAnim = 0; goldenSpawned = false;
+  scoreParticles = []; scorePop = 0;
+  urgentMsg = null; lastUrgentSec = -1;
 }
 
 // ── 스폰 (레인 없음 — 랜덤 X) ──────────────────────
@@ -244,15 +251,15 @@ function makeItem(x, kind, obsType, bonusType) {
 }
 
 // 난이도 시뮬레이션 기준 (장애물/초 = obsChance * 60 / spawnRate):
-// tier 0: 0.03 * 60/55 = 0.03/s  (거의 없음, 조작 익히는 구간)
-// tier 1: 0.10 * 60/45 = 0.13/s  (슬슬 시작)
-// tier 2: 0.20 * 60/32 = 0.38/s  (중간)
-// tier 3: 0.32 * 60/22 = 0.87/s  (빠듯함)
-// tier 4: 0.44 * 60/15 = 1.76/s  (고난이도)
+// tier 0: 0.03 * 60/58 = 0.03/s  (거의 없음, 조작 익히는 구간)
+// tier 1: 0.06 * 60/50 = 0.07/s  (슬슬 시작)
+// tier 2: 0.13 * 60/38 = 0.21/s  (중간)
+// tier 3: 0.25 * 60/25 = 0.60/s  (빠듯함)
+// tier 4: 0.38 * 60/18 = 1.27/s  (고난이도)
 function spawn() {
   const tier = getDifficultyTier();
-  const obsChance   = [0.03, 0.10, 0.20, 0.32, 0.44][tier];
-  const bonusChance = [0,    0.05, 0.09, 0.13, 0.16][tier];
+  const obsChance   = [0.03, 0.06, 0.13, 0.25, 0.38][tier];
+  const bonusChance = [0,    0.04, 0.08, 0.12, 0.15][tier];
 
   const obsPool   = OBS_TYPES.slice(0, [1, 1, 2, 3, 3][tier]);
   const bonusPool = BONUS_TYPES.slice(0, [0, 0, 1, 2, 4][tier]);
@@ -319,6 +326,22 @@ function update() {
     else { S = 'over'; if (score > hi) hi = score; return; }
   }
 
+  // ── 긴박 메시지 트리거 (Temple Run / Subway Surfers 스타일) ───
+  if (urgentMsg && urgentMsg.life > 0) urgentMsg.life--;
+  const secs = Math.ceil(timeLeft / 60);
+  function showUrgent(text, col) {
+    if (lastUrgentSec !== secs) { urgentMsg = { text, col, life: 90, maxLife: 90 }; lastUrgentSec = secs; }
+  }
+  if (!timerFrozen) {
+    if (secs === 30) showUrgent('HURRY UP!', '#ff9900');
+    else if (secs === 20) showUrgent('TIME IS RUNNING OUT!', '#ff5500');
+    else if (secs === 15) showUrgent('KEEP GOING!', '#ff3300');
+    else if (secs === 10) showUrgent('LAST CHANCE!', '#ff0000');
+    else if (secs <=  5 && secs > 0 && secs !== lastUrgentSec) showUrgent(`${secs}...`, '#ff0000');
+  }
+  if (combo >= 5  && combo % 5 === 0 && comboT === 69) showUrgent(`×${combo} COMBO!! 🔥`, COL.gold);
+  if (lives === 1 && frame % 300 === 1) { urgentMsg = { text: '⚠️ LAST LIFE!', col: COL.primary, life: 80, maxLife: 80 }; }
+
   // 황금 물약 — 10초 남았을 때 1회만 스폰 (느리게 내려옴)
   if (!goldenSpawned && timeLeft <= 600 && timeLeft > 0) {
     goldenSpawned = true;
@@ -355,10 +378,11 @@ function update() {
   if (P.dashTimer    > 0) P.dashTimer--;
   if (comboT > 0) comboT--; else combo = 0;
 
-  const spawnRate = score < 500 ? 55 : score < 1500 ? 45 : score < 3000 ? 32 : score < 5000 ? 22 : 15;
+  const spawnRate = score < 500 ? 58 : score < 1500 ? 50 : score < 3000 ? 38 : score < 5000 ? 25 : 18;
   if (frame % spawnRate === 0) spawn();
 
-  const wallRate = score < 500 ? 0 : score < 1500 ? 220 : score < 3000 ? 170 : score < 5000 ? 130 : 90;
+  // spawnRow는 tier 2부터, 더 드물게
+  const wallRate = score < 1500 ? 0 : score < 3000 ? 300 : score < 5000 ? 220 : 150;
   if (wallRate > 0 && frame % wallRate === 0) spawnRow();
 
   items = items.filter(it => {
@@ -428,6 +452,18 @@ function update() {
         const scoreLabel = combo > 2 ? `+${pts}${multLabel} ×${combo}🔥` : `+${pts}${multLabel}`;
         popup(it.x, it.y - 10, scoreLabel, COL.gold);
         popup(it.x, it.y - 28, '+1s ⏰', COL.time);
+        // 점수 파티클 — HUD 점수 위치로 날아감
+        const pCol = foodMult >= 3 ? '#ff5500' : foodMult >= 2 ? COL.gold : '#ffffff';
+        const pCount = foodMult + 2 + (combo > 3 ? 2 : 0);
+        for (let i = 0; i < pCount; i++) {
+          scoreParticles.push({
+            x: it.x + (Math.random()-0.5)*20,
+            y: it.y + (Math.random()-0.5)*20,
+            vx: (Math.random()-0.5)*4,
+            vy: -2 - Math.random()*3,
+            col: pCol, sz: 3 + Math.random()*3, life: 0,
+          });
+        }
         return false;
       }
     }
@@ -440,6 +476,24 @@ function update() {
   });
   popups = popups.filter(p => {
     p.y += p.vy; p.alpha -= 0.022; return p.alpha > 0;
+  });
+
+  // 점수 HUD 파티클 — 왼쪽 상단 점수 위치(20,20)로 호밍
+  if (scorePop > 0) scorePop--;
+  scoreParticles = scoreParticles.filter(p => {
+    const tx = 20, ty = 20;
+    const dx = tx - p.x, dy = ty - p.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 22) { scorePop = 20; return false; }
+    const spd = Math.min(6 + p.life * 0.3, 14);
+    const norm = dist || 1;
+    p.vx += (dx / norm) * 1.8;
+    p.vy += (dy / norm) * 1.8;
+    const curSpd = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+    if (curSpd > spd) { p.vx = p.vx/curSpd*spd; p.vy = p.vy/curSpd*spd; }
+    p.x += p.vx; p.y += p.vy;
+    p.life++;
+    return p.life < 80;
   });
 }
 
@@ -519,8 +573,18 @@ function drawHUD() {
     cx.shadowBlur = 0;
   }
 
-  // ── 점수 (왼쪽) ──────────────────────────────────
-  btxt(score.toLocaleString(), 20, 20, 18, COL.gold, 'left');
+  // ── 점수 (왼쪽) — 파티클 도착 시 띠용 bounce ─────
+  if (scorePop > 0) {
+    const s = 1 + Math.sin(scorePop / 20 * Math.PI) * 0.45;
+    cx.save();
+    cx.translate(20, 20); cx.scale(s, s); cx.translate(-20, -20);
+    if (s > 1.1) { cx.shadowColor = COL.gold; cx.shadowBlur = 12 * (s - 1) * 5; }
+    btxt(score.toLocaleString(), 20, 20, 18, COL.gold, 'left');
+    cx.shadowBlur = 0;
+    cx.restore();
+  } else {
+    btxt(score.toLocaleString(), 20, 20, 18, COL.gold, 'left');
+  }
   txt('SCORE', 20, 36, 8, 'rgba(255,255,255,0.3)', 'left');
 
   // ── 라이프 (오른쪽) ──────────────────────────────
@@ -688,6 +752,15 @@ function drawFX() {
     cx.globalAlpha = p.alpha; cx.fillStyle = p.col;
     cx.beginPath(); cx.arc(p.x, p.y, p.sz, 0, Math.PI*2); cx.fill();
   });
+  // 점수 HUD 호밍 파티클
+  scoreParticles.forEach(p => {
+    const a = Math.max(0, 1 - p.life / 80);
+    cx.globalAlpha = a;
+    cx.fillStyle = p.col;
+    cx.shadowColor = p.col; cx.shadowBlur = 6;
+    cx.beginPath(); cx.arc(p.x, p.y, p.sz, 0, Math.PI*2); cx.fill();
+    cx.shadowBlur = 0;
+  });
   cx.globalAlpha = 1;
   popups.forEach(p => {
     cx.globalAlpha = p.alpha; btxt(p.txt, p.x, p.y, 13, p.col);
@@ -737,6 +810,35 @@ function drawSpecialFX() {
     cx.strokeStyle = b.col; cx.lineWidth = 1; rrect(bx, by-9, 90, 18, 9); cx.stroke();
     btxt(b.label, bx+45, by, 10, b.col);
   });
+}
+
+// ── 긴박 메시지 (HURRY UP! 등) ───────────────────────
+function drawUrgentMsg() {
+  if (!urgentMsg || urgentMsg.life <= 0) return;
+  const { text, col, life, maxLife } = urgentMsg;
+  const t = life / maxLife; // 1→0
+  // 등장: slam-in (scale 2.0→1.0), 퇴장: fade out
+  const progress = 1 - t; // 0→1 경과
+  const scaleIn  = progress < 0.2 ? 2.0 - (progress / 0.2) : 1.0;
+  const alpha    = t < 0.25 ? t / 0.25 : 1.0;
+  const y        = H * 0.38;
+
+  cx.save();
+  cx.globalAlpha = alpha;
+  cx.translate(W/2, y);
+  cx.scale(scaleIn, scaleIn);
+
+  // 텍스트 쉐도우 glow
+  cx.shadowColor = col;
+  cx.shadowBlur  = 18 + Math.sin(frame * 0.4) * 6;
+  cx.font = `900 22px Pretendard, -apple-system, sans-serif`;
+  cx.fillStyle = col;
+  cx.textAlign = 'center';
+  cx.textBaseline = 'middle';
+  cx.fillText(text, 0, 0);
+
+  cx.restore();
+  cx.globalAlpha = 1;
 }
 
 // ── 시작 화면 ─────────────────────────────────────
@@ -869,7 +971,7 @@ function loop() {
   drawItems();
   drawFX();
   if (S === 'play' || S === 'over' || S === 'dead') drawPlayer();
-  if (S === 'play')  { drawSpecialFX(); drawHUD(); drawExtraTime(); }
+  if (S === 'play')  { drawSpecialFX(); drawHUD(); drawUrgentMsg(); drawExtraTime(); }
   if (S === 'start') drawStart();
   if (S === 'over')  { drawHUD(); drawOver(); }
   requestAnimationFrame(loop);
