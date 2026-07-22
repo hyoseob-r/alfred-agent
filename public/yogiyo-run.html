@@ -437,10 +437,14 @@ function update() {
       ? (it.obsType === 'damage' ? 42 : 36)
       : it.kind === 'bonus' ? 38 : 36;
 
+    // 무적 중 장애물 — 가장 먼저 체크, 데미지 없이 제거
+    if (it.kind === 'obs' && P.invincibleTimer > 0 && dx < hitR && dy < hitR) {
+      burst(it.x, it.y, '#ffffff88', 8);
+      return false;
+    }
+
     if (dx < hitR && dy < hitR && (P.inv === 0 || it.kind !== 'obs')) {
       if (it.kind === 'obs') {
-        // 무적 중이면 장애물 무효화
-        if (P.invincibleTimer > 0) { burst(it.x, it.y, '#fff8', 8); return false; }
         lives--;
         P.inv = 80; P.shake = 18; P.bump = 10;
         burst(it.x, it.y, COL.primary, 12);
@@ -449,13 +453,13 @@ function update() {
         return false;
       } else if (it.kind === 'bonus') {
         if (it.bonusType === 'invincible') {
-          P.invincibleTimer = 360; // 6초 무적
+          P.invincibleTimer = 300; // 5초 무적
           invincibleOnScreen = false;
           burst(it.x, it.y, '#fff', 20);
           burst(it.x, it.y, '#ffd700', 16);
           urgentMsg = { text: '✨ INVINCIBLE! ✨', col: '#fff', life: 100, maxLife: 100 };
           lastUrgentSec = -99;
-          popup(P.x, P.y - 50, '🛡 무적 6초!', '#ffd700');
+          popup(P.x, P.y - 50, '🛡 무적 5초!', '#ffd700');
         } else if (it.bonusType === 'golden_time') {
           timeLeft = TIME_INIT; // 시간 100% 원복
           goldenSpawned = false; // 다음 위기 때 또 스폰 가능
