@@ -300,19 +300,17 @@ function spawn() {
   items.push(makeItem(randX(), kind, obsType, bonusType));
 }
 
-// 장애물 줄 스폰 — 가로 전체에 퍼뜨리고 통로 하나만 비움
-function spawnRow() {
+// 장애물 2개 페어 스폰 — 한쪽에 몰아서 압박감만 줌
+function spawnPair() {
   const tier = getDifficultyTier();
-  if (tier < 1) return;
-
-  const gapX = 50 + Math.random() * (W - 100);
-  const gapHalf = 50; // 통로 너비
-  const count = tier >= 3 ? 5 : 4;
+  if (tier < 2) return; // 25초 이후부터
   const spd = baseSpeed * (0.9 + Math.random() * 0.2);
-
-  for (let i = 0; i < count; i++) {
-    const x = 30 + (W - 60) * (i / (count - 1));
-    if (Math.abs(x - gapX) < gapHalf) continue;
+  // 왼쪽 또는 오른쪽 구역에 2개, 반대편은 비워둠
+  const side = Math.random() < 0.5 ? 0 : 1; // 0=왼쪽 구역, 1=오른쪽
+  const base = side === 0 ? 40 : W - 40;
+  const spread = 60;
+  for (let i = 0; i < 2; i++) {
+    const x = base + (i === 0 ? -spread * 0.3 : spread * 0.3) * (side === 0 ? 1 : -1);
     const it = makeItem(x, 'obs', 'damage', null);
     it.spd = spd;
     items.push(it);
@@ -418,9 +416,9 @@ function update() {
   const spawnRate = [58, 50, 40, 30, 22][tier];
   if (frame % spawnRate === 0) spawn();
 
-  // spawnRow: 25초(tier2)부터 시작
-  const wallRate = [0, 0, 300, 220, 150][tier];
-  if (wallRate > 0 && frame % wallRate === 0) spawnRow();
+  // 페어 스폰: 25초(tier2)부터, 드물게
+  const pairRate = [0, 0, 420, 320, 240][tier];
+  if (pairRate > 0 && frame % pairRate === 0) spawnPair();
 
   items = items.filter(it => {
     const spd = P.slowTimer > 0 ? it.spd * 0.4 : it.spd;
