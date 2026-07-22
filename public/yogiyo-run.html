@@ -1011,30 +1011,38 @@ function drawUrgentMsg() {
 
 // ── 시작 화면 ─────────────────────────────────────
 function drawStart() {
-  const joriY = 195 + Math.sin(frame * 0.04) * 7;
-  cx.shadowColor = COL.primary; cx.shadowBlur = 30;
-  drawJori(W/2, joriY, 55); cx.shadowBlur = 0;
-  rrect(W/2-36, joriY+50, 72, 22, 11, 'rgba(250,0,80,0.15)', COL.primary, 1);
-  btxt('조리', W/2, joriY+61, 12, COL.primary);
+  // 타이틀
+  cx.shadowColor = COL.primary; cx.shadowBlur = 24;
+  btxt('요기요 런', W/2, 200, 38, COL.white);
+  cx.shadowBlur = 0;
+  txt('시즌 챌린지', W/2, 235, 13, 'rgba(255,255,255,0.4)');
 
-  btxt('요기요 런', W/2, 308, 32, COL.white);
-  txt('시즌 챌린지 · 고득점으로 랭킹에 도전하세요', W/2, 336, 12, 'rgba(255,255,255,0.45)');
+  // 조리 — 하단, 달릴 준비 (좌우 발 번갈아 + 위아래 바운스)
+  const bounce = Math.abs(Math.sin(frame * 0.12)) * 10;
+  const runDir = Math.floor(frame / 18) % 2 === 0 ? -1 : 1; // 발 번갈아
+  const joriY = H - 130 - bounce;
+  cx.shadowColor = COL.primary; cx.shadowBlur = 28;
+  drawJori(W/2, joriY, 80, 1, runDir);
+  cx.shadowBlur = 0;
 
-  rrect(40, 368, W-80, 58, 10, 'rgba(255,255,255,0.04)');
-  txt('화면 터치 또는 ← → 키로 좌우 자유이동', W/2, 390, 11, 'rgba(255,255,255,0.5)');
-  const fds = ['🍗','🍕','🍔','🌮','🥗'];
-  fds.forEach((f, i) => em(f, 80+i*44, 413, 22));
-  txt('음식 모으기 = 점수 UP   🚧 장애물 = 라이프 DOWN', W/2, 435, 10, 'rgba(255,255,255,0.3)');
+  // 그림자
+  cx.globalAlpha = 0.22; cx.fillStyle = '#000';
+  const shadowW = 40 + bounce * 1.5;
+  cx.beginPath(); cx.ellipse(W/2, H - 80, shadowW, 10, 0, 0, Math.PI * 2); cx.fill();
+  cx.globalAlpha = 1;
 
-  rrect(W/2-80, 452, 160, 22, 11, `${COL.time}22`, COL.time, 0.8);
-  txt('⏰ 시계 아이템으로 시간 연장!', W/2, 463, 10, COL.time);
-
-  const by = 520, pulse = 1 + Math.sin(frame * 0.07) * 0.025;
-  cx.save(); cx.translate(W/2, by); cx.scale(pulse, pulse);
+  // 시작 버튼
+  const pulse = 1 + Math.sin(frame * 0.07) * 0.03;
+  cx.save(); cx.translate(W/2, H - 200); cx.scale(pulse, pulse);
   rrect(-110, -24, 220, 48, 24, COL.primary);
-  btxt('게임 시작', 0, 0, 17, '#fff'); cx.restore();
+  btxt('탭하여 시작', 0, 0, 17, '#fff');
+  cx.restore();
 
-  if (hi > 0) { em('🏆', W/2-55, 590, 16); txt(`최고 기록  ${hi.toLocaleString()}`, W/2+10, 590, 13, COL.gold); }
+  // 최고 기록
+  if (hi > 0) {
+    em('🏆', W/2 - 52, H - 148, 15);
+    txt(`최고 기록  ${hi.toLocaleString()}`, W/2 + 12, H - 148, 13, COL.gold);
+  }
 }
 
 // ── EXTRA TIME! 연출 ──────────────────────────────
