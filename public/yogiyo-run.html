@@ -30,16 +30,14 @@ const foodImgs = Array.from({length: 16}, (_, i) => {
 });
 
 // 보너스 이미지
-const bonusImgs = {
-  magnet: new Image(), slow: new Image(),
-  fever:  new Image(), dash: new Image(),
-  golden_time: new Image(),
-};
-bonusImgs.magnet.src      = 'bonus_heart.png';      // KEY TO HEART → 자석
-bonusImgs.slow.src        = 'bonus_mist.png';       // MIASMA MIST → 슬로우
-bonusImgs.fever.src       = 'bonus_grain.png';      // GRAIN ESSENCE → 점수 2배
-bonusImgs.dash.src        = 'bonus_chili.png';      // SPICY HEAT → 초고속
-bonusImgs.golden_time.src = 'bonus_golden_time.png'; // 황금 물약 → 시간 원복
+const bonusImgs = { golden_time: new Image() };
+bonusImgs.golden_time.src = 'bonus_golden_time.png';
+
+// 무적 포션 4프레임 스프라이트 (날개 팔락)
+// 새 날갯짓 기준 ~3.75회/초 → 4프레임 × 4게임프레임 = 16프레임/사이클
+const invincibleImgs = [1,2,3,4].map(i => {
+  const img = new Image(); img.src = `bonus_invincible_${i}.png`; return img;
+});
 
 // 장애물 디버프 이미지 (reverse/blind용 포션)
 const debuffImgs = {
@@ -126,8 +124,9 @@ let baseSpeed = 4, combo = 0, comboT = 0;
 let items = [], particles = [], popups = [];
 let scoreParticles = []; // 점수 HUD로 날아가는 파티클
 let scorePop = 0;        // 점수 띠용 bounce 타이머
-let extraTimeAnim = 0;   // EXTRA TIME! 연출 카운트다운 (150프레임)
-let goldenSpawned = false; // 이번 게임에서 황금 물약 스폰 여부
+let extraTimeAnim = 0;        // EXTRA TIME! 연출 카운트다운 (150프레임)
+let goldenSpawned = false;    // 이번 게임에서 황금 물약 스폰 여부
+let invincibleOnScreen = false; // 무적 포션 중복 방지
 // 긴박 메시지 — Temple Run / Subway Surfers 스타일
 let urgentMsg = null;    // { text, col, life, maxLife }
 let lastUrgentSec = -1; // 중복 방지용 마지막 표시 초
@@ -141,6 +140,7 @@ const P = {
   reverseTimer: 0, blindTimer: 0,
   magnetTimer: 0,  slowTimer: 0,
   feverTimer: 0,   dashTimer: 0,
+  invincibleTimer: 0,  // 무적 타이머 (프레임)
 };
 
 // ── 입력 ──────────────────────────────────────────
@@ -231,9 +231,10 @@ function startGame() {
   P.inv = 0; P.shake = 0; P.bump = 0; P.dir = 0;
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
-  extraTimeAnim = 0; goldenSpawned = false;
+  extraTimeAnim = 0; goldenSpawned = false; invincibleOnScreen = false;
   scoreParticles = []; scorePop = 0;
   urgentMsg = null; lastUrgentSec = -1;
+  P.invincibleTimer = 0;
 }
 
 // ── 스폰 (레인 없음 — 랜덤 X) ──────────────────────
@@ -369,6 +370,20 @@ function update() {
     items.push(gt);
   }
 
+  // 무적 포션 — tier2+(25초~) 이후 등장, 최대 1개, 라이프1일때 확률 상승
+  if (!invincibleOnScreen && frame >= 1500 && P.invincibleTimer === 0) {
+    const chance = lives === 1 ? 0.0025 : 0.0007; // 라이프1: ~6초마다 / 정상: ~24초마다
+    if (Math.random() < chance) {
+      const it = makeItem(randX(70), 'bonus', null, 'invincible');
+      it.spd      = 1.0;          // 느린 하강
+      it.baseX    = it.x;         // 살랑살랑 기준 X
+      it.animFrame = 0;           // 날개 애니 카운터
+      it.swayPhase = Math.random() * Math.PI * 2; // 시작 위상 랜덤
+      items.push(it);
+      invincibleOnScreen = true;
+    }
+  }
+
   baseSpeed = 2.5 + (frame / TIME_INIT) * 3.5; // 2.5 → 6.0 (1분 선형)
 
   processInput();
@@ -394,7 +409,8 @@ function update() {
   if (P.magnetTimer  > 0) P.magnetTimer--;
   if (P.slowTimer    > 0) P.slowTimer--;
   if (P.feverTimer   > 0) P.feverTimer--;
-  if (P.dashTimer    > 0) P.dashTimer--;
+  if (P.dashTimer       > 0) P.dashTimer--;
+  if (P.invincibleTimer > 0) P.invincibleTimer--;
   if (comboT > 0) comboT--; else if (combo > 0) { combo = 0; comboT = 0; }
 
   // 스폰 간격도 시간 기반
@@ -410,10 +426,10 @@ function update() {
     const spd = P.slowTimer > 0 ? it.spd * 0.4 : it.spd;
     it.y += spd;
 
-    // 자석: 음식을 끌어당김
-    if (P.magnetTimer > 0 && it.kind === 'food') {
-      it.x += (P.x - it.x) * 0.06;
-      it.y += (P.y - it.y) * 0.04;
+    // 무적 포션: 좌우 살랑살랑 이동 + 날개 애니 카운터 증가
+    if (it.bonusType === 'invincible') {
+      it.animFrame++;
+      it.x = it.baseX + Math.sin(it.swayPhase + it.animFrame * (Math.PI * 2 / 150)) * 48;
     }
 
     const dx = Math.abs(it.x - P.x);
@@ -425,6 +441,8 @@ function update() {
 
     if (dx < hitR && dy < hitR && (P.inv === 0 || it.kind !== 'obs')) {
       if (it.kind === 'obs') {
+        // 무적 중이면 장애물 무효화
+        if (P.invincibleTimer > 0) { burst(it.x, it.y, '#fff8', 8); return false; }
         lives--;
         P.inv = 80; P.shake = 18; P.bump = 10;
         burst(it.x, it.y, COL.primary, 12);
@@ -432,7 +450,15 @@ function update() {
         if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
         return false;
       } else if (it.kind === 'bonus') {
-        if (it.bonusType === 'golden_time') {
+        if (it.bonusType === 'invincible') {
+          P.invincibleTimer = 360; // 6초 무적
+          invincibleOnScreen = false;
+          burst(it.x, it.y, '#fff', 20);
+          burst(it.x, it.y, '#ffd700', 16);
+          urgentMsg = { text: '✨ INVINCIBLE! ✨', col: '#fff', life: 100, maxLife: 100 };
+          lastUrgentSec = -99;
+          popup(P.x, P.y - 50, '🛡 무적 6초!', '#ffd700');
+        } else if (it.bonusType === 'golden_time') {
           timeLeft = TIME_INIT; // 시간 100% 원복
           goldenSpawned = false; // 다음 위기 때 또 스폰 가능
           extraTimeAnim = 150;  // EXTRA TIME! 연출 시작
@@ -486,7 +512,9 @@ function update() {
         return false;
       }
     }
-    return it.y < H + 60;
+    const alive = it.y < H + 60;
+    if (!alive && it.bonusType === 'invincible') invincibleOnScreen = false;
+    return alive;
   });
 
   particles = particles.filter(p => {
@@ -693,6 +721,28 @@ function drawPlayer() {
     cx.beginPath(); cx.arc(px, py, 32, 0, Math.PI * 2); cx.stroke();
   }
 
+  // 무적 상태 — 금색 오라 + 빠른 깜빡임
+  if (P.invincibleTimer > 0) {
+    const blink = Math.floor(P.invincibleTimer / 4) % 2 === 0;
+    const auraA = 0.3 + Math.sin(frame * 0.3) * 0.2;
+    cx.save();
+    cx.strokeStyle = `rgba(255,215,0,${auraA + 0.3})`;
+    cx.lineWidth = 3;
+    cx.shadowColor = '#ffd700';
+    cx.shadowBlur  = 16 + Math.sin(frame * 0.4) * 8;
+    cx.beginPath(); cx.arc(px, py, 40, 0, Math.PI * 2); cx.stroke();
+    // 남은 시간에 따라 링 2개
+    if (P.invincibleTimer > 60) {
+      cx.strokeStyle = `rgba(255,255,200,${auraA * 0.5})`;
+      cx.lineWidth = 1.5;
+      cx.beginPath(); cx.arc(px, py, 52, 0, Math.PI * 2); cx.stroke();
+    }
+    cx.restore();
+    cx.globalAlpha = 1;
+    // 3초 이하 남으면 깜빡임으로 경고
+    if (P.invincibleTimer < 180 && blink) cx.globalAlpha = 0.4;
+  }
+
   // 콤보 타이머 링 — 3초 안에 먹어야 콤보 유지
   if (combo > 0 && comboT > 0) {
     const timerPct = comboT / COMBO_TIMER;
@@ -739,7 +789,30 @@ function drawItems() {
         }
       }
     } else if (it.kind === 'bonus') {
-      if (it.bonusType === 'golden_time') {
+      if (it.bonusType === 'invincible') {
+        // 4프레임 날개 애니 (4게임프레임씩 = 3.75 팔락/초)
+        const fIdx = Math.floor((it.animFrame || 0) / 4) % 4;
+        const img  = invincibleImgs[fIdx];
+        const glowAmt = 10 + Math.abs(Math.sin((it.animFrame||0) * 0.25)) * 18;
+        cx.shadowColor = '#ffd700'; cx.shadowBlur = glowAmt;
+        if (img && img.complete && img.naturalWidth > 0) {
+          const aspect = img.naturalHeight / img.naturalWidth;
+          const w = r * 2.4, h = w * aspect;
+          cx.drawImage(img, it.x - w/2, it.y - h/2, w, h);
+        } else {
+          cx.font = `${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle';
+          cx.fillText('🛡', it.x, it.y);
+        }
+        cx.shadowBlur = 0;
+        // "무적!" 배지
+        cx.save();
+        cx.fillStyle = 'rgba(255,215,0,0.92)';
+        cx.beginPath(); cx.roundRect(it.x - 20, it.y - r - 2, 40, 16, 5); cx.fill();
+        cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
+        cx.fillStyle = '#000'; cx.textAlign='center'; cx.textBaseline='middle';
+        cx.fillText('무적!', it.x, it.y - r + 6);
+        cx.restore();
+      } else if (it.bonusType === 'golden_time') {
         // glow만 켜졌다 꺼졌다 — 이미지 크기는 고정 (음식과 동일)
         const glowAmt = 8 + Math.abs(Math.sin(frame * 0.18 + it.y * 0.03)) * 22;
         cx.shadowColor = '#f5c400';
