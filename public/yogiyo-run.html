@@ -333,6 +333,7 @@ function spawnPair() {
 
 // ── 파티클 ────────────────────────────────────────
 function burst(x, y, col, n = 10) {
+  if (particles.length > 80) return; // 상한 제한
   for (let i = 0; i < n; i++) {
     const a = (Math.PI * 2 / n) * i, s = 2 + Math.random() * 4;
     particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, alpha: 1, col, sz: 3 + Math.random()*3 });
@@ -658,12 +659,7 @@ function drawHUD() {
 
   // ── 타이머 (중앙, 크게) ──────────────────────────
   // 숫자
-  if (danger) {
-    cx.shadowColor = tCol;
-    cx.shadowBlur  = 16 + Math.sin(frame * 0.3) * 6;
-  }
   btxt(`${secs}`, W/2, 22, 32, tCol);
-  cx.shadowBlur = 0;
   txt('TIME', W/2, 42, 9, `${tCol}99`);
 
   // 타이머 바 (상단 전체 폭)
@@ -675,9 +671,7 @@ function drawHUD() {
     fg.addColorStop(0, tCol);
     fg.addColorStop(1, danger ? '#ff8866' : warn ? '#ffdd44' : '#00f0ff');
     cx.fillStyle = fg;
-    if (danger) { cx.shadowColor = tCol; cx.shadowBlur = 6 + Math.sin(frame * 0.3) * 3; }
     cx.beginPath(); cx.roundRect(bx, by, bw * tPct, bh, 3); cx.fill();
-    cx.shadowBlur = 0;
   }
 
   // ── 점수 (왼쪽) — 파티클 도착 시 띠용 bounce ─────
@@ -685,9 +679,7 @@ function drawHUD() {
     const s = 1 + Math.sin(scorePop / 20 * Math.PI) * 0.45;
     cx.save();
     cx.translate(20, 20); cx.scale(s, s); cx.translate(-20, -20);
-    if (s > 1.1) { cx.shadowColor = COL.gold; cx.shadowBlur = 12 * (s - 1) * 5; }
     btxt(score.toLocaleString(), 20, 20, 18, COL.gold, 'left');
-    cx.shadowBlur = 0;
     cx.restore();
   } else {
     btxt(score.toLocaleString(), 20, 20, 18, COL.gold, 'left');
@@ -719,9 +711,7 @@ function drawHUD() {
     cx.beginPath(); cx.roundRect(cx0, cy0, cw, ch, 2); cx.fill();
     const barCol = timerPct > 0.5 ? comboCol : timerPct > 0.25 ? '#ff9900' : '#ff2200';
     cx.fillStyle = barCol;
-    if (timerPct < 0.3) { cx.shadowColor = barCol; cx.shadowBlur = 6; }
     cx.beginPath(); cx.roundRect(cx0, cy0, cw * timerPct, ch, 2); cx.fill();
-    cx.shadowBlur = 0;
   }
 
   // ── 스피드바 (하단) ───────────────────────────────
@@ -783,40 +773,27 @@ function drawPlayer() {
     cx.beginPath(); cx.arc(px, py, 50, 0, Math.PI * 2); cx.stroke();
   }
 
-  // 무적 상태 — 금색 오라 + 빠른 깜빡임
+  // 무적 상태 — 금색 링 (shadowBlur 제거)
   if (P.invincibleTimer > 0) {
     const blink = Math.floor(P.invincibleTimer / 4) % 2 === 0;
-    const auraA = 0.3 + Math.sin(frame * 0.3) * 0.2;
-    cx.save();
-    cx.strokeStyle = `rgba(255,215,0,${auraA + 0.3})`;
+    const auraA = 0.5 + Math.sin(frame * 0.3) * 0.2;
+    cx.strokeStyle = `rgba(255,215,0,${auraA})`;
     cx.lineWidth = 3;
-    cx.shadowColor = '#ffd700';
-    cx.shadowBlur  = 16 + Math.sin(frame * 0.4) * 8;
     cx.beginPath(); cx.arc(px, py, 62, 0, Math.PI * 2); cx.stroke();
-    // 남은 시간에 따라 링 2개
     if (P.invincibleTimer > 60) {
-      cx.strokeStyle = `rgba(255,255,200,${auraA * 0.5})`;
+      cx.strokeStyle = `rgba(255,255,180,${auraA * 0.4})`;
       cx.lineWidth = 1.5;
       cx.beginPath(); cx.arc(px, py, 78, 0, Math.PI * 2); cx.stroke();
     }
-    cx.restore();
     cx.globalAlpha = 1;
-    // 3초 이하 남으면 깜빡임으로 경고
     if (P.invincibleTimer < 180 && blink) cx.globalAlpha = 0.4;
   }
 
-  // 자석 오라 — 흡수 반경 시각화
+  // 자석 오라 — 단순 링만 (shadowBlur·setLineDash 제거)
   if (P.magnetTimer > 0) {
-    const mA = 0.12 + Math.sin(frame * 0.2) * 0.06;
-    cx.save();
-    cx.strokeStyle = `rgba(0,180,255,${mA + 0.15})`;
+    cx.strokeStyle = `rgba(0,180,255,0.25)`;
     cx.lineWidth = 1.5;
-    cx.setLineDash([6, 4]);
-    cx.shadowColor = '#00aaff';
-    cx.shadowBlur = 8;
     cx.beginPath(); cx.arc(px, py, 200, 0, Math.PI * 2); cx.stroke();
-    cx.setLineDash([]);
-    cx.restore();
     cx.globalAlpha = 1;
     if (P.magnetTimer < 180) cx.globalAlpha = 0.5 + Math.sin(frame * 0.4) * 0.5;
   }
@@ -854,25 +831,18 @@ function drawItems() {
     const r = 26;
     if (it.kind === 'obs') {
       if (it.obsType === 'damage') {
-        // 타이어 — 빨간 glow
         if (tireReady) {
           const aspect = tireImg.naturalHeight / tireImg.naturalWidth;
           const w = r * 2.4, h = w * aspect;
-          const glowAmt = 14 + Math.sin(frame * 0.18 + it.y * 0.05) * 8;
-          cx.shadowColor = '#ff2200'; cx.shadowBlur = glowAmt;
           cx.drawImage(tireImg, it.x - w/2, it.y - h/2, w, h);
-          cx.shadowBlur = 0;
         } else {
           cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🛞',it.x,it.y);
         }
       }
     } else if (it.kind === 'bonus') {
       if (it.bonusType === 'invincible') {
-        // 4프레임 날개 애니 (4게임프레임씩 = 3.75 팔락/초)
         const fIdx = Math.floor((it.animFrame || 0) / 4) % 4;
         const img  = invincibleImgs[fIdx];
-        const glowAmt = 10 + Math.abs(Math.sin((it.animFrame||0) * 0.25)) * 18;
-        cx.shadowColor = '#ffd700'; cx.shadowBlur = glowAmt;
         if (img && img.complete && img.naturalWidth > 0) {
           const aspect = img.naturalHeight / img.naturalWidth;
           const w = r * 2.4, h = w * aspect;
@@ -881,7 +851,6 @@ function drawItems() {
           cx.font = `${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle';
           cx.fillText('🛡', it.x, it.y);
         }
-        cx.shadowBlur = 0;
         // "무적!" 배지
         cx.save();
         cx.fillStyle = 'rgba(255,215,0,0.95)';
@@ -891,19 +860,14 @@ function drawItems() {
         cx.fillText('SUPER JORY', it.x, it.y - r + 6);
         cx.restore();
       } else if (it.bonusType === 'golden_time') {
-        // glow만 켜졌다 꺼졌다 — 이미지 크기는 고정 (음식과 동일)
-        const glowAmt = 8 + Math.abs(Math.sin(frame * 0.18 + it.y * 0.03)) * 22;
-        cx.shadowColor = '#f5c400';
-        cx.shadowBlur  = glowAmt;
         const img = bonusImgs.golden_time;
         if (img.complete && img.naturalWidth > 0) {
           const aspect = img.naturalHeight / img.naturalWidth;
-          const w = r * 2, h = w * aspect; // 음식과 동일 크기
+          const w = r * 2, h = w * aspect;
           cx.drawImage(img, it.x - w/2, it.y - h/2, w, h);
         } else {
           cx.font=`${r}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('✨',it.x,it.y);
         }
-        cx.shadowBlur = 0;
         // "시간 추가!" 텍스트 배지
         cx.save();
         cx.fillStyle = 'rgba(245,196,0,0.92)';
@@ -913,8 +877,6 @@ function drawItems() {
         cx.fillText('시간 추가!', it.x, it.y - r + 6);
         cx.restore();
       } else if (it.bonusType === 'magnet') {
-        const glowAmt = 10 + Math.abs(Math.sin(frame * 0.22 + it.y * 0.04)) * 20;
-        cx.shadowColor = '#00aaff'; cx.shadowBlur = glowAmt;
         if (magnetImg.complete && magnetImg.naturalWidth > 0) {
           const aspect = magnetImg.naturalHeight / magnetImg.naturalWidth;
           const w = r * 2.2, h = w * aspect;
@@ -922,7 +884,6 @@ function drawItems() {
         } else {
           cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🧲',it.x,it.y);
         }
-        cx.shadowBlur = 0;
         cx.save();
         cx.fillStyle = 'rgba(0,170,255,0.92)';
         cx.beginPath(); cx.roundRect(it.x - 28, it.y - r - 2, 56, 16, 5); cx.fill();
@@ -957,12 +918,9 @@ function drawFX() {
   });
   // 점수 HUD 호밍 파티클
   scoreParticles.forEach(p => {
-    const a = Math.max(0, 1 - p.life / 80);
-    cx.globalAlpha = a;
+    cx.globalAlpha = Math.max(0, 1 - p.life / 80);
     cx.fillStyle = p.col;
-    cx.shadowColor = p.col; cx.shadowBlur = 6;
     cx.beginPath(); cx.arc(p.x, p.y, p.sz, 0, Math.PI*2); cx.fill();
-    cx.shadowBlur = 0;
   });
   cx.globalAlpha = 1;
   popups.forEach(p => {
