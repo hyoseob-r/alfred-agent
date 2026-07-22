@@ -730,20 +730,95 @@ function drawHUD() {
     const tier = COMBO_TIERS.slice().reverse().find(t => combo >= t.at);
     const comboCol = tier ? tier.col : 'rgba(255,255,255,0.7)';
     const comboMult = getComboMult(combo);
-    const timerPct = comboT / COMBO_TIMER; // 1→0
 
-    // 콤보 텍스트
+    // 콤보 텍스트 (상단 중앙)
     cx.globalAlpha = 0.85 + Math.sin(frame * 0.25) * 0.15;
     btxt(combo >= 5 ? `🔥 ×${combo} COMBO  [×${comboMult}]` : `×${combo} COMBO`, W/2, 72, combo >= 5 ? 14 : 12, comboCol);
     cx.globalAlpha = 1;
+  }
 
-    // 콤보 타이머 바 (콤보 텍스트 아래)
-    const cw = 100, ch = 3, cx0 = W/2 - cw/2, cy0 = 81;
-    cx.fillStyle = 'rgba(255,255,255,0.1)';
-    cx.beginPath(); cx.roundRect(cx0, cy0, cw, ch, 2); cx.fill();
-    const barCol = timerPct > 0.5 ? comboCol : timerPct > 0.25 ? '#ff9900' : '#ff2200';
-    cx.fillStyle = barCol;
-    cx.beginPath(); cx.roundRect(cx0, cy0, cw * timerPct, ch, 2); cx.fill();
+  // ── 왼쪽 세로 콤보 게이지 2개 ────────────────────
+  if (combo > 0 || comboT > 0) {
+    cx.save();
+    const BOTTOM = H - 90;   // 하단 앵커
+    const BW_STAGE = 11;     // 단계 바 폭
+    const BH_STAGE = 170;    // 단계 바 높이
+    const BW_TIMER = 7;      // 타이머 바 폭
+    const BH_TIMER = 95;     // 타이머 바 높이
+    const GAP = 5;
+    const X = 10;            // 왼쪽 여백
+
+    // ─ 단계 게이지 (왼쪽, 긴 것) ─
+    // 현재 콤보가 전체 6구간(0→5→10→20→30→60) 중 어디에 해당하는지 0~1로 환산
+    const BREAKS = [0, 5, 10, 20, 30, 60];
+    let stagePct = 0;
+    if (combo >= 60) {
+      stagePct = 1;
+    } else {
+      for (let i = 0; i < BREAKS.length - 1; i++) {
+        if (combo >= BREAKS[i] && combo < BREAKS[i + 1]) {
+          const segPct = (combo - BREAKS[i]) / (BREAKS[i + 1] - BREAKS[i]);
+          stagePct = (i + segPct) / (BREAKS.length - 1);
+          break;
+        }
+      }
+    }
+
+    const sx = X, sy = BOTTOM - BH_STAGE;
+    // 배경
+    cx.globalAlpha = 0.25;
+    cx.fillStyle = '#000';
+    cx.beginPath(); cx.roundRect(sx, sy, BW_STAGE, BH_STAGE, 5); cx.fill();
+    cx.globalAlpha = 1;
+
+    if (stagePct > 0) {
+      const fillH = BH_STAGE * stagePct;
+      const fillY = BOTTOM - fillH;
+      // 불꽃 그라디언트: 하→상 (금색→주황→빨강→진홍)
+      const sg = cx.createLinearGradient(0, BOTTOM, 0, fillY);
+      sg.addColorStop(0,   '#ffd700');
+      sg.addColorStop(0.35,'#ff9900');
+      sg.addColorStop(0.7, '#ff5500');
+      sg.addColorStop(1,   '#ff0055');
+      cx.fillStyle = sg;
+      cx.beginPath(); cx.roundRect(sx, fillY, BW_STAGE, fillH, 5); cx.fill();
+
+      // 꼭대기 불꽃 글로우 (단계 높을수록 강하게)
+      if (stagePct > 0.15) {
+        const flicker = Math.sin(frame * 0.35) * 0.4 + 0.6;
+        cx.shadowColor = stagePct > 0.6 ? '#ff0055' : '#ff5500';
+        cx.shadowBlur  = (8 + stagePct * 16) * flicker;
+        cx.globalAlpha = 0.55 + stagePct * 0.35;
+        cx.fillStyle   = '#fff';
+        cx.beginPath(); cx.roundRect(sx, fillY, BW_STAGE, 3, 2); cx.fill();
+        cx.shadowBlur  = 0;
+        cx.globalAlpha = 1;
+      }
+    }
+
+    // ─ 타이머 게이지 (오른쪽, 짧은 것) ─
+    const timerPct = comboT / COMBO_TIMER;
+    const tx = X + BW_STAGE + GAP, ty = BOTTOM - BH_TIMER;
+    cx.globalAlpha = 0.25;
+    cx.fillStyle = '#000';
+    cx.beginPath(); cx.roundRect(tx, ty, BW_TIMER, BH_TIMER, 4); cx.fill();
+    cx.globalAlpha = 1;
+
+    if (timerPct > 0) {
+      const fillH = BH_TIMER * timerPct;
+      const fillY = BOTTOM - fillH;
+      const tCol  = timerPct > 0.5 ? '#55ff88'
+                  : timerPct > 0.25 ? '#ff9900' : '#ff2200';
+      if (timerPct < 0.3) {
+        cx.shadowColor = '#ff2200';
+        cx.shadowBlur  = 6 + Math.sin(frame * 0.6) * 4;
+      }
+      cx.fillStyle = tCol;
+      cx.beginPath(); cx.roundRect(tx, fillY, BW_TIMER, fillH, 4); cx.fill();
+      cx.shadowBlur = 0;
+    }
+
+    cx.restore();
   }
 
   // ── 스피드바 (하단) ───────────────────────────────
@@ -836,24 +911,6 @@ function drawPlayer() {
     if (P.magnetTimer < 180) cx.globalAlpha = 0.5 + Math.sin(frame * 0.4) * 0.5;
   }
 
-  // 콤보 타이머 링 — 3초 안에 먹어야 콤보 유지
-  if (combo > 0 && comboT > 0) {
-    const timerPct = comboT / COMBO_TIMER;
-    const ringR = 68;
-    const tierInfo = COMBO_TIERS.slice().reverse().find(t => combo >= t.at);
-    const ringCol = timerPct > 0.5 ? (tierInfo ? tierInfo.col : '#ffffff')
-                  : timerPct > 0.25 ? '#ff9900' : '#ff2200';
-    cx.save();
-    cx.strokeStyle = ringCol;
-    cx.lineWidth = timerPct < 0.3 ? 3 : 2;
-    cx.globalAlpha = 0.55 + timerPct * 0.35;
-    if (timerPct < 0.3) { cx.shadowColor = ringCol; cx.shadowBlur = 8; }
-    cx.beginPath();
-    cx.arc(px, py, ringR, -Math.PI / 2, -Math.PI / 2 + timerPct * Math.PI * 2);
-    cx.stroke();
-    cx.restore();
-    cx.globalAlpha = 1;
-  }
 }
 
 // ── 아이템 드로우 ─────────────────────────────────
