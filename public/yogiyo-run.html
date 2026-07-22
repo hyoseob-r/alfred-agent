@@ -280,7 +280,7 @@ function makeItem(x, kind, obsType, bonusType) {
     foodMult,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
-    spd: baseSpeed * (0.85 + Math.random() * 0.3),
+    spd: kind === 'food' ? 1.8 + Math.random() * 0.4 : baseSpeed * (0.85 + Math.random() * 0.3),
     r: 22,
   };
 }
