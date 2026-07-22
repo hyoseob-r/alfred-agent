@@ -33,6 +33,10 @@ const foodImgs = Array.from({length: 16}, (_, i) => {
 const bonusImgs = { golden_time: new Image() };
 bonusImgs.golden_time.src = 'bonus_golden_time.png';
 
+// 자석 포션
+const magnetImg = new Image();
+magnetImg.src = 'bonus_magnet.png';
+
 // 무적 포션 4프레임 스프라이트 (날개 팔락)
 // 새 날갯짓 기준 ~3.75회/초 → 4프레임 × 4게임프레임 = 16프레임/사이클
 const invincibleImgs = [1,2,3,4].map(i => {
@@ -127,6 +131,7 @@ let scorePop = 0;        // 점수 띠용 bounce 타이머
 let extraTimeAnim = 0;        // EXTRA TIME! 연출 카운트다운 (150프레임)
 let goldenSpawned = false;    // 이번 게임에서 황금 물약 스폰 여부
 let invincibleOnScreen = false; // 무적 포션 중복 방지
+let magnetOnScreen = false;     // 자석 포션 중복 방지
 // 긴박 메시지 — Temple Run / Subway Surfers 스타일
 let urgentMsg = null;    // { text, col, life, maxLife }
 let lastUrgentSec = -1; // 중복 방지용 마지막 표시 초
@@ -231,7 +236,7 @@ function startGame() {
   P.inv = 0; P.shake = 0; P.bump = 0; P.dir = 0;
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
-  extraTimeAnim = 0; goldenSpawned = false; invincibleOnScreen = false;
+  extraTimeAnim = 0; goldenSpawned = false; invincibleOnScreen = false; magnetOnScreen = false;
   scoreParticles = []; scorePop = 0;
   urgentMsg = null; lastUrgentSec = -1;
   P.invincibleTimer = 0;
@@ -392,6 +397,17 @@ function update() {
     }
   }
 
+  // 자석 포션 — score 100+ 이후, 최대 1개, magnetTimer 없을 때만
+  if (!magnetOnScreen && score >= 100 && P.magnetTimer === 0) {
+    const chance = 0.0008; // ~21초마다
+    if (Math.random() < chance) {
+      const it = makeItem(safeX(50, 70), 'bonus', null, 'magnet');
+      it.spd = 1.5;
+      items.push(it);
+      magnetOnScreen = true;
+    }
+  }
+
   baseSpeed = 2.5 + Math.min(score / 1000, 1) * 3.5; // 2.5 → 6.0 (score 0→1000 기준)
 
   processInput();
@@ -440,17 +456,33 @@ function update() {
       it.x = it.baseX + Math.sin(it.swayPhase + it.animFrame * (Math.PI * 2 / 150)) * 48;
     }
 
+    // 자석 효과: 음식 아이템을 플레이어 방향으로 당김 (장애물 제외)
+    if (P.magnetTimer > 0 && it.kind === 'food') {
+      const MAGNET_RADIUS = 200;
+      const mdx = P.x - it.x, mdy = P.y - it.y;
+      const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+      if (mdist < MAGNET_RADIUS && mdist > 1) {
+        const pull = 3.5 * (1 - mdist / MAGNET_RADIUS);
+        it.x += (mdx / mdist) * pull;
+        it.y += (mdy / mdist) * pull;
+      }
+    }
+
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
-    // 캐릭터 72px 기준 충돌 반지름
+    // 캐릭터 72px 기준 충돌 반지름 (자석 활성 시 음식 범위 확대)
     const hitR = it.kind === 'obs'
       ? (it.obsType === 'damage' ? 55 : 48)
-      : it.kind === 'bonus' ? 50 : 46;
+      : it.kind === 'bonus' ? 50
+      : (P.magnetTimer > 0 ? 90 : 46);
 
     const colliding = dx < hitR && dy < hitR;
     if (!colliding) {
       const alive = it.y < H + 60;
-      if (!alive && it.bonusType === 'invincible') invincibleOnScreen = false;
+      if (!alive) {
+        if (it.bonusType === 'invincible') invincibleOnScreen = false;
+        if (it.bonusType === 'magnet') magnetOnScreen = false;
+      }
       return alive;
     }
 
@@ -488,6 +520,14 @@ function update() {
           extraTimeAnim = 150;  // EXTRA TIME! 연출 시작
           burst(it.x, it.y, COL.gold, 20);
           burst(it.x, it.y, '#fff', 12);
+        } else if (it.bonusType === 'magnet') {
+          P.magnetTimer = 720; // 12초
+          magnetOnScreen = false;
+          burst(it.x, it.y, '#00aaff', 20);
+          burst(it.x, it.y, '#fff', 10);
+          urgentMsg = { text: '🧲 MAGNET! 음식이 달려온다!', col: '#00ccff', life: 120, maxLife: 120 };
+          lastUrgentSec = -99;
+          popup(P.x, P.y - 50, '🧲 MAGNET 12s!', '#00ccff');
         }
         return false;
       } else {
@@ -766,6 +806,22 @@ function drawPlayer() {
     if (P.invincibleTimer < 180 && blink) cx.globalAlpha = 0.4;
   }
 
+  // 자석 오라 — 흡수 반경 시각화
+  if (P.magnetTimer > 0) {
+    const mA = 0.12 + Math.sin(frame * 0.2) * 0.06;
+    cx.save();
+    cx.strokeStyle = `rgba(0,180,255,${mA + 0.15})`;
+    cx.lineWidth = 1.5;
+    cx.setLineDash([6, 4]);
+    cx.shadowColor = '#00aaff';
+    cx.shadowBlur = 8;
+    cx.beginPath(); cx.arc(px, py, 200, 0, Math.PI * 2); cx.stroke();
+    cx.setLineDash([]);
+    cx.restore();
+    cx.globalAlpha = 1;
+    if (P.magnetTimer < 180) cx.globalAlpha = 0.5 + Math.sin(frame * 0.4) * 0.5;
+  }
+
   // 콤보 타이머 링 — 3초 안에 먹어야 콤보 유지
   if (combo > 0 && comboT > 0) {
     const timerPct = comboT / COMBO_TIMER;
@@ -856,6 +912,24 @@ function drawItems() {
         cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
         cx.fillStyle = '#000'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
         cx.fillText('시간 추가!', it.x, it.y - r + 6);
+        cx.restore();
+      } else if (it.bonusType === 'magnet') {
+        const glowAmt = 10 + Math.abs(Math.sin(frame * 0.22 + it.y * 0.04)) * 20;
+        cx.shadowColor = '#00aaff'; cx.shadowBlur = glowAmt;
+        if (magnetImg.complete && magnetImg.naturalWidth > 0) {
+          const aspect = magnetImg.naturalHeight / magnetImg.naturalWidth;
+          const w = r * 2.2, h = w * aspect;
+          cx.drawImage(magnetImg, it.x - w/2, it.y - h/2, w, h);
+        } else {
+          cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🧲',it.x,it.y);
+        }
+        cx.shadowBlur = 0;
+        cx.save();
+        cx.fillStyle = 'rgba(0,170,255,0.92)';
+        cx.beginPath(); cx.roundRect(it.x - 28, it.y - r - 2, 56, 16, 5); cx.fill();
+        cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
+        cx.fillStyle = '#fff'; cx.textAlign='center'; cx.textBaseline='middle';
+        cx.fillText('MAGNET', it.x, it.y - r + 6);
         cx.restore();
       }
     } else {
