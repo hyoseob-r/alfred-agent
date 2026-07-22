@@ -634,7 +634,7 @@ export default function App() {
 
   const sendMessage = async () => {
     if ((!input.trim() && !pendingImages.length) || loading) return;
-    if (!getProxyUrl()) { setProxyAlert(true); setTimeout(() => setProxyAlert(false), 3500); return; }
+
     const userText = input.trim();
     const files = [...pendingImages];
     setInput(""); setPendingImages([]);

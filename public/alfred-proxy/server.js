@@ -1,6 +1,6 @@
 /**
  * Alfred Proxy Server
- * 버전: 2.0.0
+ * 버전: 2.1.0
  *
  * 설치: curl -fsSL https://alfred-agent-nine.vercel.app/install.sh | bash
  * 실행: node ~/alfred-proxy/server.js
@@ -8,6 +8,7 @@
  * - cloudflared 터널 자동 시작
  * - 터널 URL 자동으로 서버에 등록
  * - Claude.ai 구독으로 동작 (별도 API 크레딧 불필요)
+ * - 이미지 첨부 지원 (stream-json 입력 포맷 사용)
  */
 
 const http = require('http');
@@ -47,6 +48,134 @@ function buildPrompt(messages) {
     const role = m.role === 'user' ? 'Human' : 'Assistant';
     return `${role}: ${extractText(m.content)}`;
   }).join('\n\n');
+}
+
+// 메시지에 이미지가 포함되어 있는지 확인
+function hasImages(messages) {
+  return messages.some(m =>
+    Array.isArray(m.content) && m.content.some(c => c.type === 'image')
+  );
+}
+
+// stream-json 입력 포맷으로 이미지 포함 메시지 처리 (스트리밍)
+function runWithImagesStream(messages, system, targetModel, res) {
+  const streamArgs = [
+    '-p',
+    '--model', targetModel,
+    '--no-session-persistence',
+    '--input-format', 'stream-json',
+    '--output-format', 'stream-json',
+    '--verbose',
+  ];
+  if (system) streamArgs.push('--append-system-prompt', system);
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  });
+
+  const child = spawn(CLAUDE_BIN, streamArgs, {
+    cwd: INSTALL_DIR,
+    env: { ...process.env, HOME: os.homedir() },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  // 메시지를 stream-json 포맷으로 stdin에 씀
+  for (const m of messages) {
+    const line = JSON.stringify({ type: 'user', message: m }) + '\n';
+    child.stdin.write(line);
+  }
+  child.stdin.end();
+
+  let buffer = '';
+  child.stdout.on('data', (chunk) => {
+    buffer += chunk.toString();
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const json = JSON.parse(line);
+        // assistant 텍스트 델타 추출
+        if (json.type === 'assistant' && Array.isArray(json.message?.content)) {
+          for (const block of json.message.content) {
+            if (block.type === 'text' && block.text) {
+              const event = JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: block.text } });
+              res.write(`data: ${event}\n\n`);
+            }
+          }
+        }
+      } catch {}
+    }
+  });
+
+  child.on('close', (code) => {
+    console.log(`[${new Date().toISOString()}] stream(img) done (code=${code})`);
+    res.write('data: {"type":"message_stop"}\n\n');
+    res.end();
+  });
+
+  child.on('error', (err) => {
+    console.error('[stream(img) error]', err.message);
+    res.write(`data: {"type":"error","message":${JSON.stringify(err.message)}}\n\n`);
+    res.end();
+  });
+
+  res.on('close', () => child.kill());
+}
+
+// stream-json 입력 포맷으로 이미지 포함 메시지 처리 (일반)
+function runWithImagesSync(messages, system, targetModel, res) {
+  const args = [
+    '-p',
+    '--model', targetModel,
+    '--no-session-persistence',
+    '--input-format', 'stream-json',
+    '--output-format', 'json',
+  ];
+  if (system) args.push('--append-system-prompt', system);
+
+  const child = spawn(CLAUDE_BIN, args, {
+    cwd: INSTALL_DIR,
+    env: { ...process.env, HOME: os.homedir() },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  for (const m of messages) {
+    const line = JSON.stringify({ type: 'user', message: m }) + '\n';
+    child.stdin.write(line);
+  }
+  child.stdin.end();
+
+  let stdout = '';
+  child.stdout.on('data', d => stdout += d.toString());
+
+  child.on('close', (code) => {
+    let result;
+    try { result = JSON.parse(stdout); } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Failed to parse Claude output' }));
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      id: `msg_proxy_${Date.now()}`,
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'text', text: result.result || '' }],
+      model: targetModel,
+      stop_reason: result.stop_reason || 'end_turn',
+      stop_sequence: null,
+      usage: { input_tokens: 0, output_tokens: 0 },
+    }));
+  });
+
+  child.on('error', (err) => {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message }));
+  });
 }
 
 // Supabase에 프록시 URL 등록
@@ -135,7 +264,7 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, version: '2.0.0', message: 'Alfred Proxy running' }));
+    return res.end(JSON.stringify({ ok: true, version: '2.1.0', message: 'Alfred Proxy running' }));
   }
 
   if (req.method !== 'POST') {
@@ -159,12 +288,23 @@ const server = http.createServer((req, res) => {
       return res.end(JSON.stringify({ error: 'messages required' }));
     }
 
-    const promptText = buildPrompt(messages);
     const targetModel = model || 'claude-sonnet-4-6';
+    const imageMode = hasImages(messages);
 
-    console.log(`[${new Date().toISOString()}] → model=${targetModel} stream=${!!stream} len=${promptText.length}`);
+    console.log(`[${new Date().toISOString()}] → model=${targetModel} stream=${!!stream} images=${imageMode}`);
 
-    // ── 스트리밍 모드 ────────────────────────────────────────────────────────
+    // 이미지 포함 시 stream-json 경로 사용
+    if (imageMode) {
+      if (stream) {
+        return runWithImagesStream(messages, system, targetModel, res);
+      } else {
+        return runWithImagesSync(messages, system, targetModel, res);
+      }
+    }
+
+    // 텍스트 전용 — 기존 방식
+    const promptText = buildPrompt(messages);
+
     if (stream) {
       const streamArgs = ['-p', '--model', targetModel, '--no-session-persistence'];
       if (system) streamArgs.push('--append-system-prompt', system);
@@ -180,7 +320,7 @@ const server = http.createServer((req, res) => {
       const child = spawn(CLAUDE_BIN, streamArgs, {
         cwd: INSTALL_DIR,
         env: { ...process.env, HOME: os.homedir() },
-        stdio: ['ignore', 'pipe', 'pipe'],  // stdin 즉시 닫기 (3초 대기 방지)
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
 
       child.stdout.on('data', (chunk) => {
@@ -205,7 +345,7 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // ── 일반 모드 (JSON 응답) ─────────────────────────────────────────────────
+    // 일반 모드 (JSON 응답)
     const args = ['-p', '--output-format', 'json', '--model', targetModel, '--no-session-persistence'];
     if (system) args.push('--append-system-prompt', system);
     args.push(promptText);
@@ -258,8 +398,9 @@ server.on('error', err => {
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`
 ╔═══════════════════════════════════════════╗
-║     Alfred Proxy Server v2.0.0            ║
+║     Alfred Proxy Server v2.1.0            ║
 ║  Claude.ai 구독으로 웹앱 API 처리          ║
+║  이미지 첨부 지원 추가                     ║
 ╚═══════════════════════════════════════════╝
 `);
 
