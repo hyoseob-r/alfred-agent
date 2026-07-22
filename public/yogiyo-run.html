@@ -475,7 +475,7 @@ function update() {
       return false;
     } else if (it.kind === 'bonus') {
         if (it.bonusType === 'invincible') {
-          P.invincibleTimer = 300; // 5초 무적
+          P.invincibleTimer = 720; // 12초 무적
           invincibleOnScreen = false;
           burst(it.x, it.y, '#fff', 20);
           burst(it.x, it.y, '#ffd700', 16);
