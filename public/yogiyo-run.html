@@ -503,7 +503,7 @@ function update() {
         const milestoneMult = milestone ? 2 : 1;
         const pts = Math.floor(10 * foodMult * feverMult * comboMult * milestoneMult);
         score += pts;
-        timeLeft = Math.min(timeLeft + 1 * 60, TIME_INIT * 2);
+        timeLeft += 60; // 1초 추가, 상한 없음 — 잘하면 무한 플레이 가능
 
         // 이펙트
         const burstCol = milestone ? milestone.col : (P.feverTimer > 0 ? COL.gold : '#fff');
@@ -610,7 +610,7 @@ function drawHUD() {
   const warn   = timeLeft < 1200;
   const tCol   = danger ? '#ff3333' : warn ? '#ffaa00' : COL.time;
   const secs   = Math.ceil(timeLeft / 60);
-  const tPct   = Math.max(0, timeLeft / TIME_INIT);
+  const tPct   = Math.min(1, Math.max(0, timeLeft / TIME_INIT)); // 60초 초과 시 바 꽉 참
 
   // 상단 그라데이션
   const g = cx.createLinearGradient(0, 0, 0, 84);
