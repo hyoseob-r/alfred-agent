@@ -47,57 +47,11 @@ bgImg.src = 'road-bg.png';
 let bgReady = false, bgY = 0;
 bgImg.onload = () => { bgReady = true; };
 
-// ── 장애물 스프라이트시트 ────────────────────────────
-// obs-sheet.png: 2816×1536 (@2x retina = 논리 1408×768)
-// Row 1 (11 barrels):  each 256×307, y=0
-// Row 2 (11 cones):    each 256×307, y=307
-// Row 3 (5 barriers):  each 563×307, y=614
-// Row 4 (6 items):     each 469×307, y=921  (3-5: road closed)
-const SPRITE_DEFS = {
-  barrel1:     { sx: 0,    sy: 0,    sw: 256, sh: 307 },
-  barrel2:     { sx: 256,  sy: 0,    sw: 256, sh: 307 },
-  barrel3:     { sx: 512,  sy: 0,    sw: 256, sh: 307 },
-  cone1:       { sx: 0,    sy: 307,  sw: 256, sh: 307 },
-  cone2:       { sx: 256,  sy: 307,  sw: 256, sh: 307 },
-  cone3:       { sx: 512,  sy: 307,  sw: 256, sh: 307 },
-  barrier1:    { sx: 0,    sy: 614,  sw: 563, sh: 307 },
-  barrier2:    { sx: 563,  sy: 614,  sw: 563, sh: 307 },
-  roadclosed1: { sx: 1407, sy: 921,  sw: 469, sh: 307 },
-  roadclosed2: { sx: 1876, sy: 921,  sw: 469, sh: 307 },
-};
-
-// OBS_TYPES별 스프라이트 풀
-const OBS_SPRITE_POOL = {
-  damage:  ['barrel1', 'barrel2', 'barrel3', 'cone1', 'cone2', 'cone3'],
-  reverse: ['roadclosed1', 'roadclosed2'],
-  blind:   ['barrier1', 'barrier2'],
-};
-
-const obsSheet = new Image();
-obsSheet.src = 'obs-sheet.png';
-let obsSheetReady = false;
-const obsCanvases = {};
-
-function extractSprite(def) {
-  const oc = document.createElement('canvas');
-  oc.width = def.sw; oc.height = def.sh;
-  const octx = oc.getContext('2d');
-  octx.drawImage(obsSheet, def.sx, def.sy, def.sw, def.sh, 0, 0, def.sw, def.sh);
-  const id = octx.getImageData(0, 0, def.sw, def.sh);
-  const d = id.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i] > 230 && d[i+1] > 230 && d[i+2] > 230) d[i+3] = 0;
-  }
-  octx.putImageData(id, 0, 0);
-  return oc;
-}
-
-obsSheet.onload = () => {
-  obsSheetReady = true;
-  for (const [key, def] of Object.entries(SPRITE_DEFS)) {
-    obsCanvases[key] = extractSprite(def);
-  }
-};
+// ── 장애물 이미지 ────────────────────────────────
+const tireImg = new Image();
+tireImg.src = 'obs_tire.png';
+let tireReady = false;
+tireImg.onload = () => { tireReady = true; };
 
 // 조리 이미지
 const imgs = {
@@ -240,10 +194,6 @@ function randX(margin = 30) {
   return margin + Math.random() * (W - margin * 2);
 }
 
-function pickObsSprite(obsType) {
-  const pool = OBS_SPRITE_POOL[obsType] || ['barrel1'];
-  return pool[Math.floor(Math.random() * pool.length)];
-}
 
 function makeItem(x, kind, obsType, bonusType) {
   return {
@@ -252,7 +202,6 @@ function makeItem(x, kind, obsType, bonusType) {
     foodIdx:   kind === 'food'  ? Math.floor(Math.random() * foodImgs.length) : -1,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
-    spriteKey: kind === 'obs' ? pickObsSprite(obsType) : null,
     spd: baseSpeed * (0.85 + Math.random() * 0.3),
     r: 22,
   };
@@ -575,20 +524,22 @@ function drawItemImg(img, x, y, r) {
   }
 }
 
-function drawObsSprite(key, x, y, r) {
-  const sc = obsCanvases[key];
-  if (!sc) { cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🚧',x,y); return; }
-  const aspect = sc.height / sc.width;
-  const w = r * (aspect < 0.6 ? 3.2 : 2.2), h = w * aspect;
-  cx.drawImage(sc, x - w/2, y - h/2, w, h);
-}
-
 function drawItems() {
   items.forEach(it => {
     const r = 26;
     if (it.kind === 'obs') {
-      if (obsSheetReady && it.spriteKey) drawObsSprite(it.spriteKey, it.x, it.y, r);
-      else { cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🚧',it.x,it.y); }
+      if (tireReady) {
+        const aspect = tireImg.naturalHeight / tireImg.naturalWidth;
+        const w = r * 2.4, h = w * aspect;
+        // 빨간 glow — 펄스 애니메이션
+        const glowAmt = 14 + Math.sin(frame * 0.18 + it.y * 0.05) * 8;
+        cx.shadowColor = '#ff2200';
+        cx.shadowBlur  = glowAmt;
+        cx.drawImage(tireImg, it.x - w/2, it.y - h/2, w, h);
+        cx.shadowBlur = 0;
+      } else {
+        cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🛞',it.x,it.y);
+      }
     } else if (it.kind === 'bonus') {
       const glow = 0.6 + Math.sin(frame * 0.12) * 0.4;
       cx.globalAlpha = glow;
