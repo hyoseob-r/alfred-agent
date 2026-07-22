@@ -35,12 +35,20 @@ const bonusImgs = {
   fever:  new Image(), dash: new Image(),
   time:   new Image(), golden_time: new Image(),
 };
-bonusImgs.magnet.src      = 'bonus_magnet.png';
-bonusImgs.slow.src        = 'bonus_slow.png';
-bonusImgs.fever.src       = 'bonus_fever.png';
-bonusImgs.dash.src        = 'bonus_dash.png';
-bonusImgs.time.src        = 'clock.png';
+bonusImgs.magnet.src      = 'bonus_heart.png';    // KEY TO HEART → 자석
+bonusImgs.slow.src        = 'bonus_mist.png';     // MIASMA MIST → 슬로우
+bonusImgs.fever.src       = 'bonus_grain.png';    // GRAIN ESSENCE → 점수 2배
+bonusImgs.dash.src        = 'bonus_chili.png';    // SPICY HEAT → 초고속
+bonusImgs.time.src        = 'clock.png';          // 시계 (제공 예정)
 bonusImgs.golden_time.src = 'bonus_golden_time.png';
+
+// 장애물 디버프 이미지 (reverse/blind용 포션)
+const debuffImgs = {
+  reverse: new Image(),
+  blind:   new Image(),
+};
+debuffImgs.reverse.src = 'debuff_reverse.png'; // 소용돌이 포션
+debuffImgs.blind.src   = 'debuff_blind.png';   // 수면 포션
 
 // 배경
 const bgImg = new Image();
@@ -559,17 +567,33 @@ function drawItems() {
   items.forEach(it => {
     const r = 26;
     if (it.kind === 'obs') {
-      if (tireReady) {
-        const aspect = tireImg.naturalHeight / tireImg.naturalWidth;
-        const w = r * 2.4, h = w * aspect;
-        // 빨간 glow — 펄스 애니메이션
-        const glowAmt = 14 + Math.sin(frame * 0.18 + it.y * 0.05) * 8;
-        cx.shadowColor = '#ff2200';
-        cx.shadowBlur  = glowAmt;
-        cx.drawImage(tireImg, it.x - w/2, it.y - h/2, w, h);
-        cx.shadowBlur = 0;
+      if (it.obsType === 'damage') {
+        // 타이어 — 빨간 glow
+        if (tireReady) {
+          const aspect = tireImg.naturalHeight / tireImg.naturalWidth;
+          const w = r * 2.4, h = w * aspect;
+          const glowAmt = 14 + Math.sin(frame * 0.18 + it.y * 0.05) * 8;
+          cx.shadowColor = '#ff2200'; cx.shadowBlur = glowAmt;
+          cx.drawImage(tireImg, it.x - w/2, it.y - h/2, w, h);
+          cx.shadowBlur = 0;
+        } else {
+          cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🛞',it.x,it.y);
+        }
       } else {
-        cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🛞',it.x,it.y);
+        // reverse/blind — 포션 이미지, 보라 glow 펄스
+        const debuffImg = debuffImgs[it.obsType];
+        const glowCol = it.obsType === 'reverse' ? '#a855f7' : '#6b7280';
+        const glowAmt = 10 + Math.abs(Math.sin(frame * 0.14 + it.y * 0.04)) * 12;
+        cx.shadowColor = glowCol; cx.shadowBlur = glowAmt;
+        if (debuffImg && debuffImg.complete && debuffImg.naturalWidth > 0) {
+          const aspect = debuffImg.naturalHeight / debuffImg.naturalWidth;
+          const w = r * 2, h = w * aspect;
+          cx.drawImage(debuffImg, it.x - w/2, it.y - h/2, w, h);
+        } else {
+          cx.font=`${r*1.2}px serif`; cx.textAlign='center'; cx.textBaseline='middle';
+          cx.fillText(it.obsType === 'reverse' ? '🌀' : '😴', it.x, it.y);
+        }
+        cx.shadowBlur = 0;
       }
     } else if (it.kind === 'bonus') {
       if (it.bonusType === 'golden_time') {
