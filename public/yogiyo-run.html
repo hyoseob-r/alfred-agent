@@ -645,15 +645,16 @@ function update() {
 
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
-    // 캐릭터 72px 기준 충돌 반지름 (자석 활성 시 음식 범위 확대)
+    // 원형 충돌 판정 — 관대한 반지름 (이미지 약간 겹쳐도 허용)
     const hitR = it.kind === 'obs'
-      ? (it.obsType === 'damage' ? 55 : 48)
-      : it.kind === 'bonus' ? 50
-      : (P.magnetTimer > 0 ? 90 : 46);
+      ? (it.obsType === 'damage' ? 42 : 38)  // 장애물: 관대하게 축소
+      : it.kind === 'bonus' ? 46
+      : (P.magnetTimer > 0 ? 85 : 40);       // 음식: 살짝 넓게
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
     // ── Near Miss Bonus (아슬아슬 회피) ──────────
     if (it.kind === 'obs' && !it.nearMissed && P.inv === 0 && P.invincibleTimer === 0) {
-      if (dy < NEAR_MISS_Y_MARGIN && dx > hitR && dx < hitR + NEAR_MISS_RADIUS) {
+      if (dist > hitR && dist < hitR + NEAR_MISS_RADIUS) {
         it.nearMissed = true;
         nearMissCount++;
         const nmPts = NEAR_MISS_POINTS * getComboMult(combo);
@@ -663,7 +664,7 @@ function update() {
       }
     }
 
-    const colliding = dx < hitR && dy < hitR;
+    const colliding = dist < hitR;
     if (!colliding) {
       const alive = it.y < H + 60;
       if (!alive) {
