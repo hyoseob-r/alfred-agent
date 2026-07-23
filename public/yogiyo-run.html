@@ -33,9 +33,10 @@ const foodImgs = Array.from({length: 16}, (_, i) => {
 const bonusImgs = { golden_time: new Image() };
 bonusImgs.golden_time.src = 'bonus_golden_time.png';
 
-// 자석 포션
-const magnetImg = new Image();
-magnetImg.src = 'bonus_magnet.png';
+// 자석 포션 4프레임 스프라이트 (소용돌이 회전 + 자석 팔 움직임)
+const magnetImgs = [1,2,3,4].map(i => {
+  const img = new Image(); img.src = `bonus_magnet_${i}.png`; return img;
+});
 
 // 무적 포션 4프레임 스프라이트 (날개 팔락)
 // 새 날갯짓 기준 ~3.75회/초 → 4프레임 × 4게임프레임 = 16프레임/사이클
@@ -546,6 +547,9 @@ function update() {
     if (Math.random() < chance) {
       const it = makeItem(safeX(50, 70), 'bonus', null, 'magnet');
       it.spd = 1.5;
+      it.baseX = it.x;          // 살랑살랑 기준 X
+      it.animFrame = 0;         // 프레임 애니 카운터
+      it.swayPhase = Math.random() * Math.PI * 2; // 시작 위상 랜덤
       items.push(it);
       magnetOnScreen = true;
     }
@@ -627,6 +631,11 @@ function update() {
     if (it.bonusType === 'invincible') {
       it.animFrame++;
       it.x = it.baseX + Math.sin(it.swayPhase + it.animFrame * (Math.PI * 2 / 150)) * 48;
+    }
+    // 자석 포션: 좌우 살랑살랑 + 프레임 애니메이션
+    if (it.bonusType === 'magnet' && it.animFrame !== undefined) {
+      it.animFrame++;
+      it.x = it.baseX + Math.sin(it.swayPhase + it.animFrame * (Math.PI * 2 / 120)) * 36;
     }
 
     // 자석 효과: 음식 아이템을 플레이어 방향으로 당김 (장애물 제외)
@@ -1137,10 +1146,12 @@ function drawItems() {
         cx.fillText('시간 추가!', it.x, it.y - r + 6);
         cx.restore();
       } else if (it.bonusType === 'magnet') {
-        if (magnetImg.complete && magnetImg.naturalWidth > 0) {
-          const aspect = magnetImg.naturalHeight / magnetImg.naturalWidth;
-          const w = r * 2.2, h = w * aspect;
-          cx.drawImage(magnetImg, it.x - w/2, it.y - h/2, w, h);
+        const fIdx = Math.floor((it.animFrame || 0) / 4) % 4;
+        const mImg = magnetImgs[fIdx];
+        if (mImg && mImg.complete && mImg.naturalWidth > 0) {
+          const aspect = mImg.naturalHeight / mImg.naturalWidth;
+          const w = r * 2.4, h = w * aspect;
+          cx.drawImage(mImg, it.x - w/2, it.y - h/2, w, h);
         } else {
           cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🧲',it.x,it.y);
         }
