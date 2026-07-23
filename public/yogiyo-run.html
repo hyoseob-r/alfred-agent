@@ -1091,7 +1091,7 @@ function drawItems() {
       if (it.obsType === 'damage') {
         if (coneReady) {
           const aspect = coneImg.naturalHeight / coneImg.naturalWidth;
-          const w = r * 1.07, h = w * aspect;
+          const w = r * 0.535, h = w * aspect;
           cx.drawImage(coneImg, it.x - w/2, it.y - h/2, w, h);
         } else {
           cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🔶',it.x,it.y);
