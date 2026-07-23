@@ -63,6 +63,12 @@ let bgReady = false, bgY = 0;
 bgImg.onload = () => { bgReady = true; };
 
 // ── 장애물 이미지 ────────────────────────────────
+const coneImg = new Image();
+coneImg.src = 'obs_cone.png';
+let coneReady = false;
+coneImg.onload = () => { coneReady = true; };
+
+// 타이어 (고난이도용 — 추후 다른 장애물 추가 예정)
 const tireImg = new Image();
 tireImg.src = 'obs_tire.png';
 let tireReady = false;
@@ -1087,10 +1093,15 @@ function drawItems() {
     const r = 26;
     if (it.kind === 'obs') {
       if (it.obsType === 'damage') {
-        if (tireReady) {
-          const aspect = tireImg.naturalHeight / tireImg.naturalWidth;
+        // 기본: 콘 / INTENSITY 이후(25초+): 타이어
+        const wave = getCurrentWave();
+        const useHard = wave.start >= 1500; // INTENSITY부터 타이어 등장
+        const obsImg = useHard ? tireImg : coneImg;
+        const obsReady = useHard ? tireReady : coneReady;
+        if (obsReady) {
+          const aspect = obsImg.naturalHeight / obsImg.naturalWidth;
           const w = r * 2.4, h = w * aspect;
-          cx.drawImage(tireImg, it.x - w/2, it.y - h/2, w, h);
+          cx.drawImage(obsImg, it.x - w/2, it.y - h/2, w, h);
         } else {
           cx.font=`${r*1.4}px serif`; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('🛞',it.x,it.y);
         }
