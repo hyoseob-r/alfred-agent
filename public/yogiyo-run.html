@@ -594,19 +594,6 @@ function update() {
   // 패턴 스폰 (의도적 배치)
   spawnPattern();
 
-  // ── Score Gate Events (마일스톤 슬로모션) ─────────
-  for (const gate of SCORE_GATES) {
-    if (score >= gate && !scoreGatesHit.includes(gate)) {
-      scoreGatesHit.push(gate);
-      slowmoTimer = SLOWMO_DURATION;
-      urgentMsg = { text: `⚡ ${gate.toLocaleString()} POINTS! ⚡`, col: '#00ffaa', life: 140, maxLife: 140 };
-      lastUrgentSec = -99;
-      burst(W/2, H/2, '#00ffaa', 25);
-      burst(W/2, H/2, '#ffffff', 15);
-      break;
-    }
-  }
-
   // ── Adaptive Difficulty 계산 ──────────────────────
   // 슬라이딩 윈도우: 최근 10초 피격 횟수 기반
   adaptHits = adaptHits.filter(f => frame - f < ADAPT_WINDOW);
