@@ -380,19 +380,19 @@ function randX(margin = 30) {
   return margin + Math.random() * (W - margin * 2);
 }
 
-// 기존 아이템과 겹치는지 검사 (화면 상단 영역만 체크)
-function hasOverlap(x, y, minDist = 70) {
+// 기존 아이템과 겹치는지 검사
+function hasOverlap(x, y, minDist = 90) {
   return items.some(it => {
     const dx = it.x - x, dy = it.y - y;
     return Math.sqrt(dx*dx + dy*dy) < minDist;
   });
 }
-function safeX(margin = 40, minDist = 70, spawnY = -40) {
-  for (let i = 0; i < 8; i++) {
+function safeX(margin = 40, minDist = 90, spawnY = -40) {
+  for (let i = 0; i < 12; i++) {
     const x = randX(margin);
     if (!hasOverlap(x, spawnY, minDist)) return x;
   }
-  return randX(margin); // 8회 시도 후 포기
+  return randX(margin); // 12회 시도 후 포기
 }
 
 
@@ -408,9 +408,7 @@ function makeItem(x, kind, obsType, bonusType, overrideFoodMult) {
     foodMult,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
-    spd: kind === 'food'
-      ? (2.4 + Math.random() * 0.53) * waveSpdMult
-      : baseSpeed * (0.38 + Math.random() * 0.12) * waveSpdMult,
+    spd: baseSpeed * 0.6 * waveSpdMult,
     r: 22,
     nearMissed: false, // Near Miss 중복 방지
   };
@@ -437,7 +435,7 @@ function spawn() {
 function spawnPair() {
   const wave = getCurrentWave();
   if (wave.pairRate <= 0) return;
-  const spd = baseSpeed * (0.38 + Math.random() * 0.12) * wave.speedMult;
+  const spd = baseSpeed * 0.6 * wave.speedMult;
   const side = Math.random() < 0.5 ? 0 : 1;
   const base = side === 0 ? 55 : W - 55;
   const spread = 55;
@@ -466,8 +464,10 @@ function spawnPattern() {
 
   for (const p of pattern) {
     const x = Math.max(30, Math.min(W - 30, centerX + p.dx));
+    const spawnY = -50 - p.dy * 4;
+    if (hasOverlap(x, spawnY, 70)) continue; // 겹침 시 건너뜀
     const it = makeItem(x, p.kind, p.kind === 'obs' ? 'damage' : null, null, p.foodMult || undefined);
-    it.y = -50 - p.dy * 4; // dy를 프레임 간격으로 → Y 오프셋으로 변환
+    it.y = spawnY;
     items.push(it);
   }
 }
@@ -823,7 +823,8 @@ function drawBG() {
     const scale = W / bgImg.width;
     const bh = bgImg.height * scale;
     if (S === 'play') {
-      let bgSpd = baseSpeed * 0.6 * (P.invincibleTimer > 0 ? 2 : 1);
+      const wave = getCurrentWave();
+      let bgSpd = baseSpeed * 0.6 * wave.speedMult * (P.invincibleTimer > 0 ? 2 : 1);
       if (slowmoTimer > 0) bgSpd *= SLOWMO_FACTOR;
       bgY += bgSpd; if (bgY >= bh) bgY -= bh;
     }
