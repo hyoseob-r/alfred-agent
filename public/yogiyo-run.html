@@ -647,7 +647,7 @@ function update() {
       : (P.magnetTimer > 0 ? 85 : 40);       // 음식: 살짝 넓게
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // ── Near Miss Bonus (아슬아슬 회피) ──────────
+    // ── Near Miss Bonus (아슬아슬 회피 + 짧은 슬로모션) ──
     if (it.kind === 'obs' && !it.nearMissed && P.inv === 0 && P.invincibleTimer === 0) {
       if (dist > hitR && dist < hitR + NEAR_MISS_RADIUS) {
         it.nearMissed = true;
@@ -656,6 +656,7 @@ function update() {
         score += nmPts;
         burst(P.x, P.y, '#00ffaa', 8);
         popup(P.x, P.y - 60, `NEAR MISS! +${nmPts}`, '#00ffaa');
+        slowmoTimer = Math.max(slowmoTimer, 18); // 0.3초 슬로모션
       }
     }
 
