@@ -597,7 +597,10 @@ function update() {
 
   // 페어 스폰
   if (wave.pairRate > 0 && frame - lastPairFrame >= wave.pairRate) { spawnPair(); lastPairFrame = frame; }
-  if (wave.rowRate > 0 && frame - lastRowFrame >= wave.rowRate) { spawnRow(); lastRowFrame = frame; }
+  // row 스폰 — 점수 기반 빈도 증가 (속도 무관)
+  // score 0 → 없음, score 200 → 900f, score 500 → 600f, score 1000+ → 300f
+  const dynRowRate = score < 200 ? 0 : Math.max(300, 900 - Math.floor(score / 500) * 200 - Math.floor(score / 200) * 40);
+  if (dynRowRate > 0 && frame - lastRowFrame >= dynRowRate) { spawnRow(); lastRowFrame = frame; }
 
   // 패턴 스폰 (의도적 배치)
   spawnPattern();
