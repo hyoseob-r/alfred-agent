@@ -224,6 +224,8 @@ let lastUrgentSec = -1; // 중복 방지용 마지막 표시 초
 
 // Wave & Pattern 상태
 let lastPatternFrame = 0;
+let lastSpawnFrame = 0;
+let lastPairFrame = 0;
 // Near Miss
 let nearMissCount = 0;
 // Score Gate (슬로모션)
@@ -367,6 +369,8 @@ function startGame() {
   P.invincibleTimer = 0;
   // 레벨 디자인 시스템 초기화
   lastPatternFrame = 0;
+  lastSpawnFrame = 0;
+  lastPairFrame = 0;
   nearMissCount = 0;
   scoreGatesHit = [];
   slowmoTimer = 0;
@@ -588,10 +592,10 @@ function update() {
 
   // ── Wave 기반 스폰 ────────────────────────────────
   const wave = getCurrentWave();
-  if (frame % wave.spawnInterval === 0) spawn();
+  if (frame - lastSpawnFrame >= wave.spawnInterval) { spawn(); lastSpawnFrame = frame; }
 
   // 페어 스폰
-  if (wave.pairRate > 0 && frame % wave.pairRate === 0) spawnPair();
+  if (wave.pairRate > 0 && frame - lastPairFrame >= wave.pairRate) { spawnPair(); lastPairFrame = frame; }
 
   // 패턴 스폰 (의도적 배치)
   spawnPattern();
