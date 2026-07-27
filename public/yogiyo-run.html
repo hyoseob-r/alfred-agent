@@ -411,7 +411,8 @@ function makeItem(x, kind, obsType, bonusType, overrideFoodMult) {
     bonusType: bonusType || null,
     spd: baseSpeed * 0.6,
     r: 22,
-    nearMissed: false, // Near Miss 중복 방지
+    nearMissed: false,
+    shadowShown: false, // 예고 그림자 표시 여부
   };
 }
 
@@ -449,11 +450,18 @@ function spawnRow() {
     items.push(it);
   }
 
-  // 틈 한가운데에 음식 하나 (보상)
+  // 틈 한가운데에 고점수 음식 (통과 보상)
   const foodX = gapX + gapW / 2;
-  const foodIt = makeItem(foodX, 'food', null, null);
+  const foodIt = makeItem(foodX, 'food', null, null, 2); // ×2 배율
   foodIt.y = -50;
   items.push(foodIt);
+
+  // 장애물 바로 옆(틈 경계)에 추가 음식 — 위험 감수 보상
+  if (Math.random() < 0.5) {
+    const edgeFood = makeItem(gapX + gapW + obsR + 8, 'food', null, null, 3); // ×3 고위험 보상
+    edgeFood.y = -50;
+    if (edgeFood.x < W - 20) items.push(edgeFood);
+  }
 }
 
 // 장애물 페어 스폰 — 웨이브에 pairRate 있을 때만
@@ -641,11 +649,11 @@ function update() {
 
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
-    // 원형 충돌 판정
+    // 원형 충돌 판정 — 히트박스를 스프라이트보다 관대하게 (near-miss 경험 극대화)
     const hitR = it.kind === 'obs'
-      ? (it.obsType === 'damage' ? 26 : 24)  // 장애물: 이미지 실제 크기 기준
-      : it.kind === 'bonus' ? 38
-      : (P.magnetTimer > 0 ? 85 : 32);       // 음식: 살짝 넓게
+      ? (it.obsType === 'damage' ? 20 : 18)
+      : it.kind === 'bonus' ? 36
+      : (P.magnetTimer > 0 ? 85 : 30);
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     // ── Near Miss Bonus (아슬아슬 회피 + 짧은 슬로모션) ──
@@ -1058,6 +1066,25 @@ function drawItemImg(img, x, y, r) {
 }
 
 function drawItems() {
+  // ── 낙하 예고 그림자 (장애물만) ─────────────────
+  // 아이템이 플레이어 Y보다 200px 이상 위에 있을 때 바닥에 그림자 표시
+  const SHADOW_TRIGGER = 220; // 이 거리 이내로 들어오면 그림자 등장
+  items.forEach(it => {
+    if (it.kind !== 'obs') return;
+    const distToPlayer = P.y - it.y;
+    if (distToPlayer < 0 || distToPlayer > SHADOW_TRIGGER) return;
+    const alpha = (1 - distToPlayer / SHADOW_TRIGGER) * 0.55;
+    const pulse = 0.8 + Math.sin(frame * 0.25) * 0.2;
+    cx.save();
+    cx.globalAlpha = alpha * pulse;
+    cx.fillStyle = '#ff2200';
+    cx.beginPath();
+    cx.ellipse(it.x, P.y + 10, 18, 8, 0, 0, Math.PI * 2);
+    cx.fill();
+    cx.globalAlpha = 1;
+    cx.restore();
+  });
+
   items.forEach(it => {
     const r = 26;
     if (it.kind === 'obs') {
