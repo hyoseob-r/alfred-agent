@@ -119,85 +119,46 @@ function getComboMult(c) {
 }
 const COMBO_TIMER = 180; // 3초 = 180프레임
 
-// ── Wave Pacing (Nintendo 스타일 긴장/이완 리듬) ──────────
-// 60초 게임을 7개 웨이브로 구성: 긴장 → 이완 → 더 큰 긴장 → 보상
-const WAVES = [
-  { start: 0,    name: 'TUTORIAL',   obsRate: 0.04, foodRate: 0.88, spawnInterval: 52, pairRate: 0,   speedMult: 0.70, patternInterval: 0,   rowRate: 0    },
-  { start: 600,  name: 'FIRST_PUSH', obsRate: 0.12, foodRate: 0.68, spawnInterval: 50, pairRate: 0,   speedMult: 0.85, patternInterval: 0,   rowRate: 900  },
-  { start: 1200, name: 'BREATHER',   obsRate: 0.05, foodRate: 0.92, spawnInterval: 52, pairRate: 0,   speedMult: 0.75, patternInterval: 0,   rowRate: 0    },
-  { start: 1500, name: 'INTENSITY',  obsRate: 0.10, foodRate: 0.54, spawnInterval: 48, pairRate: 0,   speedMult: 1.00, patternInterval: 0,   rowRate: 600  },
-  { start: 2100, name: 'RELIEF',     obsRate: 0.05, foodRate: 0.78, spawnInterval: 52, pairRate: 0,   speedMult: 0.85, patternInterval: 0,   rowRate: 0    },
-  { start: 2400, name: 'FINAL_PUSH', obsRate: 0.08, foodRate: 0.48, spawnInterval: 46, pairRate: 0,   speedMult: 1.00, patternInterval: 0,   rowRate: 420  },
-  { start: 3000, name: 'LAST_STAND', obsRate: 0.08, foodRate: 0.55, spawnInterval: 44, pairRate: 0,   speedMult: 1.00, patternInterval: 0,   rowRate: 320  },
+// ── 점수 기반 난이도 시스템 ────────────────────────────
+// 생명 기반 게임 → 점수가 올라갈수록 난이도 상승
+// 각 티어: obsRate(장애물 확률), foodRate(음식 확률), spawnInterval(스폰 간격),
+//          speedMult(속도 배율), rowInterval(row 간격), gapShrink(틈 축소)
+const DIFFICULTY = [
+  { score: 0,    name: 'EASY',     obsRate: 0.08, foodRate: 0.85, spawnInterval: 44, speedMult: 0.80, rowInterval: 0,   gapShrink: 0  },
+  { score: 50,   name: 'WARMUP',   obsRate: 0.15, foodRate: 0.75, spawnInterval: 38, speedMult: 0.90, rowInterval: 480, gapShrink: 0  },
+  { score: 150,  name: 'NORMAL',   obsRate: 0.22, foodRate: 0.65, spawnInterval: 32, speedMult: 1.00, rowInterval: 360, gapShrink: 5  },
+  { score: 350,  name: 'HARD',     obsRate: 0.30, foodRate: 0.55, spawnInterval: 26, speedMult: 1.10, rowInterval: 240, gapShrink: 10 },
+  { score: 600,  name: 'INTENSE',  obsRate: 0.38, foodRate: 0.48, spawnInterval: 22, speedMult: 1.20, rowInterval: 180, gapShrink: 15 },
+  { score: 1000, name: 'BRUTAL',   obsRate: 0.42, foodRate: 0.42, spawnInterval: 18, speedMult: 1.35, rowInterval: 130, gapShrink: 20 },
+  { score: 1500, name: 'INSANE',   obsRate: 0.48, foodRate: 0.38, spawnInterval: 15, speedMult: 1.50, rowInterval: 100, gapShrink: 25 },
+  { score: 2500, name: 'HELL',     obsRate: 0.52, foodRate: 0.35, spawnInterval: 12, speedMult: 1.65, rowInterval: 75,  gapShrink: 30 },
 ];
 
-function getCurrentWave() {
-  for (let i = WAVES.length - 1; i >= 0; i--) {
-    if (frame >= WAVES[i].start) return WAVES[i];
+function getDifficulty() {
+  for (let i = DIFFICULTY.length - 1; i >= 0; i--) {
+    if (score >= DIFFICULTY[i].score) return DIFFICULTY[i];
   }
-  return WAVES[0];
+  return DIFFICULTY[0];
 }
 
-// ── Spawn Patterns (의도적 배치 — Risk-Reward Spatial Design) ─
-const PATTERNS = {
-  corridor: [ // 양 옆 장애물, 가운데 통로에 음식
-    { dx: -110, dy: 0, kind: 'obs' }, { dx: 110, dy: 0, kind: 'obs' },
-    { dx: 0, dy: 20, kind: 'food' }, { dx: 0, dy: 50, kind: 'food' },
-  ],
-  cascade: [ // 대각선 음식 → 끝에 장애물
-    { dx: -80, dy: 0, kind: 'food' }, { dx: -40, dy: 20, kind: 'food' },
-    { dx: 0, dy: 40, kind: 'food' }, { dx: 40, dy: 60, kind: 'food' },
-    { dx: 80, dy: 80, kind: 'food' }, { dx: 110, dy: 110, kind: 'obs' },
-  ],
-  trap: [ // 고배율 음식(×3) 좌우 장애물 — 중앙 통과 가능
-    { dx: -115, dy: 0, kind: 'obs' }, { dx: 115, dy: 0, kind: 'obs' },
-    { dx: 0, dy: 30, kind: 'food', foodMult: 3 },
-    { dx: -115, dy: 60, kind: 'obs' }, { dx: 115, dy: 60, kind: 'obs' },
-  ],
-  freebie: [ // 순수 보상 — 장애물 없이 음식만
-    { dx: -60, dy: 0, kind: 'food' }, { dx: 0, dy: 0, kind: 'food' }, { dx: 60, dy: 0, kind: 'food' },
-    { dx: -30, dy: 30, kind: 'food' }, { dx: 30, dy: 30, kind: 'food' },
-  ],
-  vformation: [ // V자 — 세로 간격 충분히 확보
-    { dx: -120, dy: 0, kind: 'obs' }, { dx: 120, dy: 0, kind: 'obs' },
-    { dx: -80, dy: 40, kind: 'obs' }, { dx: 80, dy: 40, kind: 'obs' },
-    { dx: -40, dy: 80, kind: 'obs' }, { dx: 40, dy: 80, kind: 'obs' },
-  ],
-  xformation: [ // 좌우 장애물 + 중앙 고배율 음식
-    { dx: -120, dy: 0, kind: 'obs' }, { dx: 120, dy: 0, kind: 'obs' },
-    { dx: 0, dy: 40, kind: 'food', foodMult: 2 },
-    { dx: -120, dy: 80, kind: 'obs' }, { dx: 120, dy: 80, kind: 'obs' },
-  ],
-};
-
-// 웨이브별 패턴 풀 — 각 웨이브에 어울리는 패턴 선택
-const WAVE_PATTERNS = {
-  TUTORIAL:   ['freebie'],
-  FIRST_PUSH: ['corridor', 'cascade'],
-  BREATHER:   ['freebie', 'cascade'],
-  INTENSITY:  ['trap', 'vformation', 'corridor'],
-  RELIEF:     ['freebie', 'cascade'],
-  FINAL_PUSH: ['vformation', 'xformation', 'trap', 'corridor'],
-  LAST_STAND: ['trap', 'xformation', 'vformation'],
-};
+// getCurrentWave 호환용 (기존 코드에서 참조하는 곳 대응)
+function getCurrentWave() { return getDifficulty(); }
 
 // ── Near Miss Bonus ────────────────────────────────────
-const NEAR_MISS_RADIUS = 15;  // hitR + 이 범위 이내 통과 시 보너스
+const NEAR_MISS_RADIUS = 15;
 const NEAR_MISS_POINTS = 25;
-const NEAR_MISS_Y_MARGIN = 22; // 플레이어 Y 레벨 판정 범위
-
-// ── Score Gate Events (마일스톤 슬로모션) ───────────────
-const SCORE_GATES = [500, 1000, 2000, 3500];
-const SLOWMO_DURATION = 180;  // 3초
-const SLOWMO_FACTOR = 0.35;   // 속도 35%
 
 // ── Rubber Banding ─────────────────────────────────────
-const RUBBER_BAND_MULT = 0.88; // 라이프 1 → 장애물 12% 감속
+const RUBBER_BAND_MULT = 0.88;
 
 // ── Adaptive Difficulty ────────────────────────────────
-const ADAPT_WINDOW = 600;      // 10초 슬라이딩 윈도우
-const ADAPT_EASE_HITS = 3;     // 10초 내 3회 피격 → 난이도↓
-const ADAPT_PUSH_COMBO = 20;   // 10초 내 콤보 20+ → 난이도↑
+const ADAPT_WINDOW = 600;
+const ADAPT_EASE_HITS = 3;
+const ADAPT_PUSH_COMBO = 20;
+
+// 슬로모션 (사용 안 하지만 참조 호환)
+const SLOWMO_DURATION = 180;
+const SLOWMO_FACTOR = 0.35;
 
 const COL = {
   bg: '#0a0e1a', primary: '#fa0050', gold: '#f5c400',
@@ -416,12 +377,11 @@ function makeItem(x, kind, obsType, bonusType, overrideFoodMult) {
   };
 }
 
-// Wave 기반 스폰 — 웨이브별 obsRate/foodRate + Adaptive 보정
+// 점수 기반 스폰 — 난이도별 obsRate/foodRate + Adaptive 보정
 function spawn() {
-  const wave = getCurrentWave();
-  // Adaptive 보정: adaptMult가 높으면 장애물↑음식↓, 낮으면 반대
-  const obsChance  = Math.min(0.45, wave.obsRate * adaptMult);
-  const foodChance = Math.max(0.30, wave.foodRate * (2 - adaptMult));
+  const diff = getDifficulty();
+  const obsChance  = Math.min(0.55, diff.obsRate * adaptMult);
+  const foodChance = Math.max(0.25, diff.foodRate * (2 - adaptMult));
 
   const rand = Math.random();
   let kind = null;
@@ -437,7 +397,8 @@ function spawn() {
 // 조리 히트박스 ~26px → 틈 최소 60px (여유 포함)
 const GAP_WIDTH = 80;  // 틈 폭 (px) — 후반엔 좁아짐
 function spawnRow() {
-  const gapW = Math.max(60, GAP_WIDTH - Math.min(score / 200, 20)); // 점수 높을수록 틈 좁아짐 (최소 60)
+  const diff = getDifficulty();
+  const gapW = Math.max(55, GAP_WIDTH - diff.gapShrink); // 난이도별 틈 축소 (최소 55px)
   const gapX = 30 + Math.random() * (W - 60 - gapW); // 틈 시작 X
   const obsR = 22; // 장애물 반지름
   const spacing = obsR * 2 + 4; // 장애물 간격 (약간 붙임)
@@ -591,19 +552,12 @@ function update() {
   if (P.invincibleTimer > 0) P.invincibleTimer--;
   if (comboT > 0) comboT--; else if (combo > 0) { combo = 0; comboT = 0; }
 
-  // ── Wave 기반 스폰 ────────────────────────────────
-  const wave = getCurrentWave();
-  if (frame - lastSpawnFrame >= wave.spawnInterval) { spawn(); lastSpawnFrame = frame; }
+  // ── 점수 기반 스폰 ────────────────────────────────
+  const diff = getDifficulty();
+  if (frame - lastSpawnFrame >= diff.spawnInterval) { spawn(); lastSpawnFrame = frame; }
 
-  // 페어 스폰
-  if (wave.pairRate > 0 && frame - lastPairFrame >= wave.pairRate) { spawnPair(); lastPairFrame = frame; }
-  // row 스폰 — 점수 기반 빈도 증가 (속도 무관)
-  // score 0 → 없음, score 100 → 600f(10초), score 300 → 400f, score 600 → 280f, score 1000+ → 180f(3초)
-  const dynRowRate = score < 100 ? 0 : Math.max(180, 600 - Math.floor(score / 300) * 160 - Math.floor(score / 100) * 20);
-  if (dynRowRate > 0 && frame - lastRowFrame >= dynRowRate) { spawnRow(); lastRowFrame = frame; }
-
-  // 패턴 스폰 (의도적 배치)
-  spawnPattern();
+  // Row 스폰 — 난이도 티어별 간격
+  if (diff.rowInterval > 0 && frame - lastRowFrame >= diff.rowInterval) { spawnRow(); lastRowFrame = frame; }
 
   // ── Adaptive Difficulty 계산 ──────────────────────
   // 슬라이딩 윈도우: 최근 10초 피격 횟수 기반
@@ -617,8 +571,8 @@ function update() {
     adaptMult += (1.0 - adaptMult) * 0.003;
   }
 
-  // 매 프레임 현재 baseSpeed로 통일 (스폰 시점 고정 spd 사용 안 함)
-  const curBaseSpd = baseSpeed * 0.6;
+  // 매 프레임 현재 baseSpeed × 난이도 speedMult로 통일
+  const curBaseSpd = baseSpeed * 0.6 * diff.speedMult;
   items = items.filter(it => {
     let spd = P.invincibleTimer > 0 ? curBaseSpd * 2 : (P.slowTimer > 0 ? curBaseSpd * 0.4 : curBaseSpd);
     // Rubber Banding — 라이프 1일 때 장애물 감속
@@ -829,8 +783,8 @@ function drawBG() {
     const scale = W / bgImg.width;
     const bh = bgImg.height * scale;
     if (S === 'play') {
-      const wave = getCurrentWave();
-      let bgSpd = baseSpeed * 0.6 * (P.invincibleTimer > 0 ? 2 : 1);
+      const diff = getDifficulty();
+      let bgSpd = baseSpeed * 0.6 * diff.speedMult * (P.invincibleTimer > 0 ? 2 : 1);
       if (slowmoTimer > 0) bgSpd *= SLOWMO_FACTOR;
       bgY += bgSpd; if (bgY >= bh) bgY -= bh;
     }
