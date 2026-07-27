@@ -405,7 +405,6 @@ function makeItem(x, kind, obsType, bonusType, overrideFoodMult) {
   const wave = getCurrentWave();
   const fRand = Math.random();
   const foodMult = overrideFoodMult || (kind === 'food' ? (fRand < 0.05 ? 3 : fRand < 0.30 ? 2 : 1) : 1);
-  const waveSpdMult = wave.speedMult;
   return {
     x, y: -50,
     kind,
@@ -413,7 +412,7 @@ function makeItem(x, kind, obsType, bonusType, overrideFoodMult) {
     foodMult,
     obsType:   obsType   || null,
     bonusType: bonusType || null,
-    spd: baseSpeed * 0.6 * waveSpdMult,
+    spd: baseSpeed * 0.6,
     r: 22,
     nearMissed: false, // Near Miss 중복 방지
   };
@@ -440,7 +439,7 @@ function spawn() {
 function spawnPair() {
   const wave = getCurrentWave();
   if (wave.pairRate <= 0) return;
-  const spd = baseSpeed * 0.6 * wave.speedMult;
+  const spd = baseSpeed * 0.6;
   const side = Math.random() < 0.5 ? 0 : 1;
   const base = side === 0 ? 55 : W - 55;
   const spread = 55;
@@ -613,7 +612,7 @@ function update() {
   }
 
   // 매 프레임 현재 baseSpeed로 통일 (스폰 시점 고정 spd 사용 안 함)
-  const curBaseSpd = baseSpeed * 0.6 * getCurrentWave().speedMult;
+  const curBaseSpd = baseSpeed * 0.6;
   items = items.filter(it => {
     let spd = P.invincibleTimer > 0 ? curBaseSpd * 2 : (P.slowTimer > 0 ? curBaseSpd * 0.4 : curBaseSpd);
     // Rubber Banding — 라이프 1일 때 장애물 감속
@@ -647,11 +646,11 @@ function update() {
 
     const dx = Math.abs(it.x - P.x);
     const dy = Math.abs(it.y - P.y);
-    // 원형 충돌 판정 — 관대한 반지름 (이미지 약간 겹쳐도 허용)
+    // 원형 충돌 판정
     const hitR = it.kind === 'obs'
-      ? (it.obsType === 'damage' ? 42 : 38)  // 장애물: 관대하게 축소
-      : it.kind === 'bonus' ? 46
-      : (P.magnetTimer > 0 ? 85 : 40);       // 음식: 살짝 넓게
+      ? (it.obsType === 'damage' ? 26 : 24)  // 장애물: 이미지 실제 크기 기준
+      : it.kind === 'bonus' ? 38
+      : (P.magnetTimer > 0 ? 85 : 32);       // 음식: 살짝 넓게
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     // ── Near Miss Bonus (아슬아슬 회피 + 짧은 슬로모션) ──
@@ -831,7 +830,7 @@ function drawBG() {
     const bh = bgImg.height * scale;
     if (S === 'play') {
       const wave = getCurrentWave();
-      let bgSpd = baseSpeed * 0.6 * wave.speedMult * (P.invincibleTimer > 0 ? 2 : 1);
+      let bgSpd = baseSpeed * 0.6 * (P.invincibleTimer > 0 ? 2 : 1);
       if (slowmoTimer > 0) bgSpd *= SLOWMO_FACTOR;
       bgY += bgSpd; if (bgY >= bh) bgY -= bh;
     }
