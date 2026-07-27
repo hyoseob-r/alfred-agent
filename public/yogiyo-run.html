@@ -100,11 +100,8 @@ const PLAYER_ACCEL = 3.6; // 가속도 (이징 없음 — 즉시 최대속도)
 const PLAYER_FRIC  = 0.0; // 마찰 없음 (즉시 정지)
 const PLAYER_Y_MIN = 160;  // 세로 이동 상한
 const PLAYER_Y_MAX = 600;  // 세로 이동 하한
-const TIME_INIT    = 60 * 60; // 1분
-
 const OBS_TYPES   = ['damage']; // reverse/blind 제거
-const BONUS_TYPES = [];         // magnet/slow/fever/dash 제거 — golden_time만 별도 스폰
-// golden_time은 별도 희귀 스폰으로 관리 (10초 남을 때 1회)
+const BONUS_TYPES = [];         // magnet/slow/fever/dash 제거
 
 // 콤보 마일스톤: [임계값, 배율, 색상, 메시지]
 const COMBO_TIERS = [
@@ -209,18 +206,16 @@ const COL = {
 
 // ── 상태 ──────────────────────────────────────────
 let S = 'start';
-let score = 0, hi = 0, lives = 3, frame = 0, timeLeft = 0;
+let score = 0, hi = 0, lives = 3, frame = 0;
 let baseSpeed = 4, combo = 0, comboT = 0;
 let items = [], particles = [], popups = [];
 let scoreParticles = []; // 점수 HUD로 날아가는 파티클
 let scorePop = 0;        // 점수 띠용 bounce 타이머
-let extraTimeAnim = 0;        // EXTRA TIME! 연출 카운트다운 (150프레임)
-let goldenSpawned = false;    // 이번 게임에서 황금 물약 스폰 여부
 let invincibleOnScreen = false; // 무적 포션 중복 방지
 let magnetOnScreen = false;     // 자석 포션 중복 방지
-// 긴박 메시지 — Temple Run / Subway Surfers 스타일
+// 긴박 메시지 — 콤보/라이프 이벤트 전용
 let urgentMsg = null;    // { text, col, life, maxLife }
-let lastUrgentSec = -1; // 중복 방지용 마지막 표시 초
+let lastUrgentSec = -1; // 중복 방지용
 
 // Wave & Pattern 상태
 let lastPatternFrame = 0;
@@ -356,14 +351,14 @@ function processInput() {
 // ── 게임 시작 ──────────────────────────────────────
 function startGame() {
   S = 'play';
-  score = 0; lives = 3; frame = 0; timeLeft = TIME_INIT;
+  score = 0; lives = 3; frame = 0;
   baseSpeed = 4; combo = 0; comboT = 0;
   items = []; particles = []; popups = [];
   P.x = W / 2; P.y = 500; P.vx = 0; P.vy = 0;
   P.inv = 0; P.shake = 0; P.bump = 0; P.dir = 0;
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
-  extraTimeAnim = 0; goldenSpawned = false; invincibleOnScreen = false; magnetOnScreen = false;
+  invincibleOnScreen = false; magnetOnScreen = false;
   scoreParticles = []; scorePop = 0;
   urgentMsg = null; lastUrgentSec = -1;
   P.invincibleTimer = 0;
@@ -494,45 +489,18 @@ function update() {
   frame++; // start/over 화면 애니메이션용으로 항상 증가
   if (S !== 'play') return;
 
-  // EXTRA TIME 연출 카운트다운
-  if (extraTimeAnim > 0) extraTimeAnim--;
-
   // 슬로모션 타이머 감소
   if (slowmoTimer > 0) slowmoTimer--;
 
-  // 타이머 (연출 중 일시 슬로우 / Score Gate 슬로모션)
-  const timerFrozen = extraTimeAnim > 90; // 연출 초반 1.5초간 시간 멈춤
-  if (!timerFrozen) {
-    // 슬로모션 중에도 시간은 정상 감소 (게임 시간은 아끼지 않음 — 연출용)
-    if (timeLeft > 0) timeLeft--;
-    else { S = 'over'; if (score > hi) hi = score; return; }
-  }
-
-  // ── 긴박 메시지 트리거 (Temple Run / Subway Surfers 스타일) ───
+  // ── 긴박 메시지 트리거 ───
   if (urgentMsg && urgentMsg.life > 0) urgentMsg.life--;
-  const secs = Math.ceil(timeLeft / 60);
-  function showUrgent(text, col) {
-    if (lastUrgentSec !== secs) { urgentMsg = { text, col, life: 90, maxLife: 90 }; lastUrgentSec = secs; }
+  if (combo >= 5  && combo % 5 === 0 && comboT === 69) {
+    urgentMsg = { text: `×${combo} COMBO!! 🔥`, col: COL.gold, life: 90, maxLife: 90 };
+    lastUrgentSec = -99;
   }
-  if (!timerFrozen) {
-    if (secs === 30) showUrgent('HURRY UP!', '#ff9900');
-    else if (secs === 20) showUrgent('TIME IS RUNNING OUT!', '#ff5500');
-    else if (secs === 15) showUrgent('KEEP GOING!', '#ff3300');
-    else if (secs === 10) showUrgent('LAST CHANCE!', '#ff0000');
-    else if (secs <=  5 && secs > 0 && secs !== lastUrgentSec) showUrgent(`${secs}...`, '#ff0000');
-  }
-  if (combo >= 5  && combo % 5 === 0 && comboT === 69) showUrgent(`×${combo} COMBO!! 🔥`, COL.gold);
   if (lives === 1 && frame % 300 === 1) { urgentMsg = { text: '⚠️ LAST LIFE!', col: COL.primary, life: 80, maxLife: 80 }; }
 
-  // 황금 물약 — 10초 남았을 때 1회만 스폰 (느리게 내려옴)
-  if (!goldenSpawned && timeLeft <= 600 && timeLeft > 0) {
-    goldenSpawned = true;
-    const gt = makeItem(safeX(50, 60), 'bonus', null, 'golden_time');
-    gt.spd = 1.5; // 천천히 내려오게
-    items.push(gt);
-  }
-
-  // 무적 포션 — tier2+(25초~) 이후 등장, 최대 1개, 라이프1일때 확률 상승
+  // 무적 포션 — tier2+(점수 350+) 이후 등장, 최대 1개, 라이프1일때 확률 상승
   if (!invincibleOnScreen && score >= 350 && P.invincibleTimer === 0) {
     const chance = lives === 1 ? 0.0025 : 0.0007; // 라이프1: ~6초마다 / 정상: ~24초마다
     if (Math.random() < chance) {
@@ -705,11 +673,7 @@ function update() {
           lastUrgentSec = -99;
           popup(P.x, P.y - 50, '⚡ SUPER JORY 12s!', '#ffd700');
         } else if (it.bonusType === 'golden_time') {
-          timeLeft += 30 * 60; // +30초
-          goldenSpawned = false;
-          extraTimeAnim = 150;  // EXTRA TIME! 연출 시작
-          burst(it.x, it.y, COL.gold, 20);
-          burst(it.x, it.y, '#fff', 12);
+          return false;
         } else if (it.bonusType === 'magnet') {
           P.magnetTimer = 720; // 12초
           magnetOnScreen = false;
@@ -733,7 +697,6 @@ function update() {
         const milestoneMult = milestone ? 2 : 1;
         const pts = Math.floor(10 * foodMult * feverMult * comboMult * milestoneMult);
         score += pts;
-        timeLeft += 120; // 2초 추가, 상한 없음
 
         // 이펙트
         const burstCol = milestone ? milestone.col : (P.feverTimer > 0 ? COL.gold : '#fff');
@@ -743,7 +706,6 @@ function update() {
         const multLabel = foodMult > 1 ? ` ×${foodMult}` : '';
         const comboLabel = combo >= 5 ? ` [×${comboMult}콤보]` : '';
         popup(it.x, it.y - 10, `+${pts}${multLabel}${comboLabel}`, milestone ? milestone.col : COL.gold);
-        popup(it.x, it.y - 28, '+1s ⏰', COL.time);
 
         // 마일스톤 메시지
         if (milestone) {
@@ -841,33 +803,10 @@ function drawBG() {
 
 // ── HUD ───────────────────────────────────────────
 function drawHUD() {
-  const danger = timeLeft < 600;
-  const warn   = timeLeft < 1200;
-  const tCol   = danger ? '#ff3333' : warn ? '#ffaa00' : COL.time;
-  const secs   = Math.ceil(timeLeft / 60);
-  const tPct   = Math.min(1, Math.max(0, timeLeft / TIME_INIT)); // 60초 초과 시 바 꽉 참
-
   // 상단 그라데이션
-  const g = cx.createLinearGradient(0, 0, 0, 84);
+  const g = cx.createLinearGradient(0, 0, 0, 60);
   g.addColorStop(0, 'rgba(10,14,26,0.95)'); g.addColorStop(1, 'rgba(10,14,26,0)');
-  cx.fillStyle = g; cx.fillRect(0, 0, W, 84);
-
-  // ── 타이머 (중앙, 크게) ──────────────────────────
-  // 숫자
-  btxt(`${secs}`, W/2, 22, 32, tCol);
-  txt('TIME', W/2, 42, 9, `${tCol}99`);
-
-  // 타이머 바 (상단 전체 폭)
-  const bx = 16, by = 52, bw = W - 32, bh = 5;
-  cx.fillStyle = 'rgba(255,255,255,0.08)';
-  cx.beginPath(); cx.roundRect(bx, by, bw, bh, 3); cx.fill();
-  if (tPct > 0) {
-    const fg = cx.createLinearGradient(bx, 0, bx + bw, 0);
-    fg.addColorStop(0, tCol);
-    fg.addColorStop(1, danger ? '#ff8866' : warn ? '#ffdd44' : '#00f0ff');
-    cx.fillStyle = fg;
-    cx.beginPath(); cx.roundRect(bx, by, bw * tPct, bh, 3); cx.fill();
-  }
+  cx.fillStyle = g; cx.fillRect(0, 0, W, 60);
 
   // ── 점수 (왼쪽) — 파티클 도착 시 띠용 bounce ─────
   if (scorePop > 0) {
@@ -1198,11 +1137,6 @@ function drawFX() {
 
 // ── 특수 이펙트 ───────────────────────────────────
 function drawSpecialFX() {
-  if (timeLeft < 600) {
-    const a = 0.15 + Math.sin(frame * 0.35) * 0.15;
-    cx.strokeStyle = `rgba(255,51,51,${a})`; cx.lineWidth = 6;
-    cx.strokeRect(4, 4, W-8, H-8);
-  }
   // Score Gate 슬로모션 — 시안 + 골드 테두리 펄스
   if (slowmoTimer > 0) {
     const fadeIn = Math.min(1, (SLOWMO_DURATION - slowmoTimer) / 30);
@@ -1298,77 +1232,6 @@ function drawStart() {
   }
 }
 
-// ── EXTRA TIME! 연출 ──────────────────────────────
-// 총 150프레임 (2.5초)
-// 150-110: 금빛 플래시 + 슬로우
-// 110-40:  "EXTRA TIME!" 텍스트 슬램인
-// 40-0:    페이드아웃
-function drawExtraTime() {
-  if (extraTimeAnim <= 0) return;
-  const t = extraTimeAnim; // 150→0
-
-  // ① 금빛 스크린 플래시 (150~100 구간)
-  if (t > 100) {
-    const flashA = (t - 100) / 50 * 0.55; // 0→0.55→0
-    cx.fillStyle = `rgba(245,196,0,${flashA})`;
-    cx.fillRect(0, 0, W, H);
-  }
-
-  // ② 테두리 금빛 펄스 (전 구간)
-  const borderA = Math.min(t / 40, 1) * 0.8;
-  cx.strokeStyle = `rgba(245,196,0,${borderA})`;
-  cx.lineWidth = 12;
-  cx.strokeRect(6, 6, W - 12, H - 12);
-
-  // ③ "EXTRA TIME!" 텍스트 슬램인 (110~0 구간)
-  if (t < 115) {
-    const progress = Math.min((115 - t) / 30, 1); // 0→1 (슬램인)
-    // ease-out: 처음엔 크게, 빠르게 안착
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const scale = 2.8 - eased * 1.8; // 2.8→1.0
-
-    // 페이드: t < 40부터 사라짐
-    const fadeA = t < 40 ? t / 40 : 1;
-
-    cx.save();
-    cx.translate(W / 2, H / 2 - 20);
-    cx.scale(scale, scale);
-    cx.globalAlpha = fadeA;
-
-    // 글로우
-    cx.shadowColor = '#f5c400';
-    cx.shadowBlur  = 30 + Math.sin(frame * 0.3) * 10;
-
-    // 메인 텍스트
-    cx.font = `bold 38px Pretendard, -apple-system, sans-serif`;
-    cx.fillStyle = '#fff';
-    cx.textAlign = 'center';
-    cx.textBaseline = 'middle';
-    cx.fillText('EXTRA TIME!', 0, 0);
-
-    // 금색 아웃라인
-    cx.strokeStyle = '#f5c400';
-    cx.lineWidth = 2 / scale;
-    cx.strokeText('EXTRA TIME!', 0, 0);
-
-    cx.shadowBlur = 0;
-    cx.restore();
-    cx.globalAlpha = 1;
-
-    // 서브 텍스트 "TIME FULLY RESTORED"
-    if (t < 80 && t > 20) {
-      const subA = Math.min((80 - t) / 20, 1) * (t / 20);
-      cx.globalAlpha = Math.min(subA, fadeA) * 0.85;
-      cx.font = `bold 13px Pretendard, -apple-system, sans-serif`;
-      cx.fillStyle = '#ffe066';
-      cx.textAlign = 'center';
-      cx.textBaseline = 'middle';
-      cx.fillText('TIME FULLY RESTORED', W / 2, H / 2 + 28);
-      cx.globalAlpha = 1;
-    }
-  }
-}
-
 // ── 게임오버 화면 ─────────────────────────────────
 function drawOver() {
   cx.fillStyle = 'rgba(10,14,26,0.82)'; cx.fillRect(0, 0, W, H);
@@ -1411,7 +1274,7 @@ function loop(now) {
   drawItems();
   drawFX();
   if (S === 'play' || S === 'over' || S === 'dead') drawPlayer();
-  if (S === 'play')  { drawSpecialFX(); drawHUD(); drawUrgentMsg(); drawExtraTime(); drawJoystick(); }
+  if (S === 'play')  { drawSpecialFX(); drawHUD(); drawUrgentMsg(); drawJoystick(); }
   if (S === 'start') drawStart();
   if (S === 'over')  { drawHUD(); drawOver(); }
 }
