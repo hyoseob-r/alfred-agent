@@ -672,6 +672,7 @@ function update() {
             vy: Math.sin(angle) * spd - 2,
             life: COIN_LIFE,
             collected: false,
+            foodIdx: Math.floor(Math.random() * foodImgs.length),
           });
         }
         coins = 0;
@@ -1172,17 +1173,19 @@ function drawFX() {
     cx.beginPath(); cx.arc(p.x, p.y, p.sz, 0, Math.PI*2); cx.fill();
   });
   cx.globalAlpha = 1;
-  // ── 흘린 코인 그리기 ───────────────────────────
+  // ── 흘린 음식 그리기 ───────────────────────────
   droppedCoins.forEach(c => {
-    const alpha = (c.life / COIN_LIFE) * (c.life < 90 ? (Math.floor(c.life / 8) % 2 === 0 ? 1 : 0.3) : 1);
+    const blink = c.life < 90 ? (Math.floor(c.life / 8) % 2 === 0 ? 1 : 0.25) : 1;
+    const alpha = (c.life / COIN_LIFE) * blink;
     cx.globalAlpha = alpha;
-    cx.beginPath();
-    cx.arc(c.x, c.y, 10, 0, Math.PI * 2);
-    cx.fillStyle = '#ffd700';
-    cx.fill();
-    cx.strokeStyle = '#ff9900';
-    cx.lineWidth = 2;
-    cx.stroke();
+    const img = foodImgs[c.foodIdx];
+    if (img && img.complete && img.naturalWidth > 0) {
+      const s = 28;
+      cx.drawImage(img, c.x - s/2, c.y - s/2, s, s);
+    } else {
+      cx.beginPath(); cx.arc(c.x, c.y, 12, 0, Math.PI*2);
+      cx.fillStyle = '#ffd700'; cx.fill();
+    }
     cx.globalAlpha = 1;
   });
   popups.forEach(p => {
