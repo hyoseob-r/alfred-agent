@@ -122,13 +122,13 @@ const COMBO_TIMER = 180; // 3초 = 180프레임
 // ── Wave Pacing (Nintendo 스타일 긴장/이완 리듬) ──────────
 // 60초 게임을 7개 웨이브로 구성: 긴장 → 이완 → 더 큰 긴장 → 보상
 const WAVES = [
-  { start: 0,    name: 'TUTORIAL',   obsRate: 0.04, foodRate: 0.88, spawnInterval: 52, pairRate: 0,   speedMult: 0.70, patternInterval: 0 },
-  { start: 600,  name: 'FIRST_PUSH', obsRate: 0.16, foodRate: 0.68, spawnInterval: 44, pairRate: 650, speedMult: 0.85, patternInterval: 380 },
-  { start: 1200, name: 'BREATHER',   obsRate: 0.05, foodRate: 0.92, spawnInterval: 36, pairRate: 0,   speedMult: 0.75, patternInterval: 280 },
-  { start: 1500, name: 'INTENSITY',  obsRate: 0.28, foodRate: 0.54, spawnInterval: 30, pairRate: 450, speedMult: 1.10, patternInterval: 260 },
-  { start: 2100, name: 'RELIEF',     obsRate: 0.10, foodRate: 0.78, spawnInterval: 38, pairRate: 0,   speedMult: 0.85, patternInterval: 320 },
-  { start: 2400, name: 'FINAL_PUSH', obsRate: 0.33, foodRate: 0.48, spawnInterval: 24, pairRate: 350, speedMult: 1.20, patternInterval: 200 },
-  { start: 3000, name: 'LAST_STAND', obsRate: 0.36, foodRate: 0.55, spawnInterval: 22, pairRate: 280, speedMult: 1.35, patternInterval: 160 },
+  { start: 0,    name: 'TUTORIAL',   obsRate: 0.04, foodRate: 0.88, spawnInterval: 52, pairRate: 0,   speedMult: 0.70, patternInterval: 0,   rowRate: 0    },
+  { start: 600,  name: 'FIRST_PUSH', obsRate: 0.12, foodRate: 0.68, spawnInterval: 50, pairRate: 0,   speedMult: 0.85, patternInterval: 0,   rowRate: 900  },
+  { start: 1200, name: 'BREATHER',   obsRate: 0.05, foodRate: 0.92, spawnInterval: 52, pairRate: 0,   speedMult: 0.75, patternInterval: 0,   rowRate: 0    },
+  { start: 1500, name: 'INTENSITY',  obsRate: 0.10, foodRate: 0.54, spawnInterval: 48, pairRate: 0,   speedMult: 1.00, patternInterval: 0,   rowRate: 600  },
+  { start: 2100, name: 'RELIEF',     obsRate: 0.05, foodRate: 0.78, spawnInterval: 52, pairRate: 0,   speedMult: 0.85, patternInterval: 0,   rowRate: 0    },
+  { start: 2400, name: 'FINAL_PUSH', obsRate: 0.08, foodRate: 0.48, spawnInterval: 46, pairRate: 0,   speedMult: 1.00, patternInterval: 0,   rowRate: 420  },
+  { start: 3000, name: 'LAST_STAND', obsRate: 0.08, foodRate: 0.55, spawnInterval: 44, pairRate: 0,   speedMult: 1.00, patternInterval: 0,   rowRate: 320  },
 ];
 
 function getCurrentWave() {
@@ -221,6 +221,7 @@ let lastUrgentSec = -1; // 중복 방지용
 let lastPatternFrame = 0;
 let lastSpawnFrame = 0;
 let lastPairFrame = 0;
+let lastRowFrame = 0;
 // Near Miss
 let nearMissCount = 0;
 // Score Gate (슬로모션)
@@ -366,6 +367,7 @@ function startGame() {
   lastPatternFrame = 0;
   lastSpawnFrame = 0;
   lastPairFrame = 0;
+  lastRowFrame = 0;
   nearMissCount = 0;
   scoreGatesHit = [];
   slowmoTimer = 0;
@@ -428,6 +430,30 @@ function spawn() {
 
   const x = safeX(40, 65);
   items.push(makeItem(x, kind, kind === 'obs' ? 'damage' : null, null));
+}
+
+// ── 한 줄 꽉 채우기 스폰 — 틈 하나만 남김 ──────────
+// 조리 히트박스 ~26px → 틈 최소 60px (여유 포함)
+const GAP_WIDTH = 80;  // 틈 폭 (px) — 후반엔 좁아짐
+function spawnRow() {
+  const gapW = Math.max(60, GAP_WIDTH - Math.min(score / 200, 20)); // 점수 높을수록 틈 좁아짐 (최소 60)
+  const gapX = 30 + Math.random() * (W - 60 - gapW); // 틈 시작 X
+  const obsR = 22; // 장애물 반지름
+  const spacing = obsR * 2 + 4; // 장애물 간격 (약간 붙임)
+
+  for (let x = obsR + 10; x < W - obsR - 10; x += spacing) {
+    // 틈 영역이면 건너뜀
+    if (x + obsR > gapX && x - obsR < gapX + gapW) continue;
+    const it = makeItem(x, 'obs', 'damage', null);
+    it.y = -50;
+    items.push(it);
+  }
+
+  // 틈 한가운데에 음식 하나 (보상)
+  const foodX = gapX + gapW / 2;
+  const foodIt = makeItem(foodX, 'food', null, null);
+  foodIt.y = -50;
+  items.push(foodIt);
 }
 
 // 장애물 페어 스폰 — 웨이브에 pairRate 있을 때만
@@ -563,6 +589,7 @@ function update() {
 
   // 페어 스폰
   if (wave.pairRate > 0 && frame - lastPairFrame >= wave.pairRate) { spawnPair(); lastPairFrame = frame; }
+  if (wave.rowRate > 0 && frame - lastRowFrame >= wave.rowRate) { spawnRow(); lastRowFrame = frame; }
 
   // 패턴 스폰 (의도적 배치)
   spawnPattern();
