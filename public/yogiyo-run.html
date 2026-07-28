@@ -124,10 +124,10 @@ const COMBO_TIMER = 180; // 3초 = 180프레임
 // 각 티어: obsRate(장애물 확률), foodRate(음식 확률), spawnInterval(스폰 간격),
 //          speedMult(속도 배율), rowInterval(row 간격), gapShrink(틈 축소)
 const DIFFICULTY = [
-  { score: 0,    name: 'EASY',     obsRate: 0.08, foodRate: 0.85, spawnInterval: 44, speedMult: 0.80, rowInterval: 0,   gapShrink: 0  },
-  { score: 50,   name: 'WARMUP',   obsRate: 0.15, foodRate: 0.75, spawnInterval: 38, speedMult: 0.90, rowInterval: 480, gapShrink: 0  },
-  { score: 150,  name: 'NORMAL',   obsRate: 0.22, foodRate: 0.65, spawnInterval: 32, speedMult: 1.00, rowInterval: 360, gapShrink: 5  },
-  { score: 350,  name: 'HARD',     obsRate: 0.30, foodRate: 0.55, spawnInterval: 26, speedMult: 1.10, rowInterval: 240, gapShrink: 10 },
+  { score: 0,    name: 'EASY',     obsRate: 0.03, foodRate: 0.90, spawnInterval: 52, speedMult: 0.70, rowInterval: 0,   gapShrink: 0  },
+  { score: 80,   name: 'WARMUP',   obsRate: 0.08, foodRate: 0.82, spawnInterval: 44, speedMult: 0.80, rowInterval: 600, gapShrink: 0  },
+  { score: 200,  name: 'NORMAL',   obsRate: 0.15, foodRate: 0.70, spawnInterval: 36, speedMult: 0.90, rowInterval: 420, gapShrink: 5  },
+  { score: 400,  name: 'HARD',     obsRate: 0.22, foodRate: 0.60, spawnInterval: 30, speedMult: 1.00, rowInterval: 300, gapShrink: 10 },
   { score: 600,  name: 'INTENSE',  obsRate: 0.38, foodRate: 0.48, spawnInterval: 22, speedMult: 1.20, rowInterval: 180, gapShrink: 15 },
   { score: 1000, name: 'BRUTAL',   obsRate: 0.42, foodRate: 0.42, spawnInterval: 18, speedMult: 1.35, rowInterval: 130, gapShrink: 20 },
   { score: 1500, name: 'INSANE',   obsRate: 0.48, foodRate: 0.38, spawnInterval: 15, speedMult: 1.50, rowInterval: 100, gapShrink: 25 },
