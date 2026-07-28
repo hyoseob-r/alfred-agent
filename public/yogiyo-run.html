@@ -135,10 +135,27 @@ const DIFFICULTY = [
 ];
 
 function getDifficulty() {
+  // 현재 티어 찾기
+  let idx = 0;
   for (let i = DIFFICULTY.length - 1; i >= 0; i--) {
-    if (score >= DIFFICULTY[i].score) return DIFFICULTY[i];
+    if (score >= DIFFICULTY[i].score) { idx = i; break; }
   }
-  return DIFFICULTY[0];
+  const cur = DIFFICULTY[idx];
+  const nxt = DIFFICULTY[Math.min(idx + 1, DIFFICULTY.length - 1)];
+  if (idx >= DIFFICULTY.length - 1) return cur;
+
+  // 현재 티어~다음 티어 사이 선형 보간 (속도/스폰간격 등 부드럽게 전환)
+  const t = (score - cur.score) / (nxt.score - cur.score); // 0~1
+  return {
+    score: cur.score,
+    name: cur.name,
+    obsRate:       cur.obsRate + (nxt.obsRate - cur.obsRate) * t,
+    foodRate:      cur.foodRate + (nxt.foodRate - cur.foodRate) * t,
+    spawnInterval: Math.round(cur.spawnInterval + (nxt.spawnInterval - cur.spawnInterval) * t),
+    speedMult:     cur.speedMult + (nxt.speedMult - cur.speedMult) * t,
+    rowInterval:   Math.round(cur.rowInterval + (nxt.rowInterval - cur.rowInterval) * t),
+    gapShrink:     cur.gapShrink + (nxt.gapShrink - cur.gapShrink) * t,
+  };
 }
 
 // getCurrentWave 호환용 (기존 코드에서 참조하는 곳 대응)
