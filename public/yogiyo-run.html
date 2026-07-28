@@ -174,6 +174,9 @@ let scoreParticles = []; // 점수 HUD로 날아가는 파티클
 let scorePop = 0;        // 점수 띠용 bounce 타이머
 let invincibleOnScreen = false; // 무적 포션 중복 방지
 let magnetOnScreen = false;     // 자석 포션 중복 방지
+let heartOnScreen = false;      // 하트 중복 방지
+let shieldOnScreen = false;     // 실드 중복 방지
+let ghostOnScreen = false;      // 고스트 중복 방지
 // 긴박 메시지 — 콤보/라이프 이벤트 전용
 let urgentMsg = null;    // { text, col, life, maxLife }
 let lastUrgentSec = -1; // 중복 방지용
@@ -202,6 +205,8 @@ const P = {
   magnetTimer: 0,  slowTimer: 0,
   feverTimer: 0,   dashTimer: 0,
   invincibleTimer: 0,  // 무적 타이머 (프레임)
+  shieldActive: false, // 실드 (1회 피격 무효)
+  ghostTimer: 0,       // 고스트 (장애물 통과)
 };
 
 // ── 입력 ──────────────────────────────────────────
@@ -321,9 +326,12 @@ function startGame() {
   P.reverseTimer = 0; P.blindTimer = 0; P.magnetTimer = 0;
   P.slowTimer = 0; P.feverTimer = 0; P.dashTimer = 0;
   invincibleOnScreen = false; magnetOnScreen = false;
+  heartOnScreen = false; shieldOnScreen = false; ghostOnScreen = false;
   scoreParticles = []; scorePop = 0;
   urgentMsg = null; lastUrgentSec = -1;
   P.invincibleTimer = 0;
+  P.shieldActive = false;
+  P.ghostTimer = 0;
   // 레벨 디자인 시스템 초기화
   lastPatternFrame = 0;
   lastSpawnFrame = 0;
@@ -523,6 +531,45 @@ function update() {
     }
   }
 
+  // 💚 하트 회복 — lives < 3일 때만, 희귀 (score 300+)
+  if (!heartOnScreen && lives < 3 && score >= 300) {
+    const chance = lives === 1 ? 0.0012 : 0.0005; // 라이프1: ~14초 / 라이프2: ~33초
+    if (Math.random() < chance) {
+      const it = makeItem(safeX(50, 70), 'bonus', null, 'heart');
+      it.spd = 1.2;
+      items.push(it);
+      heartOnScreen = true;
+    }
+  }
+
+  // 🛡️ 실드 — 실드 없을 때만, score 200+
+  if (!shieldOnScreen && !P.shieldActive && score >= 200) {
+    const chance = 0.0006; // ~28초마다
+    if (Math.random() < chance) {
+      const it = makeItem(safeX(50, 70), 'bonus', null, 'shield');
+      it.spd = 1.3;
+      it.baseX = it.x;
+      it.animFrame = 0;
+      it.swayPhase = Math.random() * Math.PI * 2;
+      items.push(it);
+      shieldOnScreen = true;
+    }
+  }
+
+  // 👻 고스트 — ghostTimer 없을 때만, score 400+
+  if (!ghostOnScreen && P.ghostTimer === 0 && score >= 400) {
+    const chance = 0.0005; // ~33초마다
+    if (Math.random() < chance) {
+      const it = makeItem(safeX(50, 70), 'bonus', null, 'ghost');
+      it.spd = 1.1;
+      it.baseX = it.x;
+      it.animFrame = 0;
+      it.swayPhase = Math.random() * Math.PI * 2;
+      items.push(it);
+      ghostOnScreen = true;
+    }
+  }
+
   baseSpeed = 3.3 + Math.min(score / 1000, 1) * 4.7; // 3.3 → 8.0 (1/3 faster)
 
   processInput();
@@ -550,6 +597,7 @@ function update() {
   if (P.feverTimer   > 0) P.feverTimer--;
   if (P.dashTimer       > 0) P.dashTimer--;
   if (P.invincibleTimer > 0) P.invincibleTimer--;
+  if (P.ghostTimer > 0) P.ghostTimer--;
   if (comboT > 0) comboT--; else if (combo > 0) { combo = 0; comboT = 0; }
 
   // ── 점수 기반 스폰 ────────────────────────────────
@@ -591,6 +639,11 @@ function update() {
       it.animFrame++;
       it.x = it.baseX + Math.sin(it.swayPhase + it.animFrame * (Math.PI * 2 / 120)) * 36;
     }
+    // 실드/고스트: 살랑살랑
+    if ((it.bonusType === 'shield' || it.bonusType === 'ghost') && it.animFrame !== undefined) {
+      it.animFrame++;
+      it.x = it.baseX + Math.sin(it.swayPhase + it.animFrame * (Math.PI * 2 / 100)) * 30;
+    }
 
     // 자석 효과: 음식 아이템을 플레이어 방향으로 당김 (장애물 제외)
     if (P.magnetTimer > 0 && it.kind === 'food') {
@@ -631,6 +684,9 @@ function update() {
       if (!alive) {
         if (it.bonusType === 'invincible') invincibleOnScreen = false;
         if (it.bonusType === 'magnet') magnetOnScreen = false;
+        if (it.bonusType === 'heart') heartOnScreen = false;
+        if (it.bonusType === 'shield') shieldOnScreen = false;
+        if (it.bonusType === 'ghost') ghostOnScreen = false;
       }
       return alive;
     }
@@ -643,9 +699,25 @@ function update() {
         burst(it.x, it.y, '#ffd700', 6);
         return false;
       }
+      if (P.ghostTimer > 0) {
+        // 고스트 상태 — 장애물 통과, 파괴 안 함
+        burst(it.x, it.y, 'rgba(255,255,255,0.3)', 5);
+        return it.y < H + 60; // 통과
+      }
       if (P.inv > 0) {
         // 데미지 무적(피격 후 80프레임) — 통과
         return it.y < H + 60;
+      }
+      if (P.shieldActive) {
+        // 실드 — 1회 흡수 후 소멸
+        P.shieldActive = false;
+        P.inv = 40; // 짧은 무적
+        burst(it.x, it.y, '#00ccff', 15);
+        burst(it.x, it.y, '#ffffff', 8);
+        popup(P.x, P.y - 40, '🛡️ SHIELD BREAK!', '#00ccff');
+        urgentMsg = { text: '🛡️ SHIELD ABSORBED!', col: '#00ccff', life: 80, maxLife: 80 };
+        lastUrgentSec = -99;
+        return false;
       }
       // 데미지
       lives--;
@@ -674,6 +746,32 @@ function update() {
           urgentMsg = { text: '🧲 MAGNET! 음식이 달려온다!', col: '#00ccff', life: 120, maxLife: 120 };
           lastUrgentSec = -99;
           popup(P.x, P.y - 50, '🧲 MAGNET 12s!', '#00ccff');
+        } else if (it.bonusType === 'heart') {
+          if (lives < 3) {
+            lives++;
+            heartOnScreen = false;
+            burst(it.x, it.y, '#ff4466', 20);
+            burst(it.x, it.y, '#fff', 10);
+            popup(P.x, P.y - 50, '💚 +1 LIFE!', '#44ff66');
+            urgentMsg = { text: '💚 LIFE RECOVERED!', col: '#44ff66', life: 100, maxLife: 100 };
+            lastUrgentSec = -99;
+          }
+        } else if (it.bonusType === 'shield') {
+          P.shieldActive = true;
+          shieldOnScreen = false;
+          burst(it.x, it.y, '#00ccff', 20);
+          burst(it.x, it.y, '#fff', 12);
+          popup(P.x, P.y - 50, '🛡️ SHIELD ON!', '#00ccff');
+          urgentMsg = { text: '🛡️ SHIELD! 1회 보호!', col: '#00ccff', life: 100, maxLife: 100 };
+          lastUrgentSec = -99;
+        } else if (it.bonusType === 'ghost') {
+          P.ghostTimer = 300; // 5초
+          ghostOnScreen = false;
+          burst(it.x, it.y, '#aa88ff', 20);
+          burst(it.x, it.y, '#fff', 12);
+          popup(P.x, P.y - 50, '👻 GHOST 5s!', '#aa88ff');
+          urgentMsg = { text: '👻 GHOST MODE! 장애물 통과!', col: '#aa88ff', life: 100, maxLife: 100 };
+          lastUrgentSec = -99;
         }
         return false;
       } else {
@@ -818,6 +916,15 @@ function drawHUD() {
     em('❤️', W - 18 - i * 26, 20, 14);
   }
   cx.globalAlpha = 1;
+  // 실드 표시
+  if (P.shieldActive) {
+    em('🛡️', W - 18 - 3 * 26, 20, 13);
+  }
+  // 고스트 타이머
+  if (P.ghostTimer > 0) {
+    const ghostSec = Math.ceil(P.ghostTimer / 60);
+    txt(`👻 ${ghostSec}s`, W - 16, 38, 9, '#aa88ff', 'right');
+  }
 
   // ── 콤보 HUD ─────────────────────────────────────
   if (combo > 0) {
@@ -973,7 +1080,8 @@ function drawPlayer() {
     drawJori(px - P.vx * 2.4, py + 8, 36, 0.06 + speed * 0.01, P.dir);
   }
 
-  drawJori(px, py, 72, 1, P.dir);
+  const joriAlpha = P.ghostTimer > 0 ? (0.4 + Math.sin(frame * 0.3) * 0.15) : 1;
+  drawJori(px, py, 72, joriAlpha, P.dir);
 
   if (P.inv > 0) {
     cx.strokeStyle = `rgba(250,0,80,${P.inv / 80 * 0.8})`;
@@ -998,6 +1106,34 @@ function drawPlayer() {
     cx.shadowBlur = 0;
     cx.globalAlpha = 1;
     if (P.invincibleTimer < 180 && blink) cx.globalAlpha = 0.4;
+  }
+
+  // 실드 오라 — 시안 육각형 느낌의 링
+  if (P.shieldActive) {
+    const shieldPulse = 0.6 + Math.sin(frame * 0.15) * 0.2;
+    cx.shadowColor = '#00ccff';
+    cx.shadowBlur = 12 + Math.sin(frame * 0.2) * 4;
+    cx.strokeStyle = `rgba(0,204,255,${shieldPulse})`;
+    cx.lineWidth = 2.5;
+    cx.beginPath(); cx.arc(px, py, 56, 0, Math.PI * 2); cx.stroke();
+    // 내부 링
+    cx.strokeStyle = `rgba(0,204,255,${shieldPulse * 0.4})`;
+    cx.lineWidth = 1;
+    cx.beginPath(); cx.arc(px, py, 48, 0, Math.PI * 2); cx.stroke();
+    cx.shadowBlur = 0;
+  }
+
+  // 고스트 — 반투명 + 보라 오라
+  if (P.ghostTimer > 0) {
+    cx.globalAlpha = 0.45 + Math.sin(frame * 0.3) * 0.15;
+    cx.shadowColor = '#aa88ff';
+    cx.shadowBlur = 16;
+    cx.strokeStyle = `rgba(170,136,255,0.5)`;
+    cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(px, py, 58, 0, Math.PI * 2); cx.stroke();
+    cx.shadowBlur = 0;
+    // 깜빡 경고 (2초 남았을 때)
+    if (P.ghostTimer < 120 && Math.floor(P.ghostTimer / 8) % 2 === 0) cx.globalAlpha = 0.25;
   }
 
   // 자석 오라 — 링 + glow
@@ -1107,6 +1243,49 @@ function drawItems() {
         cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
         cx.fillStyle = '#fff'; cx.textAlign='center'; cx.textBaseline='middle';
         cx.fillText('MAGNET', it.x, it.y - r + 6);
+        cx.restore();
+      } else if (it.bonusType === 'heart') {
+        // 💚 하트 — 맥동 효과
+        const pulse = 1 + Math.sin((it.animFrame || frame) * 0.15) * 0.15;
+        cx.save(); cx.translate(it.x, it.y); cx.scale(pulse, pulse);
+        cx.font = `${r * 1.3}px serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText('💚', 0, 0);
+        cx.restore();
+        cx.save();
+        cx.fillStyle = 'rgba(68,255,102,0.92)';
+        cx.beginPath(); cx.roundRect(it.x - 22, it.y - r - 2, 44, 16, 5); cx.fill();
+        cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
+        cx.fillStyle = '#000'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText('+1 LIFE', it.x, it.y - r + 6);
+        cx.restore();
+      } else if (it.bonusType === 'shield') {
+        // 🛡️ 실드 — 회전 반짝
+        const glow = 0.6 + Math.sin((it.animFrame || frame) * 0.2) * 0.4;
+        cx.save(); cx.globalAlpha = glow;
+        cx.shadowColor = '#00ccff'; cx.shadowBlur = 12;
+        cx.font = `${r * 1.4}px serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText('🛡️', it.x, it.y);
+        cx.shadowBlur = 0; cx.globalAlpha = 1; cx.restore();
+        cx.save();
+        cx.fillStyle = 'rgba(0,204,255,0.92)';
+        cx.beginPath(); cx.roundRect(it.x - 24, it.y - r - 2, 48, 16, 5); cx.fill();
+        cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
+        cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText('SHIELD', it.x, it.y - r + 6);
+        cx.restore();
+      } else if (it.bonusType === 'ghost') {
+        // 👻 고스트 — 반투명 깜빡
+        const flicker = 0.5 + Math.sin((it.animFrame || frame) * 0.25) * 0.3;
+        cx.save(); cx.globalAlpha = flicker;
+        cx.font = `${r * 1.4}px serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText('👻', it.x, it.y);
+        cx.globalAlpha = 1; cx.restore();
+        cx.save();
+        cx.fillStyle = 'rgba(170,136,255,0.92)';
+        cx.beginPath(); cx.roundRect(it.x - 24, it.y - r - 2, 48, 16, 5); cx.fill();
+        cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
+        cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.fillText('GHOST', it.x, it.y - r + 6);
         cx.restore();
       }
     } else {
