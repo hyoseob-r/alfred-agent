@@ -1454,16 +1454,21 @@ function drawOver() {
   cx.save(); cx.translate(W/2, 178); cx.rotate(Math.PI); drawJori(0,0,40); cx.restore();
   btxt('GAME OVER', W/2, 258, 26, COL.white);
   rrect(50, 285, W-100, 100, 14, 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.1)', 1);
-  btxt(score.toLocaleString(), W/2, 325, 38, COL.gold);
-  txt('이번 기록', W/2, 362, 11, 'rgba(255,255,255,0.35)');
+  btxt(score.toLocaleString(), W/2, 320, 38, COL.gold);
+  // 플레이 시간
+  const totalSec = Math.floor(frame / 60);
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  const timeStr = mins > 0 ? `${mins}분 ${secs}초` : `${secs}초`;
+  txt(`${timeStr}  ·  이번 기록`, W/2, 356, 11, 'rgba(255,255,255,0.45)');
   if (score > 0 && score >= hi) {
-    cx.shadowColor = COL.gold; cx.shadowBlur = 20; btxt('🏆 신기록!', W/2, 400, 14, COL.gold); cx.shadowBlur = 0;
+    cx.shadowColor = COL.gold; cx.shadowBlur = 20; btxt('🏆 신기록!', W/2, 392, 14, COL.gold); cx.shadowBlur = 0;
   } else if (hi > 0) {
-    txt(`최고 기록  ${hi.toLocaleString()}`, W/2, 400, 12, 'rgba(255,255,255,0.3)');
+    txt(`최고 기록  ${hi.toLocaleString()}`, W/2, 392, 12, 'rgba(255,255,255,0.3)');
   }
   // Near Miss 통계
   if (nearMissCount > 0) {
-    txt(`NEAR MISS ×${nearMissCount}`, W/2, 416, 10, '#00ffaa');
+    txt(`NEAR MISS ×${nearMissCount}`, W/2, 408, 10, '#00ffaa');
   }
   rrect(40, 422, W-80, 68, 12, 'rgba(245,196,0,0.08)', 'rgba(245,196,0,0.25)', 1);
   em('🏅', 66, 451, 18);
