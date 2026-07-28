@@ -336,6 +336,30 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       setIsPaused(true); setIsRunning(false); setAgentStartTime(null);
       return;
     }
+    // 빈 응답 감지 — 자동 재시도 (최대 2회)
+    if (!result || result.trim().length < 10) {
+      const retryCount = agent._retryCount || 0;
+      if (retryCount < 2) {
+        console.warn(`[Council] 빈 응답 감지 (${agent.role}), 재시도 ${retryCount + 1}/2`);
+        const retryAgent = { ...agent, _retryCount: retryCount + 1 };
+        const retryQueue = [...queue]; retryQueue[queueIndex] = retryAgent;
+        setIsRunning(false); setAgentStartTime(null);
+        setTimeout(() => runQueueAgent(retryQueue, queueIndex, context, existingSteps), 1500);
+        return;
+      }
+      // 2회 재시도 후에도 빈 응답 → 에러 표시 후 자동으로 다음으로
+      console.error(`[Council] ${agent.role}: 2회 재시도 후에도 빈 응답`);
+      const errResult = `⚠ 응답 없음 (${retryCount + 1}회 시도)`;
+      setCurrentSteps(prev => prev.map(s => s.qid === agent.qid ? { ...s, status: "error", result: errResult } : s));
+      const newSteps = [...existingSteps, { ...agent, result: errResult, status: "error" }];
+      setIsRunning(false); setAgentStartTime(null);
+      const nextIndex = queueIndex + 1;
+      if (nextIndex < queue.length) {
+        // 자동 진행 (버튼 대기 없이)
+        setTimeout(() => runQueueAgent(queue, nextIndex, context, newSteps), 1000);
+      } else finishAll(context, newSteps);
+      return;
+    }
     setCurrentSteps(prev => prev.map(s => s.qid === agent.qid ? { ...s, status: "done", result } : s));
     const newContext = context + `\n\n[${agent.group}·${agent.role} 의견]\n${result}`;
     const newSteps = [...existingSteps, { ...agent, result, status: "done" }];
