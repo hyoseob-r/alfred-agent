@@ -198,6 +198,10 @@ let ghostOnScreen = false;      // 고스트 중복 방지
 let urgentMsg = null;    // { text, col, life, maxLife }
 let lastUrgentSec = -1; // 중복 방지용
 
+// 레이저 시스템
+let lasers = [];         // { x, w, timer, phase: 'warn'|'fire', maxWarn, maxFire }
+let lastLaserFrame = 0;
+
 // Wave & Pattern 상태
 let lastPatternFrame = 0;
 let lastSpawnFrame = 0;
@@ -355,6 +359,7 @@ function startGame() {
   lastPairFrame = 0;
   lastRowFrame = 0;
   lastGapCenter = W / 2;
+  lasers = []; lastLaserFrame = 0;
   nearMissCount = 0;
   scoreGatesHit = [];
   slowmoTimer = 0;
@@ -632,6 +637,60 @@ function update() {
 
   // Row 스폰 — 난이도 티어별 간격
   if (diff.rowInterval > 0 && frame - lastRowFrame >= diff.rowInterval) { spawnRow(); lastRowFrame = frame; }
+
+  // ── 레이저 시스템 (score 5000+) ──────────────────
+  if (score >= 5000) {
+    // 스폰: 점수 높을수록 빈번 (600f→360f)
+    const laserInterval = Math.max(360, 600 - Math.floor((score - 5000) / 2000) * 80);
+    if (frame - lastLaserFrame >= laserInterval && lasers.length < 2) {
+      const lw = 30 + Math.random() * 20; // 빔 폭 30~50px
+      const lx = 40 + Math.random() * (W - 80); // 랜덤 X
+      lasers.push({ x: lx, w: lw, timer: 0, phase: 'warn', maxWarn: 90, maxFire: 60 }); // 경고 1.5초, 발사 1초
+      lastLaserFrame = frame;
+    }
+  }
+
+  // 레이저 업데이트
+  lasers = lasers.filter(laser => {
+    laser.timer++;
+    if (laser.phase === 'warn' && laser.timer >= laser.maxWarn) {
+      laser.phase = 'fire';
+      laser.timer = 0;
+    }
+    if (laser.phase === 'fire') {
+      // 콘 차단 계산 — 빔 X 범위 내 가장 아래쪽(높은 Y) 콘 찾기
+      let blockY = -1; // 차단 Y (-1이면 차단 없음 = 끝까지 관통)
+      items.forEach(it => {
+        if (it.kind === 'obs' && Math.abs(it.x - laser.x) < laser.w / 2 + 14) {
+          if (it.y > blockY) blockY = it.y; // 가장 아래쪽 콘
+        }
+      });
+
+      // 플레이어 피격 판정 — 빔 X 범위 내 && 콘 아래에 있으면 피격
+      const inX = Math.abs(P.x - laser.x) < laser.w / 2 + 16;
+      const aboveBlock = blockY > 0 && P.y < blockY - 20; // 콘 위에 있으면 안전
+      if (inX && !aboveBlock && P.inv === 0 && P.invincibleTimer === 0 && P.ghostTimer === 0) {
+        if (!P.shieldActive) {
+          lives--;
+          P.inv = 80; P.shake = 18; P.bump = 10;
+          burst(P.x, P.y, '#ff2200', 15);
+          popup(P.x, P.y - 40, '🔴 LASER HIT!', '#ff2200');
+          adaptHits.push(frame);
+          if (lives <= 0) { S = 'over'; if (score > hi) hi = score; }
+        } else {
+          P.shieldActive = false;
+          P.inv = 40;
+          burst(P.x, P.y, '#00ccff', 15);
+          popup(P.x, P.y - 40, '🛡️ SHIELD BREAK!', '#00ccff');
+        }
+        laser.phase = 'done'; // 피격 후 즉시 종료
+      }
+
+      if (laser.timer >= laser.maxFire) return false; // 발사 끝
+    }
+    if (laser.phase === 'done') return false;
+    return true;
+  });
 
   // ── Adaptive Difficulty 계산 ──────────────────────
   // 슬라이딩 윈도우: 최근 10초 피격 횟수 기반
@@ -1332,6 +1391,87 @@ function drawItems() {
   });
 }
 
+// ── 레이저 드로우 ─────────────────────────────────
+function drawLasers() {
+  lasers.forEach(laser => {
+    if (laser.phase === 'warn') {
+      // 경고 — 빨간 점선 + 깜빡
+      const blink = Math.sin(laser.timer * 0.3) * 0.3 + 0.5;
+      cx.save();
+      cx.globalAlpha = blink;
+      cx.strokeStyle = '#ff2200';
+      cx.lineWidth = 2;
+      cx.setLineDash([8, 6]);
+      cx.beginPath();
+      cx.moveTo(laser.x, H + 10);
+      cx.lineTo(laser.x, -10);
+      cx.stroke();
+      cx.setLineDash([]);
+
+      // 양 옆 경고 범위 표시
+      cx.fillStyle = `rgba(255,34,0,${blink * 0.08})`;
+      cx.fillRect(laser.x - laser.w / 2, 0, laser.w, H);
+
+      // 하단 "⚠ LASER" 경고 텍스트
+      cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
+      cx.fillStyle = `rgba(255,34,0,${blink})`;
+      cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillText('⚠ LASER', laser.x, H - 20);
+
+      // 마지막 0.5초 — 더 강한 깜빡
+      if (laser.timer > laser.maxWarn - 30) {
+        const urgentBlink = Math.floor(laser.timer / 3) % 2 === 0 ? 0.6 : 0.1;
+        cx.fillStyle = `rgba(255,34,0,${urgentBlink * 0.15})`;
+        cx.fillRect(laser.x - laser.w / 2, 0, laser.w, H);
+      }
+      cx.restore();
+
+    } else if (laser.phase === 'fire') {
+      // 콘 차단점 계산
+      let blockY = -1;
+      items.forEach(it => {
+        if (it.kind === 'obs' && Math.abs(it.x - laser.x) < laser.w / 2 + 14) {
+          if (it.y > blockY) blockY = it.y;
+        }
+      });
+
+      const beamTop = blockY > 0 ? blockY - 10 : -10; // 콘 위에서 멈춤
+      const fadeIn = Math.min(1, laser.timer / 8); // 0.13초 페이드인
+      const fadeOut = laser.timer > laser.maxFire - 15 ? (laser.maxFire - laser.timer) / 15 : 1;
+      const alpha = fadeIn * fadeOut;
+
+      cx.save();
+      // 빔 코어 (밝은 빨강)
+      const beamGrad = cx.createLinearGradient(laser.x - laser.w/2, 0, laser.x + laser.w/2, 0);
+      beamGrad.addColorStop(0, `rgba(255,50,0,${alpha * 0.3})`);
+      beamGrad.addColorStop(0.3, `rgba(255,80,30,${alpha * 0.8})`);
+      beamGrad.addColorStop(0.5, `rgba(255,220,200,${alpha})`);
+      beamGrad.addColorStop(0.7, `rgba(255,80,30,${alpha * 0.8})`);
+      beamGrad.addColorStop(1, `rgba(255,50,0,${alpha * 0.3})`);
+      cx.fillStyle = beamGrad;
+      cx.fillRect(laser.x - laser.w/2, beamTop, laser.w, H - beamTop + 10);
+
+      // 글로우
+      cx.shadowColor = '#ff2200';
+      cx.shadowBlur = 20 * alpha;
+      cx.fillStyle = `rgba(255,100,50,${alpha * 0.4})`;
+      cx.fillRect(laser.x - laser.w/2 - 8, beamTop, laser.w + 16, H - beamTop + 10);
+      cx.shadowBlur = 0;
+
+      // 콘 차단 스파크
+      if (blockY > 0) {
+        const sparkA = alpha * (0.6 + Math.sin(laser.timer * 0.8) * 0.4);
+        cx.fillStyle = `rgba(255,255,100,${sparkA})`;
+        cx.beginPath(); cx.arc(laser.x, blockY - 5, 8 + Math.random() * 4, 0, Math.PI * 2); cx.fill();
+        cx.fillStyle = `rgba(255,200,50,${sparkA * 0.5})`;
+        cx.beginPath(); cx.arc(laser.x, blockY - 5, 14 + Math.random() * 6, 0, Math.PI * 2); cx.fill();
+      }
+
+      cx.restore();
+    }
+  });
+}
+
 // ── 파티클 드로우 ─────────────────────────────────
 function drawFX() {
   particles.forEach(p => {
@@ -1495,7 +1635,7 @@ function loop(now) {
   drawItems();
   drawFX();
   if (S === 'play' || S === 'over' || S === 'dead') drawPlayer();
-  if (S === 'play')  { drawSpecialFX(); drawHUD(); drawUrgentMsg(); drawJoystick(); }
+  if (S === 'play')  { drawLasers(); drawSpecialFX(); drawHUD(); drawUrgentMsg(); drawJoystick(); }
   if (S === 'start') drawStart();
   if (S === 'over')  { drawHUD(); drawOver(); }
 }
