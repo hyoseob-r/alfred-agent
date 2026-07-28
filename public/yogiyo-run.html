@@ -354,6 +354,7 @@ function startGame() {
   lastSpawnFrame = 0;
   lastPairFrame = 0;
   lastRowFrame = 0;
+  lastGapCenter = W / 2;
   nearMissCount = 0;
   scoreGatesHit = [];
   slowmoTimer = 0;
@@ -421,10 +422,18 @@ function spawn() {
 // ── 한 줄 꽉 채우기 스폰 — 틈 하나만 남김 ──────────
 // 조리 히트박스 ~26px → 틈 최소 60px (여유 포함)
 const GAP_WIDTH = 80;  // 틈 폭 (px) — 후반엔 좁아짐
+let lastGapCenter = W / 2; // 이전 Row 틈 중심 위치 기억
+
 function spawnRow() {
   const diff = getDifficulty();
   const gapW = Math.max(55, GAP_WIDTH - diff.gapShrink); // 난이도별 틈 축소 (최소 55px)
-  const gapX = 30 + Math.random() * (W - 60 - gapW); // 틈 시작 X
+
+  // 도달 가능 범위 계산 — 이전 틈에서 플레이어가 이동할 수 있는 최대 거리
+  const reachable = PLAYER_SPEED * diff.rowInterval * 0.65; // 35% 반응시간 마진
+  const minGapX = Math.max(30, lastGapCenter - gapW / 2 - reachable);
+  const maxGapX = Math.min(W - 30 - gapW, lastGapCenter - gapW / 2 + reachable);
+  const gapX = minGapX + Math.random() * Math.max(0, maxGapX - minGapX);
+  lastGapCenter = gapX + gapW / 2;
   const obsR = 22; // 장애물 반지름
   const spacing = obsR * 2 + 4; // 장애물 간격 (약간 붙임)
 
