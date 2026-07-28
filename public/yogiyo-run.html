@@ -1395,35 +1395,42 @@ function drawItems() {
 function drawLasers() {
   lasers.forEach(laser => {
     if (laser.phase === 'warn') {
-      // 경고 — 빨간 점선 + 깜빡
-      const blink = Math.sin(laser.timer * 0.3) * 0.3 + 0.5;
+      // 경고 — 픽셀 점선 + 깜빡
+      const blink = Math.floor(laser.timer / 4) % 2 === 0;
       cx.save();
-      cx.globalAlpha = blink;
-      cx.strokeStyle = '#ff2200';
-      cx.lineWidth = 2;
-      cx.setLineDash([8, 6]);
-      cx.beginPath();
-      cx.moveTo(laser.x, H + 10);
-      cx.lineTo(laser.x, -10);
-      cx.stroke();
-      cx.setLineDash([]);
+      cx.imageSmoothingEnabled = false;
 
-      // 양 옆 경고 범위 표시
-      cx.fillStyle = `rgba(255,34,0,${blink * 0.08})`;
-      cx.fillRect(laser.x - laser.w / 2, 0, laser.w, H);
-
-      // 하단 "⚠ LASER" 경고 텍스트
-      cx.font = 'bold 10px Pretendard, -apple-system, sans-serif';
-      cx.fillStyle = `rgba(255,34,0,${blink})`;
-      cx.textAlign = 'center'; cx.textBaseline = 'middle';
-      cx.fillText('⚠ LASER', laser.x, H - 20);
-
-      // 마지막 0.5초 — 더 강한 깜빡
-      if (laser.timer > laser.maxWarn - 30) {
-        const urgentBlink = Math.floor(laser.timer / 3) % 2 === 0 ? 0.6 : 0.1;
-        cx.fillStyle = `rgba(255,34,0,${urgentBlink * 0.15})`;
-        cx.fillRect(laser.x - laser.w / 2, 0, laser.w, H);
+      // 점선 (4px 간격 사각형)
+      cx.fillStyle = blink ? '#ff2200' : '#cc1100';
+      cx.globalAlpha = 0.7;
+      for (let y = 0; y < H; y += 8) {
+        if (Math.floor(y / 8) % 2 === 0) {
+          cx.fillRect(Math.floor(laser.x) - 1, y, 2, 4);
+        }
       }
+
+      // 양 옆 경고 범위 (얇은 줄)
+      cx.globalAlpha = blink ? 0.12 : 0.05;
+      cx.fillStyle = '#ff2200';
+      cx.fillRect(Math.floor(laser.x - laser.w / 2), 0, Math.floor(laser.w), H);
+
+      // 하단 경고
+      cx.globalAlpha = blink ? 0.9 : 0.3;
+      cx.font = 'bold 9px Pretendard, -apple-system, sans-serif';
+      cx.fillStyle = '#ff2200';
+      cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillText('⚠ LASER', laser.x, H - 18);
+
+      // 마지막 0.5초 — 빠른 깜빡
+      if (laser.timer > laser.maxWarn - 30) {
+        const fast = Math.floor(laser.timer / 2) % 2 === 0;
+        cx.globalAlpha = fast ? 0.2 : 0.04;
+        cx.fillStyle = '#ff2200';
+        cx.fillRect(Math.floor(laser.x - laser.w / 2), 0, Math.floor(laser.w), H);
+      }
+
+      cx.globalAlpha = 1;
+      cx.imageSmoothingEnabled = true;
       cx.restore();
 
     } else if (laser.phase === 'fire') {
@@ -1435,38 +1442,55 @@ function drawLasers() {
         }
       });
 
-      const beamTop = blockY > 0 ? blockY - 10 : -10; // 콘 위에서 멈춤
-      const fadeIn = Math.min(1, laser.timer / 8); // 0.13초 페이드인
-      const fadeOut = laser.timer > laser.maxFire - 15 ? (laser.maxFire - laser.timer) / 15 : 1;
+      const beamTop = blockY > 0 ? blockY - 10 : -10;
+      const fadeIn = Math.min(1, laser.timer / 6);
+      const fadeOut = laser.timer > laser.maxFire - 10 ? (laser.maxFire - laser.timer) / 10 : 1;
       const alpha = fadeIn * fadeOut;
 
       cx.save();
-      // 빔 코어 (밝은 빨강)
-      const beamGrad = cx.createLinearGradient(laser.x - laser.w/2, 0, laser.x + laser.w/2, 0);
-      beamGrad.addColorStop(0, `rgba(255,50,0,${alpha * 0.3})`);
-      beamGrad.addColorStop(0.3, `rgba(255,80,30,${alpha * 0.8})`);
-      beamGrad.addColorStop(0.5, `rgba(255,220,200,${alpha})`);
-      beamGrad.addColorStop(0.7, `rgba(255,80,30,${alpha * 0.8})`);
-      beamGrad.addColorStop(1, `rgba(255,50,0,${alpha * 0.3})`);
-      cx.fillStyle = beamGrad;
-      cx.fillRect(laser.x - laser.w/2, beamTop, laser.w, H - beamTop + 10);
+      cx.imageSmoothingEnabled = false; // 픽셀 느낌
 
-      // 글로우
-      cx.shadowColor = '#ff2200';
-      cx.shadowBlur = 20 * alpha;
-      cx.fillStyle = `rgba(255,100,50,${alpha * 0.4})`;
-      cx.fillRect(laser.x - laser.w/2 - 8, beamTop, laser.w + 16, H - beamTop + 10);
-      cx.shadowBlur = 0;
+      // 빔 — 단색 줄무늬 (픽셀 스타일)
+      const bx = Math.floor(laser.x - laser.w / 2);
+      const bw = Math.floor(laser.w);
+      const by = Math.floor(beamTop);
+      const bh = H - by + 10;
 
-      // 콘 차단 스파크
+      // 외곽 (진한 빨강)
+      cx.globalAlpha = alpha * 0.9;
+      cx.fillStyle = '#cc2200';
+      cx.fillRect(bx, by, bw, bh);
+
+      // 내부 코어 (밝은 빨강, 2px 안쪽)
+      cx.fillStyle = '#ff4422';
+      cx.fillRect(bx + 2, by, bw - 4, bh);
+
+      // 중심선 (흰빨강, 깜빡)
+      const flicker = Math.floor(laser.timer / 2) % 2 === 0;
+      cx.fillStyle = flicker ? '#ff8866' : '#ffaa88';
+      cx.fillRect(bx + 4, by, bw - 8, bh);
+
+      // 하이라이트 줄 (밝은 한 줄, 픽셀 스캔라인 느낌)
+      cx.fillStyle = `rgba(255,200,180,${alpha * 0.6})`;
+      cx.fillRect(bx + Math.floor(bw / 2) - 1, by, 2, bh);
+
+      // 콘 차단 — 픽셀 스파크 (작은 사각형 파티클)
       if (blockY > 0) {
-        const sparkA = alpha * (0.6 + Math.sin(laser.timer * 0.8) * 0.4);
-        cx.fillStyle = `rgba(255,255,100,${sparkA})`;
-        cx.beginPath(); cx.arc(laser.x, blockY - 5, 8 + Math.random() * 4, 0, Math.PI * 2); cx.fill();
-        cx.fillStyle = `rgba(255,200,50,${sparkA * 0.5})`;
-        cx.beginPath(); cx.arc(laser.x, blockY - 5, 14 + Math.random() * 6, 0, Math.PI * 2); cx.fill();
+        const sparkOn = Math.floor(laser.timer / 3) % 2 === 0;
+        if (sparkOn) {
+          cx.fillStyle = '#ffdd44';
+          for (let i = 0; i < 4; i++) {
+            const sx = laser.x - 8 + Math.floor(Math.random() * 16);
+            const sy = blockY - 12 + Math.floor(Math.random() * 8);
+            cx.fillRect(sx, sy, 3, 3);
+          }
+          cx.fillStyle = '#ffffff';
+          cx.fillRect(laser.x - 2, blockY - 8, 4, 4);
+        }
       }
 
+      cx.globalAlpha = 1;
+      cx.imageSmoothingEnabled = true;
       cx.restore();
     }
   });
