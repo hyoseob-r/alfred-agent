@@ -130,7 +130,11 @@ export async function streamChatAPIMultimodal(body, onChunk) {
 
 export async function streamChatAPI(body, onChunk, signal) {
   const proxyUrl = getProxyUrl();
-  const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : '/api/chat';
+  console.log('[streamChatAPI] proxyUrl =', proxyUrl);
+  // proxyUrl이 없으면 localStorage에서 직접 다시 읽기
+  const effectiveProxy = proxyUrl || localStorage.getItem(PROXY_URL_KEY);
+  const url = effectiveProxy ? `${effectiveProxy.replace(/\/$/, '')}/api/chat` : '/api/chat';
+  console.log('[streamChatAPI] url =', url);
   const fetchOpts = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
