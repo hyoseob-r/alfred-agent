@@ -945,7 +945,7 @@ export default function App() {
       <AgentsPanel open={showAgents} onClose={() => setShowAgents(false)} />
       <ContextAgentPanel open={showContextAgent} onClose={() => setShowContextAgent(false)} />
       {showFeedback && <FeedbackPanel onClose={() => setShowFeedback(false)} />}
-      <FeedbackButton />
+      {/* FeedbackButton은 헤더로 이동 */}
 
       {showFigmaToken && (
         <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
@@ -1080,6 +1080,7 @@ export default function App() {
           </button>
           <ModelSelector onChange={setSelectedModelState} />
           <AppMenu current="alfred" />
+          <FeedbackButton />
           <button onClick={handleSignOut} style={{ padding: "5px 10px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>로그아웃</button>

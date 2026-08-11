@@ -128,22 +128,20 @@ export function FeedbackButton() {
 
   return (
     <>
-      {/* 플로팅 버튼 */}
+      {/* 헤더 인라인 버튼 */}
       <button
         onClick={() => setOpen(true)}
         title="피드백 보내기"
         style={{
-          position: "fixed", bottom: "96px", right: "24px", zIndex: 9000,
-          width: "40px", height: "40px", borderRadius: "50%",
-          background: "#111", border: "none", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: "16px", boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
-          transition: "transform 0.15s",
+          padding: "5px 10px", background: "transparent",
+          border: "1px solid #e5e5e5", borderRadius: "8px",
+          color: "#aaaaaa", fontSize: "10px", cursor: "pointer",
+          transition: "all 0.2s", whiteSpace: "nowrap",
         }}
-        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
-        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "#cccccc"; e.currentTarget.style.color = "#777777"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}
       >
-        💬
+        💬 피드백
       </button>
 
       {/* 피드백 모달 */}
