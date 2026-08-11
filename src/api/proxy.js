@@ -1,4 +1,5 @@
 export const PROXY_URL_KEY = 'alfred_proxy_url';
+const LOCALHOST_PROXY = 'http://localhost:7432';
 
 let _activeProxyUrl = localStorage.getItem(PROXY_URL_KEY) || null;
 
@@ -9,12 +10,24 @@ export function setActiveProxyUrl(url) {
   else localStorage.removeItem(PROXY_URL_KEY);
 }
 
+// 프록시 URL로 요청 시도 → 실패하면 localhost fallback
+async function fetchWithFallback(url, options) {
+  try {
+    const resp = await fetch(url, { ...options, signal: options.signal || AbortSignal.timeout(10000) });
+    if (resp.ok) return resp;
+  } catch {}
+  // fallback: localhost 직접
+  const localUrl = url.replace(/^https?:\/\/[^/]+/, LOCALHOST_PROXY);
+  if (localUrl === url) throw new Error("프록시 연결 실패");
+  console.log(`[proxy] fallback → ${LOCALHOST_PROXY}`);
+  return fetch(localUrl, options);
+}
+
 export async function chatAPI(body) {
   const proxyUrl = getProxyUrl();
   if (!proxyUrl) throw new Error("프록시 미연결 — 우측 상단 프록시 버튼에서 로컬 프록시를 연결해 주세요.");
   const url = `${proxyUrl.replace(/\/$/, '')}/api/chat`;
-  const headers = { "Content-Type": "application/json" };
-  const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  const resp = await fetchWithFallback(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   return resp.json();
 }
 
@@ -104,12 +117,13 @@ export async function streamChatAPIMultimodal(body, onChunk) {
 export async function streamChatAPI(body, onChunk, signal) {
   const proxyUrl = getProxyUrl();
   const url = proxyUrl ? `${proxyUrl.replace(/\/$/, '')}/api/chat` : '/api/chat';
-  const resp = await fetch(url, {
+  const fetchOpts = {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...body, stream: true }),
     signal,
-  });
+  };
+  const resp = await fetchWithFallback(url, fetchOpts);
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error(err.error?.message || `HTTP ${resp.status}`);
