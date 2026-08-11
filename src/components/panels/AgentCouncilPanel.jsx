@@ -322,7 +322,7 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       else finishAll(newContext, newSteps);
       return;
     }
-    if (aborted || rateLimited) {
+    if (aborted) {
       setCurrentSteps(prev => prev.map(s => s.qid === agent.qid ? { ...s, status: "paused", result } : s));
       const newSteps = [...existingSteps];
       if (result) {
@@ -332,7 +332,25 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       } else {
         setPausedState({ queue, queueIndex, context, existingSteps: newSteps });
       }
-      setPauseReason(aborted ? "manual" : "ratelimit");
+      setPauseReason("manual");
+      setIsPaused(true); setIsRunning(false); setAgentStartTime(null);
+      return;
+    }
+    if (rateLimited) {
+      // Rate limit 자동 재시도 — 30초 대기 후 같은 에이전트 재실행
+      const retryCount = agent._rateLimitRetry || 0;
+      if (retryCount < 3) {
+        console.log(`[Council] Rate limit — ${30}초 후 재시도 (${retryCount + 1}/3)`);
+        setCurrentSteps(prev => prev.map(s => s.qid === agent.qid ? { ...s, status: "running", result: `⏳ Rate limit — ${30}초 후 자동 재시도 (${retryCount + 1}/3)...` } : s));
+        const retryAgent = { ...agent, _rateLimitRetry: retryCount + 1 };
+        const retryQueue = [...queue]; retryQueue[queueIndex] = retryAgent;
+        setTimeout(() => runQueueAgent(retryQueue, queueIndex, context, existingSteps), 30000);
+        return;
+      }
+      // 3회 실패 → 수동 대기로 전환
+      setCurrentSteps(prev => prev.map(s => s.qid === agent.qid ? { ...s, status: "paused", result } : s));
+      setPausedState({ queue, queueIndex, context, existingSteps: [...existingSteps] });
+      setPauseReason("ratelimit");
       setIsPaused(true); setIsRunning(false); setAgentStartTime(null);
       return;
     }
@@ -646,8 +664,10 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
       : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
     const systemPrompt = `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}${modeDirective}`;
     const updateRoundStep = (updates) =>
-      setRounds(prev => prev.map(r => r.round === 1
-        ? { ...r, steps: r.steps.map(s => s.qid === agent.qid ? { ...s, ...updates } : s) } : r));
+      setRounds(prev => prev.map(r => {
+        const hasAgent = r.steps.some(s => s.qid === agent.qid);
+        return hasAgent ? { ...r, steps: r.steps.map(s => s.qid === agent.qid ? { ...s, ...updates } : s) } : r;
+      }));
     updateRoundStep({ status: "running", result: "" });
     let result = "";
     try {
@@ -693,7 +713,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
                   <div style={{ display: "flex", gap: "5px", alignItems: "center" }}>
                     {[0,1,2].map(j => <div key={j} style={{ width: "7px", height: "7px", borderRadius: "50%", background: step.color, animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}
-                    <span style={{ fontSize: "12px", color: step.color, marginLeft: "6px", fontWeight: 500 }}>검토 중...</span>
+                    <span style={{ fontSize: "12px", color: step.color, marginLeft: "6px", fontWeight: 500 }}>
+                      {agentElapsed < 5 ? "브리핑 읽는 중..." : agentElapsed < 15 ? "이전 의견 분석 중..." : agentElapsed < 30 ? "의견 정리 중..." : agentElapsed < 50 ? "응답 작성 중..." : "마무리 중..."}
+                    </span>
                   </div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "3px", fontVariantNumeric: "tabular-nums" }}>
                     <span style={{ fontSize: "26px", fontWeight: 700, color: step.color, lineHeight: 1 }}>{agentElapsed}</span>
@@ -895,6 +917,24 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
             <button onClick={onClose} style={{ background: "none", border: "none", color: "#888888", cursor: "pointer", fontSize: "18px", marginLeft: "4px" }}>✕</button>
           </div>
         </div>
+        {/* ── 전체 진행 바 ── */}
+        {(isRunning || isPaused || pendingNext || currentSteps.length > 0) && (() => {
+          const total = currentSteps.length || agentQueue.length;
+          const done = currentSteps.filter(s => s.status === "done" || s.status === "error" || s.status === "skipped").length;
+          const running = currentSteps.some(s => s.status === "running");
+          const pct = total > 0 ? Math.round(((done + (running ? 0.5 : 0)) / total) * 100) : 0;
+          return (
+            <div style={{ padding: "0 20px 0", background: "#f5f5f5" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0 6px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "#666666", whiteSpace: "nowrap" }}>R{currentRound} · {done}/{total}</span>
+                <div style={{ flex: 1, height: "4px", background: "#e5e5e5", borderRadius: "2px", overflow: "hidden" }}>
+                  <div style={{ height: "100%", background: "linear-gradient(90deg, #111111, #444444)", borderRadius: "2px", width: `${pct}%`, transition: "width 0.4s ease" }} />
+                </div>
+                <span style={{ fontSize: "10px", color: "#aaaaaa" }}>{pct}%</span>
+              </div>
+            </div>
+          );
+        })()}
 
         <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "24px" }}>
           {rounds.map(r => (
@@ -943,6 +983,30 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
               style={{ padding: "6px 16px", background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>
               ↗ 전체 보기
             </button>
+            {(rounds.length > 0 || currentSteps.some(s => s.status === "done")) && (
+              <button onClick={() => {
+                const allText = [
+                  ...rounds.map(r => r.steps.filter(s => s.result).map(s => `[${s.group}·${s.role}]\n${s.result}`).join("\n\n")),
+                  ...currentSteps.filter(s => s.status === "done" && s.result).map(s => `[${s.group}·${s.role}]\n${s.result}`)
+                ].join("\n\n---\n\n");
+                const topic = solutionContent?.slice(0, 200) || "Council 결과";
+                const sysPrompt = `당신은 전략 컨설턴트입니다. 아래 에이전트 토론 결과를 2-pager 전략 제안서로 변환하세요.\n형식: HTML (한국어, 인라인 CSS, 깔끔한 비즈니스 문서)\n구성: 1. 핵심 요약 (3줄) 2. 문제 정의 3. 주요 발견 (찬반 포함) 4. 제안 솔루션 5. 로드맵 6. KPI\n반드시 에이전트 토론 내용에 기반. 추측 금지.`;
+                const userMsg = `주제: ${topic}\n\n토론 결과:\n${allText}`;
+                const previewWin = window.open("about:blank");
+                previewWin.document.write("<html><body style='padding:40px;font-family:Pretendard,sans-serif;color:#333'><h3>📄 2-pager 생성 중...</h3><p style='color:#888'>에이전트 토론 결과를 기반으로 전략 제안서를 작성하고 있습니다.</p></body></html>");
+                let fullHtml = "";
+                streamChatAPI({ model: getSelectedModel(), max_tokens: 8000, system: sysPrompt, messages: [{ role: "user", content: userMsg }] },
+                  (chunk) => { fullHtml += chunk; }, null
+                ).then(() => {
+                  previewWin.document.open(); previewWin.document.write(fullHtml); previewWin.document.close();
+                }).catch(e => {
+                  previewWin.document.open(); previewWin.document.write(`<pre style='color:red;padding:20px'>오류: ${e.message}</pre>`); previewWin.document.close();
+                });
+              }}
+                style={{ padding: "6px 14px", background: "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
+                📄 2-pager 생성
+              </button>
+            )}
             {saveStatus === "saving" && <span style={{ fontSize: "10px", color: "#aaaaaa" }}>저장 중...</span>}
             {saveStatus === "saved" && (
               <button onClick={saveToWorklog} disabled={saveStatus === "worklog_saving" || saveStatus === "worklog_saved"}
