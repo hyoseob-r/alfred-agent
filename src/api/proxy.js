@@ -12,15 +12,29 @@ export function setActiveProxyUrl(url) {
 
 // 프록시 URL로 요청 시도 → 실패하면 localhost fallback
 async function fetchWithFallback(url, options) {
+  // signal 처리: 기존 signal 유지, 없으면 타임아웃 안 씌움 (Council은 자체 signal 사용)
+  const fetchOpts = { ...options };
+
   try {
-    const resp = await fetch(url, { ...options, signal: options.signal || AbortSignal.timeout(10000) });
+    const resp = await fetch(url, fetchOpts);
     if (resp.ok) return resp;
-  } catch {}
-  // fallback: localhost 직접
+    // HTTP 에러 → fallback 시도
+  } catch (e) {
+    console.warn(`[proxy] fetch 실패: ${url} → ${e.message}`);
+  }
+
+  // fallback: localhost 직접 (URL이 이미 localhost면 바로 에러)
   const localUrl = url.replace(/^https?:\/\/[^/]+/, LOCALHOST_PROXY);
-  if (localUrl === url) throw new Error("프록시 연결 실패");
+  if (localUrl === url) {
+    // 이미 localhost — 한번 더 시도 (타이밍 이슈 대응)
+    try {
+      const resp2 = await fetch(url, fetchOpts);
+      if (resp2.ok) return resp2;
+    } catch {}
+    throw new Error("프록시 연결 실패 — localhost:7432 응답 없음. 프록시 서버가 실행 중인지 확인하세요.");
+  }
   console.log(`[proxy] fallback → ${LOCALHOST_PROXY}`);
-  return fetch(localUrl, options);
+  return fetch(localUrl, fetchOpts);
 }
 
 export async function chatAPI(body) {
