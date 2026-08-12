@@ -79,6 +79,7 @@ export default function App() {
   const [showContextAgent, setShowContextAgent] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLottie, setShowLottie] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [showProxySettings, setShowProxySettings] = useState(false);
   const [hasProxy, setHasProxy] = useState(!!getProxyUrl());
   const [proxyUrl, setProxyUrl] = useState(getProxyUrl());
@@ -1036,6 +1037,52 @@ export default function App() {
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>🧠</span> Context Agent
           </button>}
+          {user && <div style={{ position: "relative" }}>
+            <button onClick={() => setShowHistory(v => !v)} style={{ padding: "5px 12px", background: showHistory ? "rgba(17,17,17,0.06)" : "transparent", border: `1px solid ${showHistory ? "#111" : "#e5e5e5"}`, borderRadius: "8px", color: showHistory ? "#111" : "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#111"; e.currentTarget.style.color = "#111"; }}
+              onMouseLeave={e => { if (!showHistory) { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; } }}>
+              <span style={{ fontSize: "11px" }}>📋</span> 히스토리
+            </button>
+            {showHistory && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: "360px", maxHeight: "480px", background: "#fff", border: "1px solid #e0e0e0", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 1000, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: "#111" }}>대화 히스토리</span>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button onClick={() => { newChat(); setShowHistory(false); }} style={{ padding: "4px 10px", background: "#111", border: "none", borderRadius: "6px", color: "#fff", fontSize: "10px", cursor: "pointer", fontWeight: 600 }}>+ 새 대화</button>
+                    <button onClick={() => setShowHistory(false)} style={{ padding: "4px 8px", background: "transparent", border: "1px solid #e0e0e0", borderRadius: "6px", color: "#999", fontSize: "10px", cursor: "pointer" }}>✕</button>
+                  </div>
+                </div>
+                <div style={{ flex: 1, overflowY: "auto", padding: "6px 0" }}>
+                  {sessions.length === 0 && (
+                    <div style={{ padding: "32px 16px", textAlign: "center", color: "#bbb", fontSize: "12px" }}>저장된 대화가 없습니다</div>
+                  )}
+                  {sessions.map(s => (
+                    <div key={s.id}
+                      onClick={() => { selectSession(s.id); setShowHistory(false); }}
+                      style={{ padding: "10px 16px", cursor: "pointer", borderBottom: "1px solid #f8f8f8", background: s.id === activeSessionId ? "#f5f5ff" : "transparent", display: "flex", alignItems: "center", gap: "10px", transition: "background 0.15s" }}
+                      onMouseEnter={e => { if (s.id !== activeSessionId) e.currentTarget.style.background = "#fafafa"; }}
+                      onMouseLeave={e => { if (s.id !== activeSessionId) e.currentTarget.style.background = "transparent"; }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "12px", fontWeight: s.id === activeSessionId ? 700 : 500, color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {s.id === activeSessionId && <span style={{ color: "#6366f1", marginRight: "4px" }}>●</span>}
+                          {s.title || "제목 없음"}
+                        </div>
+                        <div style={{ fontSize: "10px", color: "#bbb", marginTop: "2px" }}>
+                          {s.stage || ""}{s.updated_at ? ` · ${new Date(s.updated_at).toLocaleDateString("ko-KR")}` : ""}
+                        </div>
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); if (window.confirm("이 세션을 삭제하시겠습니까?")) deleteSession(s.id); }}
+                        style={{ padding: "2px 6px", background: "transparent", border: "none", color: "#ccc", fontSize: "12px", cursor: "pointer", borderRadius: "4px", flexShrink: 0 }}
+                        onMouseEnter={e => { e.currentTarget.style.color = "#e74c3c"; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = "#ccc"; }}>
+                        🗑
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>}
           {isOwner && <button onClick={() => setShowPapers(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#fa0050"; e.currentTarget.style.color = "#fa0050"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
