@@ -464,6 +464,33 @@ export default function App() {
     setCurrentStage(STAGES.IDLE);
   };
 
+  const exportFullChat = async (sessionId, title) => {
+    let msgs;
+    if (sessionId === activeSessionId && messages.length) {
+      msgs = messages;
+    } else {
+      msgs = await dbLoadMessages(sessionId);
+    }
+    if (!msgs || !msgs.length) { alert("내보낼 대화가 없습니다."); return; }
+    const chatHtml = msgs.filter(m => m.content && !m.isCouncilRoundHeader && !m.isSystemNote).map(m => {
+      const isUser = m.role === "user";
+      const label = isUser ? "사용자" : "알프";
+      const bg = isUser ? "#111" : "#f5f5f5";
+      const color = isUser ? "#fff" : "#111";
+      const content = m.content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+      return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">${label}${m.stageLabel ? ` · ${m.stageIcon || ""} ${m.stageLabel}` : ""}</div><div style="background:${bg};color:${color};padding:14px 18px;border-radius:12px;line-height:1.7;font-size:13px;white-space:pre-wrap">${content}</div></div>`;
+    }).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title || "대화 전문"}</title>
+<style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');body{font-family:'Noto Sans KR','Pretendard',sans-serif;margin:24px;max-width:800px;margin:24px auto}@media print{body{margin:12mm}}</style></head><body>
+<h2 style="border-bottom:2px solid #111;padding-bottom:8px;font-size:18px">${title || "대화 전문"}</h2>
+<div style="font-size:10px;color:#999;margin-bottom:20px">Alfred Agent · ${new Date().toLocaleDateString("ko-KR")} · ${msgs.length}개 메시지</div>
+${chatHtml}
+<script>window.onload=()=>window.print()<\/script></body></html>`;
+    const win = window.open("", "_blank");
+    win.document.write(html);
+    win.document.close();
+  };
+
   // agentQueue: [{ id, role, icon, color, group, qid }, ...] — 순서/중복 허용
   // resumeFrom: { solutionContent, queueIndex, agentQueue, agentTimings, cumulativeContext }
   const proceedCouncilNext = () => {
@@ -1084,6 +1111,13 @@ export default function App() {
                               {s.stage || ""}{s.updated_at ? ` · ${new Date(s.updated_at).toLocaleDateString("ko-KR")}` : ""}
                             </div>
                           </div>
+                          <button onClick={e => { e.stopPropagation(); exportFullChat(s.id, s.title); }}
+                            title="대화 전문 내보내기"
+                            style={{ padding: "2px 6px", background: "transparent", border: "none", color: "#ccc", fontSize: "12px", cursor: "pointer", borderRadius: "4px", flexShrink: 0 }}
+                            onMouseEnter={e => { e.currentTarget.style.color = "#111"; }}
+                            onMouseLeave={e => { e.currentTarget.style.color = "#ccc"; }}>
+                            📤
+                          </button>
                           <button onClick={e => { e.stopPropagation(); if (window.confirm("이 세션을 삭제하시겠습니까?")) deleteSession(s.id); }}
                             style={{ padding: "2px 6px", background: "transparent", border: "none", color: "#ccc", fontSize: "12px", cursor: "pointer", borderRadius: "4px", flexShrink: 0 }}
                             onMouseEnter={e => { e.currentTarget.style.color = "#e74c3c"; }}
