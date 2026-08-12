@@ -260,20 +260,20 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
           })()}
           {!isUser && msg.content && <FullViewButton content={msg.content} />}
         </div>
-        {!isUser && msg.content && msg.content.length > 200 && (
+        {!isUser && msg.content && msg.content.length > 100 && (
           <div style={{ display: "flex", gap: "6px", marginTop: "6px", marginLeft: "42px" }}>
+            <button
+              onClick={() => exportPDF(msg.content, "2pager")}
+              style={{ padding: "4px 10px", background: "transparent", border: "1px solid #111", borderRadius: "8px", color: "#333", fontSize: "11px", cursor: "pointer", transition: "all 0.15s", fontWeight: 600 }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#111"; e.currentTarget.style.color = "#fff"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#333"; }}
+            >2-pager 저장</button>
             <button
               onClick={() => exportPDF(msg.content, "1pager")}
               style={{ padding: "4px 10px", background: "transparent", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.15s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "#999"; e.currentTarget.style.color = "#444"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#888"; }}
-            >PDF 1-pager</button>
-            <button
-              onClick={() => exportPDF(msg.content, "2pager")}
-              style={{ padding: "4px 10px", background: "transparent", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#999"; e.currentTarget.style.color = "#444"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#888"; }}
-            >PDF 2-pager</button>
+            >1-pager 저장</button>
           </div>
         )}
       </div>
