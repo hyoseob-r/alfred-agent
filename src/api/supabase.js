@@ -32,9 +32,9 @@ export function serializeMessages(msgs) {
   return msgs.map(m => ({
     role: m.role,
     content: m.content || "",
-    stageLabel: m.stageLabel,
-    stageColor: m.stageColor,
-    stageIcon: m.stageIcon,
+    stageLabel: m.isCouncilAgent ? `${m.agentRole || "에이전트"}${m.agentGroup ? ` (${m.agentGroup})` : ""}` : m.stageLabel,
+    stageColor: m.isCouncilAgent ? (m.agentColor || "#888") : m.stageColor,
+    stageIcon: m.isCouncilAgent ? (m.agentIcon || "") : m.stageIcon,
     files: m.files?.map(f => ({ type: f.type, name: f.name, mediaType: f.mediaType })) || [],
   }));
 }

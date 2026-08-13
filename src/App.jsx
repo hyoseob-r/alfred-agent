@@ -474,21 +474,21 @@ export default function App() {
     if (!msgs || !msgs.length) { alert("내보낼 대화가 없습니다."); return; }
     const chatHtml = msgs.filter(m => m.content && !m.isCouncilRoundHeader && !m.isSystemNote).map(m => {
       const isUser = m.role === "user";
-      // Council 에이전트 메시지: 메타데이터 또는 content 내 [그룹·역할] 패턴에서 이름 추출
+      // Council 에이전트: isCouncilAgent 메타데이터 또는 stageLabel에 저장된 에이전트 이름 활용
       let label = isUser ? "사용자" : "알프";
-      let agentColor = "";
+      let accentColor = "";
       if (!isUser && m.isCouncilAgent) {
         label = `${m.agentIcon || ""} ${m.agentRole || "에이전트"}`.trim();
         if (m.agentGroup) label += ` (${m.agentGroup})`;
-        agentColor = m.agentColor || "";
-      } else if (!isUser && !m.isCouncilAgent) {
-        const match = m.content.match(/^\[([^\]]+)[·]([^\]]+)\]\n/);
-        if (match) label = `${match[2].trim()} (${match[1].trim()})`;
+        accentColor = m.agentColor || "";
+      } else if (!isUser && m.stageLabel && /\(전문가|사장님|소비자|레전드\)/.test(m.stageLabel)) {
+        label = `${m.stageIcon || ""} ${m.stageLabel}`.trim();
+        accentColor = m.stageColor || "";
       }
-      const labelColor = agentColor || (isUser ? "#888" : "#888");
-      const bg = isUser ? "#111" : m.isCouncilAgent ? "#fafafa" : "#f5f5f5";
+      const labelColor = accentColor || "#888";
+      const bg = isUser ? "#111" : accentColor ? "#fafafa" : "#f5f5f5";
       const color = isUser ? "#fff" : "#111";
-      const border = agentColor ? `2px solid ${agentColor}` : isUser ? "none" : "1px solid #e8e8e8";
+      const border = accentColor ? `2px solid ${accentColor}` : isUser ? "none" : "1px solid #e8e8e8";
       const content = m.content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
       return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:${labelColor};margin-bottom:4px">${label}${m.stageLabel ? ` · ${m.stageIcon || ""} ${m.stageLabel}` : ""}</div><div style="background:${bg};color:${color};padding:14px 18px;border-radius:12px;border:${border};line-height:1.7;font-size:13px;white-space:pre-wrap">${content}</div></div>`;
     }).join("");
