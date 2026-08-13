@@ -609,6 +609,18 @@ ${chatHtml}
         return updated;
       });
 
+      // 빈 응답 재시도 루프 (최대 3회)
+      let attempt = 0;
+      let success = false;
+      while (attempt < 3 && !success) {
+        if (attempt > 0) {
+          console.warn(`[Council] ${agent.role}: 빈 응답 재시도 ${attempt}/3 (2초 대기)`);
+          updateAgentMsg({ content: `⏳ 빈 응답 — 재시도 ${attempt}/3...` });
+          await new Promise(r => setTimeout(r, 2000));
+          result = "";
+        }
+        attempt++;
+
       const agentAc = new AbortController();
       const timeoutId = setTimeout(() => agentAc.abort(), 180_000);
       const combinedSignal = AbortSignal.any([ac.signal, agentAc.signal]);
@@ -622,8 +634,15 @@ ${chatHtml}
         clearTimeout(timeoutId);
         const dur = Math.floor((Date.now() - startedAt) / 1000);
         if (dur > 2) agentTimings.push(dur);
-        updateAgentMsg({ councilStatus: "done" });
-        cumulativeContext += `\n\n[${agent.group ? `${agent.group} · ` : ""}${agent.role} 의견]\n${result}`;
+        // 빈 응답 체크
+        if (!result || result.trim().length < 10) {
+          if (attempt < 3) continue; // 재시도
+          updateAgentMsg({ councilStatus: "error", content: `⚠ 응답 없음 (${attempt}회 시도)` });
+        } else {
+          updateAgentMsg({ councilStatus: "done" });
+          cumulativeContext += `\n\n[${agent.group ? `${agent.group} · ` : ""}${agent.role} 의견]\n${result}`;
+        }
+        success = true;
       } catch (e) {
         clearTimeout(timeoutId);
         if (ac.signal.aborted || e.message === "STREAM_TRUNCATED") {
@@ -633,6 +652,7 @@ ${chatHtml}
           };
           if (result) cumulativeContext += `\n\n[${agent.role} 의견 (부분)]\n${result}`;
           updateAgentMsg({ councilStatus: "stopped", resumeState });
+          success = true;
           break;
         }
         if (agentAc.signal.aborted) {
@@ -643,7 +663,9 @@ ${chatHtml}
         } else {
           updateAgentMsg({ content: `오류: ${e.message}`, councilStatus: "error" });
         }
+        success = true;
       }
+      } // end while (retry loop)
 
       qi++;
       // 다음 에이전트가 있으면 "다음" 버튼 대기 (autoRun이면 바로 진행)
