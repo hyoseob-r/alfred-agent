@@ -126,6 +126,8 @@ export default function App() {
   const [councilRuntimeQueue, setCouncilRuntimeQueue] = useState([]); // UI 표시용 (ref 미러)
   const [councilProgress, setCouncilProgress] = useState(0); // UI 표시용
   const [councilQueueEditor, setCouncilQueueEditor] = useState(false);
+  const councilAutoRunRef = useRef(false);
+  const [councilAutoRun, setCouncilAutoRun] = useState(false);
   const [councilPending, setCouncilPending] = useState(null); // { content } — 선택 모달 대기
   const [proxyAlert, setProxyAlert] = useState(false);
   const [councilAgentQueue, setCouncilAgentQueue] = useState([]); // 순서 큐 (중복 허용)
@@ -644,17 +646,21 @@ ${chatHtml}
       }
 
       qi++;
-      // 다음 에이전트가 있으면 "다음" 버튼 대기
+      // 다음 에이전트가 있으면 "다음" 버튼 대기 (autoRun이면 바로 진행)
       if (!ac.signal.aborted && qi < councilRuntimeQueueRef.current.length) {
         const nextAgent = councilRuntimeQueueRef.current[qi];
         setCouncilNextAgentName(`${nextAgent.group ? `[${nextAgent.group}] ` : ""}${nextAgent.role}`);
-        setCouncilWaitingNext(true);
-        await new Promise(resolve => {
-          councilNextResolverRef.current = resolve;
-          ac.signal.addEventListener("abort", resolve, { once: true });
-        });
-        if (ac.signal.aborted) break;
-        setCouncilRuntimeQueue([...councilRuntimeQueueRef.current]);
+        if (councilAutoRunRef.current) {
+          setCouncilRuntimeQueue([...councilRuntimeQueueRef.current]);
+        } else {
+          setCouncilWaitingNext(true);
+          await new Promise(resolve => {
+            councilNextResolverRef.current = resolve;
+            ac.signal.addEventListener("abort", resolve, { once: true });
+          });
+          if (ac.signal.aborted) break;
+          setCouncilRuntimeQueue([...councilRuntimeQueueRef.current]);
+        }
       }
     }
 
@@ -669,6 +675,8 @@ ${chatHtml}
     setCouncilWaitingNext(false);
     councilNextResolverRef.current = null;
     councilAbortRef.current = null;
+    councilAutoRunRef.current = false;
+    setCouncilAutoRun(false);
     setCouncilRuntimeQueue([]);
     setCouncilProgress(0);
   };
@@ -1561,6 +1569,10 @@ ${chatHtml}
                     style={{ padding: "4px 16px", background: "#111111", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: "pointer", fontWeight: 700 }}>
                     ▶ 다음
                   </button>
+                  <button onClick={() => { councilAutoRunRef.current = true; setCouncilAutoRun(true); proceedCouncilNext(); }}
+                    style={{ padding: "4px 14px", background: "#0c74e4", border: "none", borderRadius: "20px", color: "#ffffff", fontSize: "11px", cursor: "pointer", fontWeight: 700 }}>
+                    ⏩ 전체 자동
+                  </button>
                   <button onClick={() => councilAbortRef.current?.abort()}
                     style={{ padding: "4px 12px", background: "#fff", border: "1px solid #cc4444", borderRadius: "20px", color: "#cc4444", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
                     ⏹ 중지
@@ -1569,7 +1581,19 @@ ${chatHtml}
               ) : (
                 <>
                   {[0,1,2].map(i => <div key={i} style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#c0783a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i*0.2}s` }} />)}
-                  <span style={{ fontSize: "11px", color: "#c0783a", flex: 1 }}>⚡ 토론 진행 중... ({councilProgress + 1}/{councilRuntimeQueue.length})</span>
+                  <span style={{ fontSize: "11px", color: "#c0783a", flex: 1 }}>⚡ 토론 진행 중... ({councilProgress + 1}/{councilRuntimeQueue.length}){councilAutoRun && " · 자동 실행"}</span>
+                  {!councilAutoRun && (
+                    <button onClick={() => { councilAutoRunRef.current = true; setCouncilAutoRun(true); }}
+                      style={{ padding: "3px 10px", background: "#0c74e4", border: "none", borderRadius: "20px", color: "#fff", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
+                      ⏩ 자동
+                    </button>
+                  )}
+                  {councilAutoRun && (
+                    <button onClick={() => { councilAutoRunRef.current = false; setCouncilAutoRun(false); }}
+                      style={{ padding: "3px 10px", background: "#f8f8f8", border: "1px solid #0c74e4", borderRadius: "20px", color: "#0c74e4", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
+                      ⏸ 수동 전환
+                    </button>
+                  )}
                   <button onClick={() => setCouncilQueueEditor(true)}
                     style={{ padding: "3px 10px", background: "#f8f8f8", border: "1px solid #dddddd", borderRadius: "20px", color: "#888888", fontSize: "11px", cursor: "pointer" }}>
                     ⚙ 순서 수정
