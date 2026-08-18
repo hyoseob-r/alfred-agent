@@ -691,6 +691,8 @@ ${chatHtml}
       setMessages(prev => [...prev, {
         role: "assistant", content: `✅ 토론이 완료됐습니다. (${finalQueueLen}인)`,
         isCouncilComplete: true,
+        councilContext: cumulativeContext,
+        councilTopic: solutionContent?.slice(0, 200) || "Council 결과",
       }]);
     }
     setCouncilRunning(false);
