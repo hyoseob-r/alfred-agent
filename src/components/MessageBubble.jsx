@@ -173,29 +173,57 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
     />
   );
   if (msg.isCouncilComplete) {
-    const generate2Pager = () => {
+    const [summaryContent, setSummaryContent] = useState(msg._summaryCache || "");
+    const [summaryLoading, setSummaryLoading] = useState(false);
+
+    const generateSummary = async () => {
       if (!msg.councilContext) { alert("토론 컨텍스트가 없습니다."); return; }
-      const sysPrompt = `당신은 전략 컨설턴트입니다. 에이전트 토론 결과를 2-pager 전략 제안서로 변환하세요.\n\n절대 규칙: 오직 HTML 코드만 출력하세요. <!DOCTYPE html>로 시작해야 합니다. 설명, 질문, 코드블록 마크다운(\`\`\`) 절대 금지. HTML 외의 텍스트를 한 글자라도 출력하면 실패입니다.\n\n형식: 완전한 HTML 문서 (한국어, 인라인 CSS, Pretendard 폰트, 깔끔한 비즈니스 문서, 인쇄 최적화)\n구성: 1. 핵심 요약 (3줄) 2. 문제 정의 3. 주요 발견 (찬반 포함) 4. 제안 솔루션 5. 로드맵 6. KPI\n반드시 에이전트 토론 내용에 기반. 추측 금지.`;
-      const previewWin = window.open("about:blank");
-      previewWin.document.write("<html><body style='padding:40px;font-family:Pretendard,sans-serif;color:#333'><h3>📄 2-pager 생성 중...</h3><p style='color:#888'>에이전트 토론 결과를 기반으로 전략 제안서를 작성하고 있습니다.</p></body></html>");
-      let fullHtml = "";
-      streamChatAPI({ model: "claude-opus-4-6", max_tokens: 8000, system: sysPrompt, messages: [{ role: "user", content: `주제: ${msg.councilTopic || "Council 결과"}\n\n토론 결과:\n${msg.councilContext}` }] },
-        (chunk) => { fullHtml += chunk; }, null
-      ).then(() => {
-        previewWin.document.open(); previewWin.document.write(fullHtml); previewWin.document.close();
-      }).catch(e => {
-        previewWin.document.open(); previewWin.document.write(`<pre style='color:red;padding:20px'>오류: ${e.message}</pre>`); previewWin.document.close();
-      });
+      setSummaryLoading(true);
+      const sysPrompt = `당신은 전략 컨설턴트입니다. 에이전트 토론 결과를 아래 구조로 정리하세요.
+
+## 핵심 요약
+(3줄 이내)
+
+## 주요 발견
+### 합의된 사항
+- ...
+### 충돌/논쟁 지점
+- ...
+
+## 제안 솔루션
+(Phase별 로드맵 포함)
+
+## KPI / 성공 지표
+- ...
+
+마크다운 형식. 한국어. 에이전트 토론 내용에만 기반. 추측 금지.`;
+      let result = "";
+      try {
+        await streamChatAPI(
+          { model: "claude-opus-4-6", max_tokens: 4000, system: sysPrompt, messages: [{ role: "user", content: `주제: ${msg.councilTopic || "Council 결과"}\n\n토론 결과:\n${msg.councilContext}` }] },
+          (chunk) => { result += chunk; setSummaryContent(result); }, null
+        );
+        msg._summaryCache = result;
+      } catch (e) { setSummaryContent(`오류: ${e.message}`); }
+      setSummaryLoading(false);
     };
+
     return (
-      <div style={{ margin: "12px 0 20px 48px", padding: "14px 18px", background: "#f0fff4", border: "1px solid #88cc88", borderRadius: "12px" }}>
-        <div style={{ fontSize: "12px", color: "#336633", fontWeight: 600, marginBottom: "10px" }}>{msg.content}</div>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <button onClick={generate2Pager}
-            style={{ padding: "6px 14px", background: "#111", border: "none", borderRadius: "8px", color: "#fff", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
-            📄 2-pager 생성
-          </button>
+      <div style={{ margin: "12px 0 20px 48px" }}>
+        <div style={{ padding: "14px 18px", background: "#f0fff4", border: "1px solid #88cc88", borderRadius: "12px", marginBottom: summaryContent ? "12px" : 0 }}>
+          <div style={{ fontSize: "12px", color: "#336633", fontWeight: 600, marginBottom: msg.councilContext ? "10px" : 0 }}>{msg.content}</div>
+          {msg.councilContext && !summaryContent && (
+            <button onClick={generateSummary} disabled={summaryLoading}
+              style={{ padding: "6px 14px", background: "#111", border: "none", borderRadius: "8px", color: "#fff", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}>
+              {summaryLoading ? "⏳ 정리 중..." : "📄 결론 정리"}
+            </button>
+          )}
         </div>
+        {summaryContent && (
+          <div style={{ padding: "16px 20px", background: "#fafafa", border: "1px solid #e5e5e5", borderRadius: "12px", fontSize: "13px", lineHeight: 1.8, color: "#222" }}>
+            <MarkdownRenderer content={summaryContent} />
+          </div>
+        )}
       </div>
     );
   }
