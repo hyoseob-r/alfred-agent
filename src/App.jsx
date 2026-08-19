@@ -1196,7 +1196,7 @@ ${chatHtml}
                               const allText = (cs.rounds || []).map(r => (r.steps || []).filter(s => s.result).map(s => `[${s.group || ""}·${s.role}]\n${s.result}`).join("\n\n")).join("\n\n---\n\n");
                               if (!allText.trim()) { alert("토론 내용이 없습니다."); return; }
                               const topic = cs.topic?.slice(0, 200) || "Council 결과";
-                              const sysPrompt = `당신은 전략 컨설턴트입니다. 아래 에이전트 토론 결과를 2-pager 전략 제안서로 변환하세요.\n형식: HTML (한국어, 인라인 CSS, 깔끔한 비즈니스 문서)\n구성: 1. 핵심 요약 (3줄) 2. 문제 정의 3. 주요 발견 (찬반 포함) 4. 제안 솔루션 5. 로드맵 6. KPI\n반드시 에이전트 토론 내용에 기반. 추측 금지.`;
+                              const sysPrompt = `당신은 전략 컨설턴트입니다. 에이전트 토론 결과를 2-pager 전략 제안서로 변환하세요.\n\n절대 규칙: 오직 HTML 코드만 출력하세요. <!DOCTYPE html>로 시작해야 합니다. 설명, 질문, 코드블록 마크다운(\`\`\`) 절대 금지. HTML 외의 텍스트를 한 글자라도 출력하면 실패입니다.\n\n형식: 완전한 HTML 문서 (한국어, 인라인 CSS, Pretendard 폰트, 깔끔한 비즈니스 문서, 인쇄 최적화)\n구성: 1. 핵심 요약 (3줄) 2. 문제 정의 3. 주요 발견 (찬반 포함) 4. 제안 솔루션 5. 로드맵 6. KPI\n반드시 에이전트 토론 내용에 기반. 추측 금지.`;
                               const userMsg = `주제: ${topic}\n\n토론 결과:\n${allText}`;
                               const previewWin = window.open("about:blank");
                               previewWin.document.write("<html><body style='padding:40px;font-family:Pretendard,sans-serif;color:#333'><h3>2-pager 생성 중...</h3><p style='color:#888'>에이전트 토론 결과를 기반으로 전략 제안서를 작성하고 있습니다.</p></body></html>");
