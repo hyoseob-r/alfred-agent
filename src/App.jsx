@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 // API
-import { getProxyUrl, setActiveProxyUrl, PROXY_URL_KEY, streamChatAPI, fetchProxyUrlFromServer, testProxyConnection } from "./api/proxy";
+import { getProxyUrl, setActiveProxyUrl, PROXY_URL_KEY, chatAPI, streamChatAPI, fetchProxyUrlFromServer, testProxyConnection } from "./api/proxy";
 import {
   getSupabase, getSession, signInWithGitHub, signInWithGoogle, signOut,
   newSessionId,
   dbLoadSessions, dbLoadMessages, dbUpsertSession, dbSaveMessages, dbDeleteSession,
   dbSaveCouncilSession,
+  dbAppendAgentMemory, dbSaveAgentDrift, dbSaveCouncilSynthesis,
 } from "./api/supabase";
 
 // Prompts
@@ -687,6 +688,7 @@ ${chatHtml}
     }
 
     const finalQueueLen = councilRuntimeQueueRef.current.length;
+    const finalQueue = [...councilRuntimeQueueRef.current];
     if (!ac.signal.aborted) {
       setMessages(prev => [...prev, {
         role: "assistant", content: `✅ 토론이 완료됐습니다. (${finalQueueLen}인)`,
@@ -694,6 +696,48 @@ ${chatHtml}
         councilContext: cumulativeContext,
         councilTopic: solutionContent?.slice(0, 200) || "Council 결과",
       }]);
+
+      // 메모리/드리프트 저장 (백그라운드)
+      const today = new Date().toISOString().slice(0, 10);
+      const roundLabel = `채팅Council`;
+      // 1) 각 에이전트 발언 메모리 저장
+      finalQueue.forEach(agent => {
+        // messages에서 해당 에이전트의 발언 내용 찾기
+        // cumulativeContext에 [group · role 의견] 형태로 포함됨
+        const pattern = new RegExp(`\\[(?:${agent.group}\\s*·\\s*)?${agent.role.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*의견[^\\]]*\\]\\n([\\s\\S]*?)(?=\\n\\n\\[|$)`);
+        const match = cumulativeContext.match(pattern);
+        if (match?.[1]?.trim()) {
+          dbAppendAgentMemory(agent.id, `${today} ${roundLabel}`, match[1].trim(), null).catch(() => {});
+        }
+      });
+      // 2) synthesis 저장 (마지막 에이전트 발언 기반)
+      const lastAgent = finalQueue[finalQueue.length - 1];
+      if (lastAgent) {
+        const lastPattern = new RegExp(`\\[(?:${lastAgent.group}\\s*·\\s*)?${lastAgent.role.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*의견[^\\]]*\\]\\n([\\s\\S]*?)(?=\\n\\n\\[|$)`);
+        const lastMatch = cumulativeContext.match(lastPattern);
+        if (lastMatch?.[1]?.trim()) {
+          dbSaveCouncilSynthesis(`[${today} ${roundLabel}]\n${lastMatch[1].trim().slice(0, 500)}`).catch(() => {});
+        }
+      }
+      // 3) 드리프트 분석 + 저장
+      const driftParticipants = finalQueue.filter(a => a.id).map(a => a.id);
+      if (driftParticipants.length >= 2) {
+        chatAPI({
+          model: getSelectedModel(), max_tokens: 1000,
+          system: `당신은 에이전트 페르소나 진화 분석가입니다.\n아래 Council 토론을 분석하여, 각 참가 에이전트의 관점이 이번 토론 경험을 통해 어떻게 미묘하게 진화했는지 분석하세요.\n\n규칙:\n- 변화는 미묘하고 자연스러워야 합니다. 극적인 전환 금지.\n- 변화의 근거는 반드시 이번 토론에서 제시된 논리/데이터/사실이어야 합니다.\n- 변화가 없거나 미미하면 null로 표시.\n- 반드시 유효한 JSON만 응답하세요.\n\n형식: {"agentId1": "관점 변화 1-2문장", "agentId2": null, ...}`,
+          messages: [{ role: "user", content: `[참가 에이전트 ID]\n${driftParticipants.join(", ")}\n\n[토론 전문 (앞 6000자)]\n${cumulativeContext.slice(0, 6000)}` }],
+        }).then(result => {
+          const text = result?.content?.[0]?.text || "";
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) return;
+          const drifts = JSON.parse(jsonMatch[0]);
+          for (const [agentId, driftText] of Object.entries(drifts)) {
+            if (driftText && typeof driftText === "string" && driftText.length > 5) {
+              dbSaveAgentDrift(agentId, `${today} ${roundLabel}`, driftText, null).catch(() => {});
+            }
+          }
+        }).catch(() => {});
+      }
     }
     setCouncilRunning(false);
     setCouncilWaitingNext(false);
