@@ -35,19 +35,42 @@ ${markdownToHtml(content)}
 }
 
 function markdownToHtml(md) {
-  return md
+  // 테이블을 먼저 처리
+  const lines = md.split("\n");
+  const result = [];
+  let inTable = false;
+  let headerDone = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const isTableRow = /^\|(.+)\|$/.test(line);
+    const isSeparator = /^\|[\s:|-]+\|$/.test(line);
+
+    if (isTableRow && !isSeparator) {
+      if (!inTable) { result.push("<table>"); inTable = true; headerDone = false; }
+      const cells = line.slice(1, -1).split("|").map(c => c.trim());
+      if (!headerDone) {
+        result.push("<tr>" + cells.map(c => `<th>${c}</th>`).join("") + "</tr>");
+        headerDone = true;
+      } else {
+        result.push("<tr>" + cells.map(c => `<td>${c}</td>`).join("") + "</tr>");
+      }
+    } else if (isSeparator && inTable) {
+      // skip separator
+    } else {
+      if (inTable) { result.push("</table>"); inTable = false; }
+      result.push(line);
+    }
+  }
+  if (inTable) result.push("</table>");
+
+  return result.join("\n")
     .replace(/^#{3}\s(.+)$/gm, "<h3>$1</h3>")
     .replace(/^#{2}\s(.+)$/gm, "<h2>$1</h2>")
     .replace(/^#{1}\s(.+)$/gm, "<h1>$1</h1>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/^\|(.+)\|$/gm, (_, row) => {
-      const cells = row.split("|").map(c => `<td>${c.trim()}</td>`).join("");
-      return `<tr>${cells}</tr>`;
-    })
-    .replace(/(<tr>.*<\/tr>\n?)+/gs, m => `<table>${m}</table>`)
-    .replace(/<table>(<tr><td>[-: ]+<\/td>.*<\/tr>\n?)<\/table>/g, "")
     .replace(/^[-*]\s(.+)$/gm, "<li>$1</li>")
     .replace(/(<li>.*<\/li>\n?)+/gs, m => `<ul>${m}</ul>`)
     .replace(/^(\d+)\.\s(.+)$/gm, "<li>$2</li>")
