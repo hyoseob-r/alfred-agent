@@ -23,6 +23,7 @@ function exportPDF(content, mode) {
   th { background: #f5f5f5; font-weight: 700; }
   ul, ol { padding-left: 1.5em; }
   code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.2em 0; }
   @media print { body { margin: ${margin}; } }
 </style></head><body>
 <div class="meta" style="font-size:9px;color:#999;margin-bottom:12px">Alfred Agent · ${new Date().toLocaleDateString("ko-KR")}</div>
@@ -65,6 +66,7 @@ function markdownToHtml(md) {
   if (inTable) result.push("</table>");
 
   return result.join("\n")
+    .replace(/^---+$/gm, "<hr>")
     .replace(/^#{3}\s(.+)$/gm, "<h3>$1</h3>")
     .replace(/^#{2}\s(.+)$/gm, "<h2>$1</h2>")
     .replace(/^#{1}\s(.+)$/gm, "<h1>$1</h1>")
@@ -75,7 +77,7 @@ function markdownToHtml(md) {
     .replace(/(<li>.*<\/li>\n?)+/gs, m => `<ul>${m}</ul>`)
     .replace(/^(\d+)\.\s(.+)$/gm, "<li>$2</li>")
     .replace(/\n{2,}/g, "</p><p>")
-    .replace(/^(?!<[hupot])/gm, "")
+    .replace(/^(?!<[hupotl])/gm, "")
     .split("\n").join("<br>");
 }
 
@@ -338,13 +340,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
               style={{ padding: "4px 10px", background: "transparent", border: "1px solid #111", borderRadius: "8px", color: "#333", fontSize: "11px", cursor: "pointer", transition: "all 0.15s", fontWeight: 600 }}
               onMouseEnter={e => { e.currentTarget.style.background = "#111"; e.currentTarget.style.color = "#fff"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#333"; }}
-            >2-pager 저장</button>
-            <button
-              onClick={() => exportPDF(msg.content, "1pager")}
-              style={{ padding: "4px 10px", background: "transparent", border: "1px solid #cccccc", borderRadius: "8px", color: "#888888", fontSize: "11px", cursor: "pointer", transition: "all 0.15s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#999"; e.currentTarget.style.color = "#444"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.color = "#888"; }}
-            >1-pager 저장</button>
+            >📄 PDF 내보내기</button>
           </div>
         )}
       </div>
