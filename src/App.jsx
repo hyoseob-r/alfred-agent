@@ -574,7 +574,14 @@ ${chatHtml}
             (chunk) => { summary += chunk; }, ac.signal
           );
         } catch {}
-        if (summary) cumulativeContext = `[원래 주제]\n${solutionContent}\n\n[이전 토론 요약]\n${summary}`;
+        if (summary) {
+          cumulativeContext = `[원래 주제]\n${solutionContent}\n\n[이전 토론 요약]\n${summary}`;
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `📋 **중간 정리** (${qi}명 발언 완료)\n\n${summary}`,
+            isSystemNote: true,
+          }]);
+        }
       }
 
       const isLegend = agent.group === "레전드";

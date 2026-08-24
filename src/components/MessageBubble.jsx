@@ -143,6 +143,20 @@ function CouncilAgentBubble({ msg, onResume, onStop }) {
           {isStopped && !msg.content && <div style={{ fontSize: "10px", color: "#b07800" }}>⏹ 중단됨</div>}
           {isStopped && msg.content && <div style={{ fontSize: "10px", color: "#b07800", marginBottom: "6px" }}>⏸ 부분 응답</div>}
           {msg.content && <MarkdownRenderer content={msg.content} />}
+          {msg.councilStatus === "done" && msg.content && (() => {
+            const text = msg.content;
+            const agreePatterns = /동의|맞습니다|공감|같은 의견|저도|옳|타당|적절한 지적/;
+            const conflictPatterns = /반대|다르게 봅|동의하기 어렵|우려|과장|오해|간과|빠뜨|부족|위험|현실.*다르/;
+            const hasAgree = agreePatterns.test(text);
+            const hasConflict = conflictPatterns.test(text);
+            if (!hasAgree && !hasConflict) return null;
+            return (
+              <div style={{ display: "flex", gap: "4px", marginTop: "8px", flexWrap: "wrap" }}>
+                {hasAgree && <span style={{ display: "inline-block", padding: "2px 8px", background: "#f0fff4", border: "1px solid #88cc88", borderRadius: "10px", fontSize: "9px", color: "#336633", fontWeight: 600 }}>🤝 합의</span>}
+                {hasConflict && <span style={{ display: "inline-block", padding: "2px 8px", background: "#fff5f5", border: "1px solid #dd8888", borderRadius: "10px", fontSize: "9px", color: "#993333", fontWeight: 600 }}>⚡ 반론</span>}
+              </div>
+            );
+          })()}
           {isStopped && onResume && msg.resumeState && (
             <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #f0e0b0" }}>
               <button onClick={onResume}
@@ -209,11 +223,15 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
 ## 핵심 요약
 (3줄 이내)
 
-## 주요 발견
-### 합의된 사항
-- ...
-### 충돌/논쟁 지점
-- ...
+## 쟁점별 합의/충돌 분석
+
+| 쟁점 | 핵심 주장 | 합의 수준 |
+|------|----------|----------|
+(각 주요 쟁점에 대해: 쟁점명, 핵심 주장 요약, "전원 합의" / "N인 합의 (반대: 에이전트명)" / "의견 분기" 중 하나)
+
+## 최고 신뢰 발언 vs 최대 충돌
+- **최고 신뢰**: [에이전트명] — [주장 1줄 요약] (다수 동의 또는 데이터 기반)
+- **최대 충돌**: [에이전트A] vs [에이전트B] — [이슈 1줄]
 
 ## 제안 솔루션
 (Phase별 로드맵 포함)
@@ -221,7 +239,11 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
 ## KPI / 성공 지표
 - ...
 
-마크다운 형식. 한국어. 에이전트 토론 내용에만 기반. 추측 금지.`;
+## 다음 액션
+- 즉시 실행 가능한 것 2~3개
+- 추가 검증 필요한 것 1~2개
+
+마크다운 형식. 한국어. 에이전트 토론 내용에만 기반. 추측 금지. 에이전트 간 직접 반박/동의 관계를 반드시 추적하세요.`;
       let result = "";
       try {
         await streamChatAPI(
