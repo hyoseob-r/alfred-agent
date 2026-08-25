@@ -35,7 +35,7 @@ ${markdownToHtml(content)}
   win.document.close();
 }
 
-function markdownToHtml(md) {
+export function markdownToHtml(md) {
   // 테이블을 먼저 처리
   const lines = md.split("\n");
   const result = [];

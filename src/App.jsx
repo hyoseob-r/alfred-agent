@@ -24,7 +24,7 @@ import ModelSelector from "./components/ModelSelector";
 import ProxyStatusModal from "./components/ProxyStatusModal";
 import FilePreview from "./components/FilePreview";
 import StageProgress from "./components/StageProgress";
-import MessageBubble from "./components/MessageBubble";
+import MessageBubble, { markdownToHtml } from "./components/MessageBubble";
 import AppMenu from "./components/AppMenu";
 import AgentsPanel from "./components/AgentsPanel";
 import ContextAgentPanel from "./components/ContextAgentPanel";
@@ -492,11 +492,11 @@ export default function App() {
       const bg = isUser ? "#111" : accentColor ? "#fafafa" : "#f5f5f5";
       const color = isUser ? "#fff" : "#111";
       const border = accentColor ? `2px solid ${accentColor}` : isUser ? "none" : "1px solid #e8e8e8";
-      const content = m.content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
-      return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:${labelColor};margin-bottom:4px">${label}${m.stageLabel ? ` · ${m.stageIcon || ""} ${m.stageLabel}` : ""}</div><div style="background:${bg};color:${color};padding:14px 18px;border-radius:12px;border:${border};line-height:1.7;font-size:13px;white-space:pre-wrap">${content}</div></div>`;
+      const content = markdownToHtml(m.content);
+      return `<div style="margin-bottom:16px"><div style="font-size:11px;font-weight:700;color:${labelColor};margin-bottom:4px">${label}${m.stageLabel ? ` · ${m.stageIcon || ""} ${m.stageLabel}` : ""}</div><div style="background:${bg};color:${color};padding:14px 18px;border-radius:12px;border:${border};line-height:1.7;font-size:13px">${content}</div></div>`;
     }).join("");
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title || "대화 전문"}</title>
-<style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');body{font-family:'Noto Sans KR','Pretendard',sans-serif;margin:24px;max-width:800px;margin:24px auto}@media print{body{margin:12mm}}</style></head><body>
+<style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');body{font-family:'Noto Sans KR','Pretendard',sans-serif;margin:24px;max-width:800px;margin:24px auto}table{width:100%;border-collapse:collapse;margin:0.8em 0}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#f5f5f5;font-weight:700}hr{border:none;border-top:1px solid #ddd;margin:1em 0}h1,h2,h3{margin:1em 0 0.4em}h1{font-size:1.4em;border-bottom:2px solid #111;padding-bottom:6px}h2{font-size:1.15em;border-bottom:1px solid #ccc;padding-bottom:4px}ul{padding-left:1.5em}@media print{body{margin:12mm}}</style></head><body>
 <h2 style="border-bottom:2px solid #111;padding-bottom:8px;font-size:18px">${title || "대화 전문"}</h2>
 <div style="font-size:10px;color:#999;margin-bottom:20px">Alfred Agent · ${new Date().toLocaleDateString("ko-KR")} · ${msgs.length}개 메시지</div>
 ${chatHtml}
