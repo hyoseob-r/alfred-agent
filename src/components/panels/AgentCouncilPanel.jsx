@@ -618,8 +618,9 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
         const specialModeDirective = responseMode === "compact"
           ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략."
           : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
+        const memorySection = await buildMemorySection(agent.id);
         await streamChatAPI(
-          { model: getSelectedModel(), max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id] + specialModeDirective, messages: [{ role: "user", content: contextIntro }] },
+          { model: getSelectedModel(), max_tokens: 3000, system: SPECIAL_PANEL_PROMPTS[agent.id] + memorySection + specialModeDirective, messages: [{ role: "user", content: contextIntro }] },
           (chunk) => { result += chunk; setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, result } : s)); }
         );
         setSpecialSteps(prev => prev.map(s => s.id === agent.id ? { ...s, status: "done", result } : s));
@@ -634,6 +635,8 @@ export default function AgentCouncilPanel({ solutionContent, onClose, user, sess
     setSpecialDone(true);
     setIsRunning(false);
     onRoundsUpdate?.(newRounds, fullContext);
+    saveRoundMemories(newSteps, "레전드");
+    generateAndSaveDrifts(newSteps, fullContext, "레전드").catch(() => {});
     if (user?.id && isOwner && councilId) {
       try { await dbSaveCouncilSession({ id: councilId, sessionId, userId: user.id, topic: solutionContent.slice(0, 200), rounds: newRounds, summary: null }); }
       catch (e) { console.error("special panel save error:", e); }

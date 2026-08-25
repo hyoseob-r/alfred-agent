@@ -8,6 +8,7 @@ import {
   dbLoadSessions, dbLoadMessages, dbUpsertSession, dbSaveMessages, dbDeleteSession,
   dbSaveCouncilSession,
   dbAppendAgentMemory, dbSaveAgentDrift, dbSaveCouncilSynthesis,
+  dbGetAgentMemory, dbGetAgentDrift, dbGetCouncilSynthesis,
 } from "./api/supabase";
 
 // Prompts
@@ -590,11 +591,27 @@ ${chatHtml}
       const modeDirective = responseMode === "compact"
         ? "\n\n---\n\n[응답 형식: 간소화 모드]\n핵심 포인트만 3~5줄 이내. 불릿(•) 위주. 서론/결론 생략. 숫자·수치 있으면 포함. 군더더기 없이."
         : "\n\n---\n\n[응답 형식: 전문 대화형]\n전문가가 실제로 말하듯 자연스럽게. 맥락과 근거를 충분히. 대화체로.";
+
+      // 메모리/드리프트/synthesis 주입
+      let memorySection = "";
+      try {
+        const [mem, drift, synthesis] = await Promise.all([
+          dbGetAgentMemory(agent.id).catch(() => null),
+          dbGetAgentDrift(agent.id).catch(() => null),
+          dbGetCouncilSynthesis().catch(() => null),
+        ]);
+        const parts = [];
+        if (drift) parts.push(`[🌊 관점 드리프트]\n${drift}`);
+        if (mem) parts.push(`[🧠 이전 발언 기억]\n${mem}`);
+        if (synthesis) parts.push(`[🔁 공유 합의]\n${synthesis}`);
+        if (parts.length) memorySection = "\n\n---\n\n" + parts.join("\n\n");
+      } catch {}
+
       const systemPrompt = isLegend
-        ? `${basePrompt}${modeDirective}`
+        ? `${basePrompt}${memorySection}${modeDirective}`
         : isFactChecker
-          ? basePrompt + modeDirective
-          : `${basePrompt}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
+          ? basePrompt + memorySection + modeDirective
+          : `${basePrompt}${memorySection}\n\n---\n\n${FACT_CHECK_STANDARD}\n\n---\n\n${DEBATE_ROUND_PROMPT}${modeDirective}`;
 
       const startedAt = Date.now();
       const estimatedTime = getEstimate();
