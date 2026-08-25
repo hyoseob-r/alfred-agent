@@ -31,9 +31,10 @@ export default async function handler(req, res) {
     // 2. 각 세션의 각 라운드의 각 스텝에서 에이전트 발언 추출
     for (const session of sessions) {
       const date = (session.created_at || '').slice(0, 10) || 'unknown'
-      const rounds = session.rounds || []
+      const rounds = Array.isArray(session.rounds) ? session.rounds : []
 
       for (const round of rounds) {
+        if (!round || typeof round !== 'object') continue
         const roundLabel = round.round === 'special' ? '레전드' : `${round.round}R`
         const steps = round.steps || []
 
