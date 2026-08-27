@@ -306,9 +306,16 @@ const server = http.createServer((req, res) => {
     const promptText = buildPrompt(messages);
 
     if (stream) {
+      // system prompt + 프롬프트를 임시 파일로 전달 (ARG_MAX 초과 방지)
+      let systemFile = null;
+      const promptFile = path.join(INSTALL_DIR, `tmp_prompt_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+      fs.writeFileSync(promptFile, promptText);
       const streamArgs = ['-p', '--model', targetModel, '--no-session-persistence'];
-      if (system) streamArgs.push('--append-system-prompt', system);
-      streamArgs.push(promptText);
+      if (system) {
+        systemFile = path.join(INSTALL_DIR, `tmp_sys_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+        fs.writeFileSync(systemFile, system);
+        streamArgs.push('--append-system-prompt-file', systemFile);
+      }
 
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -317,11 +324,15 @@ const server = http.createServer((req, res) => {
         'Access-Control-Allow-Origin': '*',
       });
 
-      const child = spawn(CLAUDE_BIN, streamArgs, {
+      const shellCmd = `cat "${promptFile}" | ${CLAUDE_BIN} ${streamArgs.map(a => JSON.stringify(a)).join(' ')}`;
+      const child = spawn('/bin/sh', ['-c', shellCmd], {
         cwd: INSTALL_DIR,
         env: { ...process.env, HOME: os.homedir() },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
+
+      let stderrBuf = '';
+      child.stderr.on('data', (chunk) => { stderrBuf += chunk.toString(); });
 
       child.stdout.on('data', (chunk) => {
         const text = chunk.toString();
@@ -329,13 +340,18 @@ const server = http.createServer((req, res) => {
         res.write(`data: ${event}\n\n`);
       });
 
-      child.on('close', (code) => {
-        console.log(`[${new Date().toISOString()}] stream done (code=${code})`);
+      child.on('close', (code, signal) => {
+        try { fs.unlinkSync(promptFile); } catch {}
+        if (systemFile) try { fs.unlinkSync(systemFile); } catch {}
+        if (stderrBuf.trim()) console.error(`[stream stderr] ${stderrBuf.trim()}`);
+        console.log(`[${new Date().toISOString()}] stream done (code=${code}, signal=${signal || 'none'})`);
         res.write('data: {"type":"message_stop"}\n\n');
         res.end();
       });
 
       child.on('error', (err) => {
+        try { fs.unlinkSync(promptFile); } catch {}
+        if (systemFile) try { fs.unlinkSync(systemFile); } catch {}
         console.error('[stream error]', err.message);
         res.write(`data: {"type":"error","message":${JSON.stringify(err.message)}}\n\n`);
         res.end();
@@ -345,21 +361,37 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    // 일반 모드 (JSON 응답)
+    // 일반 모드 (JSON 응답) — 프롬프트/system prompt 파일 경유
+    let syncSystemFile = null;
+    const syncPromptFile = path.join(INSTALL_DIR, `tmp_prompt_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+    fs.writeFileSync(syncPromptFile, promptText);
     const args = ['-p', '--output-format', 'json', '--model', targetModel, '--no-session-persistence'];
-    if (system) args.push('--append-system-prompt', system);
-    args.push(promptText);
+    if (system) {
+      syncSystemFile = path.join(INSTALL_DIR, `tmp_sys_${Date.now()}_${Math.random().toString(36).slice(2)}.txt`);
+      fs.writeFileSync(syncSystemFile, system);
+      args.push('--append-system-prompt-file', syncSystemFile);
+    }
 
-    execFile(CLAUDE_BIN, args, {
-      timeout: 180000,
-      maxBuffer: 20 * 1024 * 1024,
+    const syncShellCmd = `cat "${syncPromptFile}" | ${CLAUDE_BIN} ${args.map(a => JSON.stringify(a)).join(' ')}`;
+    const syncChild = spawn('/bin/sh', ['-c', syncShellCmd], {
       cwd: INSTALL_DIR,
       env: { ...process.env, HOME: os.homedir() },
-    }, (error, stdout) => {
-      if (error) {
-        console.error('[error]', error.message);
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    syncChild.stdout.on('data', d => stdout += d.toString());
+    const syncTimeout = setTimeout(() => syncChild.kill(), 180000);
+
+    syncChild.on('close', (code) => {
+      clearTimeout(syncTimeout);
+      try { fs.unlinkSync(syncPromptFile); } catch {}
+      if (syncSystemFile) try { fs.unlinkSync(syncSystemFile); } catch {}
+
+      if (code !== 0 && !stdout.trim()) {
+        console.error(`[sync error] code=${code}`);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: { type: 'proxy_error', message: error.message } }));
+        return res.end(JSON.stringify({ error: { type: 'proxy_error', message: `Process exited with code ${code}` } }));
       }
 
       let result;
