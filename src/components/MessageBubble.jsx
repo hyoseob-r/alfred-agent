@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { chatAPI, streamChatAPI } from "../api/proxy";
+import { chatAPI, streamChatAPI, queryBigQuery } from "../api/proxy";
 import { extractChartSpec, FullViewButton, MarkdownRenderer } from "../utils/markdown";
 import { ChartRenderer, DataSummaryCard } from "./ChartRenderer";
 import { DocActionBar, M3ActionBar } from "./ActionBars";
@@ -7,6 +7,7 @@ import ComparePanel from "./panels/ComparePanel";
 import UTSimPanel from "./panels/UTSimPanel";
 import FigmaPreviewBubble from "./FigmaPreviewBubble";
 import ThreeJSRenderer from "./ThreeJSRenderer";
+import { BQAutoRunner } from "./BQAutoRunner";
 
 function exportPDF(content, mode) {
   const fontSize = mode === "1pager" ? "10px" : "12px";
@@ -353,6 +354,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
             const spec = extractChartSpec(msg.content);
             return spec ? <ChartRenderer spec={spec} /> : null;
           })()}
+          {!isUser && msg.content && <BQAutoRunner content={msg.content} />}
           {!isUser && msg.content && <FullViewButton content={msg.content} />}
         </div>
         {!isUser && msg.content && msg.content.length > 100 && (

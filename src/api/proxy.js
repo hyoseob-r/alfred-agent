@@ -176,6 +176,40 @@ export async function streamChatAPI(body, onChunk, signal) {
   }
 }
 
+// BigQuery 쿼리 실행 (로컬 프록시 경유)
+export async function queryBigQuery(sql, dryRun = false) {
+  const proxyUrl = getProxyUrl() || LOCALHOST_PROXY;
+  const url = `${proxyUrl.replace(/\/$/, '')}/bigquery`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sql, dryRun }),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `BigQuery HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// BigQuery 스키마 조회
+export async function queryBigQuerySchema(dataset, table) {
+  const proxyUrl = getProxyUrl() || LOCALHOST_PROXY;
+  const url = `${proxyUrl.replace(/\/$/, '')}/bigquery/schema`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dataset, table }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error || `Schema HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
 export async function testProxyConnection(url) {
   try {
     const resp = await fetch(url.replace(/\/$/, ''), { signal: AbortSignal.timeout(4000) });
