@@ -1362,7 +1362,7 @@ ${chatHtml}
               </div>
             )}
             {messages.map((msg, i) => (
-              <MessageBubble key={i} msg={msg} user={user} sessionId={activeSessionId} isOwner={isOwner}
+              <MessageBubble key={i} msg={msg} prevUserMsg={messages.slice(0, i).reverse().find(m => m.role === "user")?.content || ""} user={user} sessionId={activeSessionId} isOwner={isOwner}
                 councilRunning={councilRunning}
                 onCouncilStart={(content) => setCouncilPending({ content })}
                 onAlfOpinion={runAlfOpinion}

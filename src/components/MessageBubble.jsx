@@ -172,7 +172,7 @@ function CouncilAgentBubble({ msg, onResume, onStop }) {
   );
 }
 
-export default function MessageBubble({ msg, user, sessionId, isOwner, councilRunning, onCouncilUpdate, onCouncilStart, onAlfOpinion, onCouncilResume, onCouncilStop }) {
+export default function MessageBubble({ msg, prevUserMsg, user, sessionId, isOwner, councilRunning, onCouncilUpdate, onCouncilStart, onAlfOpinion, onCouncilResume, onCouncilStop }) {
   const isUser = msg.role === "user";
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [showCompare, setShowCompare] = useState(false);
@@ -354,7 +354,7 @@ export default function MessageBubble({ msg, user, sessionId, isOwner, councilRu
             const spec = extractChartSpec(msg.content);
             return spec ? <ChartRenderer spec={spec} /> : null;
           })()}
-          {!isUser && msg.content && <BQAutoRunner content={msg.content} />}
+          {!isUser && msg.content && <BQAutoRunner content={msg.content} userQuery={prevUserMsg} />}
           {!isUser && msg.content && <FullViewButton content={msg.content} />}
         </div>
         {!isUser && msg.content && msg.content.length > 100 && (
