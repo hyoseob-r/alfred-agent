@@ -122,8 +122,30 @@ function BQBlock({ block, userQuery, onChainResult, isLast }) {
 
   async function autoChain(schemaRows) {
     setChainState("chaining");
+
+    // 1단계: 테이블 목록에서 관련 테이블 추출 → 컬럼 정보 자동 조회
+    let columnInfo = "";
+    try {
+      // 주요 테이블 (row_count > 0) 최대 5개의 컬럼 조회
+      const tables = schemaRows
+        .filter(r => r.row_count > 0 || r.ROW_COUNT > 0)
+        .slice(0, 5)
+        .map(r => r.table_id || r.TABLE_ID || r.table_name || Object.values(r)[0]);
+
+      if (tables.length > 0) {
+        const dataset = block.sql.match(/`ygy-datawarehouse\.(\w+)`/)?.[1] || "mart";
+        const colSql = `SELECT table_name, column_name, data_type FROM \`ygy-datawarehouse.${dataset}.INFORMATION_SCHEMA.COLUMNS\` WHERE table_name IN (${tables.map(t => `'${t}'`).join(",")}) ORDER BY table_name, ordinal_position`;
+        const colResult = await queryBigQuery(colSql);
+        if (colResult.rows?.length) {
+          columnInfo = "\n\n컬럼 정보:\n" + JSON.stringify(colResult.rows.slice(0, 100));
+        }
+      }
+    } catch (e) {
+      console.warn("[autoChain] column fetch failed:", e.message);
+    }
+
     const schemaText = JSON.stringify(schemaRows.slice(0, 50));
-    const prompt = `스키마 조회 결과입니다:\n${schemaText}\n\n사용자의 원래 요청: "${userQuery || "데이터 조회"}"\n\n위 테이블/컬럼 정보를 바탕으로 사용자 요청에 맞는 정확한 데이터 조회 쿼리를 \`\`\`bq 블록으로 생성하세요. 테이블명은 결과에 나온 것만 사용하세요.`;
+    const prompt = `스키마 조회 결과입니다:\n\n테이블 목록:\n${schemaText}${columnInfo}\n\n사용자의 원래 요청: "${userQuery || "데이터 조회"}"\n\n위 테이블/컬럼 정보를 바탕으로 사용자 요청에 맞는 정확한 데이터 조회 쿼리를 \`\`\`bq 블록으로 생성하세요. 반드시 위에 나온 실제 테이블명과 컬럼명만 사용하세요. 추측 금지.`;
 
     let full = "";
     try {
