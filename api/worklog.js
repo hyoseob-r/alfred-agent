@@ -1,9 +1,15 @@
+import crypto from 'crypto'
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  // GitHub webhook은 x-github-event 헤더로 감지
+  const githubEvent = req.headers['x-github-event']
+  if (githubEvent) return handleWebhookPush(req, res, githubEvent)
 
   // action: "save" (default) | "update-github"
   const { action = 'save', date, content, tasks, summary, topic } = req.body
@@ -126,6 +132,82 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ ok: true, date: entryDate })
+  } catch (e) {
+    return res.status(500).json({ error: e.message })
+  }
+}
+
+// GitHub webhook push handler (이전 webhook-push.js에서 이동)
+async function handleWebhookPush(req, res, event) {
+  const secret = process.env.GITHUB_WEBHOOK_SECRET
+  if (secret) {
+    const sig = req.headers['x-hub-signature-256'] || ''
+    const body = JSON.stringify(req.body)
+    const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex')
+    if (sig !== expected) return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  if (event === 'ping') return res.status(200).json({ ok: true, msg: 'pong' })
+  if (event !== 'push') return res.status(200).json({ ok: true, msg: 'ignored' })
+
+  const { commits, ref } = req.body
+  if (!commits || commits.length === 0) return res.status(200).json({ ok: true, msg: 'no commits' })
+  if (ref !== 'refs/heads/main') return res.status(200).json({ ok: true, msg: 'not main branch' })
+
+  const supabaseUrl = 'https://atwztuelyhwtohylbypv.supabase.co'
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const userId = process.env.COUNCIL_USER_ID
+  if (!serviceKey || !userId) return res.status(500).json({ error: 'Server not configured' })
+
+  const headers = { 'Content-Type': 'application/json', 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` }
+
+  const byDate = {}
+  for (const c of commits) {
+    if (c.message.startsWith('docs: auto-worklog') || c.message.startsWith('docs: Council 토론 기록') || c.message.startsWith('Merge')) continue
+    const kst = new Date(new Date(c.timestamp).getTime() + 9 * 60 * 60 * 1000)
+    const date = kst.toISOString().slice(0, 10)
+    if (!byDate[date]) byDate[date] = []
+    byDate[date].push(`- [완료] ${c.message.split('\n')[0]}`)
+  }
+
+  if (Object.keys(byDate).length === 0) return res.status(200).json({ ok: true, msg: 'no relevant commits' })
+
+  try {
+    for (const [date, entries] of Object.entries(byDate)) {
+      const title = `WORKLOG_${date}`
+      const newContent = entries.join('\n')
+      const existResp = await fetch(`${supabaseUrl}/rest/v1/context_notes?user_id=eq.${encodeURIComponent(userId)}&title=eq.${encodeURIComponent(title)}&select=id,content`, { headers })
+      const existing = await existResp.json()
+
+      if (Array.isArray(existing) && existing.length > 0) {
+        const current = existing[0].content
+        const dedupEntries = entries.filter(e => !current.includes(e))
+        if (dedupEntries.length === 0) continue
+        await fetch(`${supabaseUrl}/rest/v1/context_notes?id=eq.${existing[0].id}`, {
+          method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ content: current + '\n' + dedupEntries.join('\n'), tags: ['worklog', date] }),
+        })
+      } else {
+        await fetch(`${supabaseUrl}/rest/v1/context_notes`, {
+          method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ user_id: userId, type: 'worklog', title, content: newContent, tags: ['worklog', date] }),
+        })
+      }
+    }
+
+    const latestDate = Object.keys(byDate).sort().pop()
+    const taskTitle = 'WORKLOG_task_status'
+    const existTaskResp = await fetch(`${supabaseUrl}/rest/v1/context_notes?user_id=eq.${encodeURIComponent(userId)}&title=eq.${encodeURIComponent(taskTitle)}&select=id,content`, { headers })
+    const existTask = await existTaskResp.json()
+    if (Array.isArray(existTask) && existTask.length > 0) {
+      const updated = existTask[0].content.replace(/\d{4}-\d{2}-\d{2}/g, latestDate)
+      await fetch(`${supabaseUrl}/rest/v1/context_notes?id=eq.${existTask[0].id}`, {
+        method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ content: updated, tags: ['worklog', 'task_status'] }),
+      })
+    }
+
+    return res.status(200).json({ ok: true, dates: Object.keys(byDate), entries: Object.values(byDate).flat().length })
   } catch (e) {
     return res.status(500).json({ error: e.message })
   }
