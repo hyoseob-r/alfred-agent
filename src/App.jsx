@@ -913,7 +913,7 @@ ${chatHtml}
             {
               model: selectedModel,
               max_tokens: 8000,
-              system: `당신은 알프(Alf)입니다. 한국어로 대화합니다. 전략 논의, 아이디어 검토, 질문 답변 등 무엇이든 도와드립니다. 사용자가 'assemble' 또는 '어셈블'이라고 하면 Council 19인 토론을 소집할 수 있다고 안내하십시오.${contextBriefing ? `\n\n---\n\n## 현재 진행 상황 (백로그 / 컨텍스트)\n\n${contextBriefing}` : ""}${paperContext}`,
+              system: buildSystemPrompt(contextBriefing, null, isOwner) + paperContext,
               messages: [...history, { role: "user", content: buildContent(userText, files) }],
             },
             (chunk) => {
