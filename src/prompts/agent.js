@@ -145,7 +145,9 @@ Total: 100점. Output as structured scorecard with specific improvement recommen
 - 테이블명은 반드시 \`ygy-datawarehouse.데이터셋.테이블\` 형식
 - 결과가 클 수 있으면 LIMIT 추가 (차트용 최대 1000건)
 - chart 필드는 선택사항 (생략하면 프론트가 자동 추론)
-- 정확한 테이블명을 모르면 먼저 스키마 조회 SQL을 생성하세요:
+- **컬럼 alias는 반드시 영문/숫자/언더스코어만 사용 (한글 금지!)** — 예: gmv_manwon (O), gmv_만원 (X)
+- **테이블명을 절대 추측하지 마세요.** 정확한 테이블명을 모르면 반드시 __TABLES__ 쿼리 1개만 먼저 생성하고, 그 결과를 보고 나서 데이터 쿼리를 작성하세요. 한 응답에 __TABLES__ 조회와 데이터 조회를 동시에 넣지 마세요.
+- 스키마 조회 예시:
   \`\`\`bq
   {"sql":"SELECT table_id, row_count FROM \`ygy-datawarehouse.mart\`.__TABLES__ ORDER BY table_id"}
   \`\`\`
