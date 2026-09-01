@@ -64,11 +64,8 @@ function fixDanglingCouncilHeaders(msgs) {
 }
 
 export default function App() {
-  const [chatMode, setChatMode] = useState("chat"); // "chat" | "agent"
   const [assembleContext, setAssembleContext] = useState(null); // { content } — Council 소집 시 세팅
   const [messages, setMessages] = useState([]);
-  const [agentHistory, setAgentHistory] = useState([]);
-  const [chatHistory, setChatHistory] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState(STAGES.IDLE);
@@ -273,19 +270,6 @@ export default function App() {
     return () => clearInterval(t);
   }, [loading]);
 
-  // 탭 전환 시 히스토리 swap
-  const prevChatMode = useRef(chatMode);
-  useEffect(() => {
-    if (prevChatMode.current === chatMode) return;
-    if (prevChatMode.current === "agent") {
-      setAgentHistory(messages);
-      setMessages(chatHistory);
-    } else {
-      setChatHistory(messages);
-      setMessages(agentHistory);
-    }
-    prevChatMode.current = chatMode;
-  }, [chatMode]);
 
   // ── Auto-save ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -829,17 +813,7 @@ ${chatHtml}
     try {
       setMessages(prev => [...prev, { role: "assistant", content: "" }]);
 
-      if (chatMode === "agent") {
-        const reply = await callClaude(userText, files, messages);
-        const detectedStage = detectStage(reply);
-        if (detectedStage) setCurrentStage(detectedStage);
-        const stageInfo = detectedStage ? STAGE_INFO[detectedStage] : null;
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { role: "assistant", content: reply, stageLabel: stageInfo?.label, stageColor: stageInfo?.color, stageIcon: stageInfo?.icon };
-          return updated;
-        });
-      } else {
+      {
         // assemble 트리거 감지
         const isAssembleTrigger = /assemble|어셈블|어쎔블|소집|council|카운슬|에이전트\s*협의|19인\s*토론|토론해보자|토론\s*해봐|토론하자|의논해보자|의논\s*해봐|다같이\s*(봐|보자|검토|얘기)|전문가\s*(불러|의견)|에이전트\s*(불러|소집)|패널\s*(불러|소집)|같이\s*(검토|봐|보자)/i.test(userText);
 
@@ -957,6 +931,19 @@ ${chatHtml}
               updated[updated.length - 1] = { role: "assistant", content: "오류가 발생했습니다." };
               return updated;
             });
+          } else {
+            // 스테이지 감지 (M1~M5)
+            const detectedStage = detectStage(reply);
+            if (detectedStage) {
+              setCurrentStage(detectedStage);
+              const stageInfo = STAGE_INFO[detectedStage];
+              setMessages(prev => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                updated[updated.length - 1] = { ...last, stageLabel: stageInfo?.label, stageColor: stageInfo?.color, stageIcon: stageInfo?.icon };
+                return updated;
+              });
+            }
           }
         }
       }
@@ -1340,15 +1327,6 @@ ${chatHtml}
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* 탭 */}
-          <div style={{ display: "flex", borderBottom: "1px solid #e5e5e5", background: "#ffffff", padding: "0 20px", flexShrink: 0 }}>
-            {[{ id: "chat", label: "Chat" }, { id: "agent", label: "Agent" }].map(tab => (
-              <button key={tab.id} onClick={() => setChatMode(tab.id)}
-                style={{ padding: "10px 16px", background: "none", border: "none", borderBottom: chatMode === tab.id ? "2px solid #111" : "2px solid transparent", color: chatMode === tab.id ? "#111" : "#aaa", fontSize: "12px", fontWeight: chatMode === tab.id ? "700" : "400", cursor: "pointer", transition: "all 0.15s", marginBottom: "-1px" }}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
           {!user && (
             <div style={{ padding: "8px 20px", background: "#fef2f2", borderBottom: "1px solid #fecaca", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span style={{ fontSize: "13px" }}>🔒</span>
@@ -1740,7 +1718,7 @@ ${chatHtml}
               <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} onPaste={onPaste}
                 onCompositionStart={() => { isComposingRef.current = true; }}
                 onCompositionEnd={() => { isComposingRef.current = false; }}
-                placeholder={chatMode === "agent" ? "문제나 불편함을 말씀해 주십시오..." : "메시지 입력 또는 Figma URL 붙여넣기..."}
+                placeholder="메시지 입력 또는 Figma URL 붙여넣기..."
                 rows={1}
                 style={{ flex: 1, background: "#f8f8f8", border: "1px solid #cccccc", borderRadius: "12px", padding: "10px 14px", color: "#111111", fontSize: "13.5px", resize: "none", outline: "none", lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", transition: "border-color 0.2s" }}
                 onFocus={e => e.target.style.borderColor = "#aaaaaa"} onBlur={e => e.target.style.borderColor = "#cccccc"} />
