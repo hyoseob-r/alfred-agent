@@ -1160,7 +1160,7 @@ ${chatHtml}
           {isOwner && <button onClick={() => setShowYPX(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#03C75A"; e.currentTarget.style.color = "#03C75A"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
-            <span style={{ fontSize: "11px" }}>📊</span> YPX
+            <span style={{ fontSize: "11px" }}>📊</span> 트렌드 확인
           </button>}
           {isOwner && <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#7b68b5"; e.currentTarget.style.color = "#7b68b5"; }}
