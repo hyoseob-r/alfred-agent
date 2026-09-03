@@ -193,7 +193,7 @@ function MembershipContent({ data, checked, refreshStatus, onRefresh }) {
         <>
           {/* 수량 차트 */}
           <ChartCard
-            title={`수량 추이 · ${[...new Set(activeSeries.map(s => `${s.groupLabel}(${s.unit})`)]).join(", ")}`}
+            title={"수량 추이 · " + [...new Set(activeSeries.map(s => s.groupLabel + "(" + s.unit + ")"))].join(", ")}
             data={qtyData} activeSeries={activeSeries}
             yFormatter={v => { const u = activeSeries[0]?.unit; return u === "만명" || u === "만건" ? v + "만" : v.toLocaleString(); }}
             tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [`${v}${s?.unit}`, `${s?.groupLabel} · ${s?.label}`]; }}
