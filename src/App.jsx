@@ -35,6 +35,7 @@ import AgentCouncilPanel from "./components/panels/AgentCouncilPanel";
 import FeedbackPanel from "./components/panels/FeedbackPanel";
 import { FeedbackButton } from "./components/FeedbackSystem";
 import LottieStudio from "./components/LottieStudio";
+import YPXDashboard from "./components/YPXDashboard";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
 
@@ -78,6 +79,7 @@ export default function App() {
   const [showContextAgent, setShowContextAgent] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLottie, setShowLottie] = useState(false);
+  const [showYPX, setShowYPX] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState("chat"); // "chat" | "council"
   const [showProxySettings, setShowProxySettings] = useState(false);
@@ -1062,6 +1064,7 @@ ${chatHtml}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
       {showContextNotes && <ContextNotesModal onClose={() => setShowContextNotes(false)} />}
       {showLottie && <LottieStudio user={user} isOwner={isOwner} onClose={() => setShowLottie(false)} />}
+      {showYPX && <YPXDashboard onClose={() => setShowYPX(false)} />}
       {showProxySettings === true && (
         <ProxyStatusModal
           onClose={() => setShowProxySettings(false)}
@@ -1154,6 +1157,11 @@ ${chatHtml}
               {dbSaving ? "☁ 저장 중..." : user?.email || user?.user_metadata?.user_name || ""}
             </div>
           </div>
+          {isOwner && <button onClick={() => setShowYPX(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#03C75A"; e.currentTarget.style.color = "#03C75A"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
+            <span style={{ fontSize: "11px" }}>📊</span> YPX
+          </button>}
           {isOwner && <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#7b68b5"; e.currentTarget.style.color = "#7b68b5"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
