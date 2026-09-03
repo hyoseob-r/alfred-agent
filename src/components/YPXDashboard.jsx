@@ -18,20 +18,21 @@ function mergeData(a, b) {
 }
 function toMan(n) { return +(n / 10000).toFixed(1); }
 
-// ─── 차트 선택 데이터 정의 ───────────────────────────────────────────────────
-// id: 데이터 키, label: 표시명, color, dash, unit, getValue: 데이터 행 → 값
+// ─── 차트 선택 정의 (그룹 × 시리즈) ─────────────────────────────────────────
+// ready: false → 준비중 (체크박스 비활성)
+// getValue(row, allRows): 절대값 반환 함수 (비중은 자동 계산)
 const CHART_GROUPS = [
   {
-    id: "subscribers", label: "구독자 수", unit: "만명", ready: true,
+    id: "sub", label: "구독자 수", unit: "만명", ready: true,
     series: [
-      { id: "sub_naver",   label: "네이버",   color: "#03C75A", getValue: r => toMan(r.naver) },
-      { id: "sub_toss",    label: "토스",     color: "#0064FF", getValue: r => toMan(r.toss) },
-      { id: "sub_direct",  label: "직접YPX",  color: "#f07030", dash: "4 3", getValue: r => toMan(r.direct_ypx) },
-      { id: "sub_classic", label: "클래식",   color: "#aaaaaa", dash: "2 4", getValue: r => toMan(r.classic) },
+      { id: "sub_naver",   label: "네이버",  color: "#03C75A", getValue: r => toMan(r.naver) },
+      { id: "sub_toss",    label: "토스",    color: "#0064FF", getValue: r => toMan(r.toss) },
+      { id: "sub_direct",  label: "직접YPX", color: "#f07030", dash: "4 3", getValue: r => toMan(r.direct_ypx) },
+      { id: "sub_classic", label: "클래식",  color: "#aaaaaa", dash: "2 4", getValue: r => toMan(r.classic) },
     ],
   },
   {
-    id: "orders", label: "주문 수", unit: "건", ready: false,
+    id: "ord", label: "주문 수", unit: "만건", ready: false,
     series: [
       { id: "ord_naver",   label: "네이버",  color: "#03C75A" },
       { id: "ord_toss",    label: "토스",    color: "#0064FF" },
@@ -50,8 +51,9 @@ const CHART_GROUPS = [
   },
 ];
 
-// 모든 시리즈 flat map
-const ALL_SERIES = CHART_GROUPS.flatMap(g => g.series.map(s => ({ ...s, groupId: g.id, groupLabel: g.label, unit: g.unit, ready: g.ready })));
+const ALL_SERIES = CHART_GROUPS.flatMap(g =>
+  g.series.map(s => ({ ...s, groupId: g.id, groupLabel: g.label, unit: g.unit, ready: g.ready }))
+);
 
 // ─── 탭 ───────────────────────────────────────────────────────────────────────
 const TABS = [
@@ -66,43 +68,29 @@ function ChartSelector({ checked, onToggle }) {
   return (
     <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>차트 선택</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {CHART_GROUPS.map(group => (
-          <div key={group.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {/* 그룹 레이블 */}
-            <div style={{ width: 72, fontSize: 11, fontWeight: 600, color: group.ready ? "#444" : "#ccc", flexShrink: 0 }}>
+          <div key={group.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ width: 76, fontSize: 11, fontWeight: 600, color: group.ready ? "#555" : "#ccc", flexShrink: 0 }}>
               {group.label}
+              {!group.ready && <span style={{ fontSize: 9, fontWeight: 400, color: "#ddd", marginLeft: 4 }}>준비중</span>}
             </div>
-            {/* 시리즈 체크박스들 */}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
               {group.series.map(s => {
-                const isChecked = checked.has(s.id);
-                const disabled = !group.ready;
+                const on = checked.has(s.id) && group.ready;
                 return (
-                  <label key={s.id}
+                  <button key={s.id} onClick={() => group.ready && onToggle(s.id)}
                     style={{
-                      display: "flex", alignItems: "center", gap: 5,
-                      padding: "4px 10px", borderRadius: 20, cursor: disabled ? "not-allowed" : "pointer",
-                      border: `1.5px solid ${isChecked && !disabled ? s.color : "#e0e0e0"}`,
-                      background: isChecked && !disabled ? `${s.color}14` : "#fafafa",
-                      opacity: disabled ? 0.4 : 1,
-                      transition: "all 0.15s",
-                      userSelect: "none",
+                      display: "flex", alignItems: "center", gap: 5, padding: "4px 11px",
+                      border: `1.5px solid ${on ? s.color : "#e0e0e0"}`,
+                      borderRadius: 20, background: on ? `${s.color}18` : "#fafafa",
+                      cursor: group.ready ? "pointer" : "not-allowed",
+                      opacity: group.ready ? 1 : 0.35,
+                      transition: "all 0.12s",
                     }}>
-                    <input type="checkbox" checked={isChecked && !disabled} disabled={disabled}
-                      onChange={() => !disabled && onToggle(s.id)}
-                      style={{ display: "none" }} />
-                    {/* 컬러 도트 */}
-                    <span style={{
-                      width: 8, height: 8, borderRadius: "50%",
-                      background: isChecked && !disabled ? s.color : "#ccc",
-                      flexShrink: 0,
-                    }} />
-                    <span style={{ fontSize: 11, color: isChecked && !disabled ? s.color : "#aaa", fontWeight: isChecked ? 600 : 400 }}>
-                      {s.label}
-                    </span>
-                    {disabled && <span style={{ fontSize: 9, color: "#ccc" }}>준비중</span>}
-                  </label>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: on ? s.color : "#ccc", flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: on ? s.color : "#bbb", fontWeight: on ? 700 : 400 }}>{s.label}</span>
+                  </button>
                 );
               })}
             </div>
@@ -113,94 +101,116 @@ function ChartSelector({ checked, onToggle }) {
   );
 }
 
-// ─── 멤버십 탭 콘텐츠 ────────────────────────────────────────────────────────
+// ─── 차트 카드 ────────────────────────────────────────────────────────────────
+function ChartCard({ title, data, activeSeries, yFormatter, tooltipFormatter, height = 280 }) {
+  if (activeSeries.length === 0) return null;
+  return (
+    <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 12 }}>{title}</div>
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart data={data} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={7} />
+          <YAxis tickFormatter={yFormatter} tick={{ fontSize: 9 }} width={46} />
+          <Tooltip formatter={tooltipFormatter} />
+          <Legend wrapperStyle={{ fontSize: 10 }}
+            formatter={id => { const s = ALL_SERIES.find(x => x.id === id); return `${s?.groupLabel} · ${s?.label}`; }} />
+          {activeSeries.map(s => (
+            <Line key={s.id} type="monotone" dataKey={s.id}
+              stroke={s.color} strokeWidth={s.id.includes("classic") ? 1.5 : 2.5}
+              strokeDasharray={s.dash} dot={false} />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// ─── 멤버십 탭 ───────────────────────────────────────────────────────────────
 function MembershipContent({ data, checked, refreshStatus, onRefresh }) {
   const last = data[data.length - 1];
   const prev4 = data[data.length - 5];
-
-  // 체크된 시리즈 정보
   const activeSeries = ALL_SERIES.filter(s => checked.has(s.id) && s.ready);
 
-  // 차트 데이터 빌드
-  const chartData = data.map(r => {
+  // 절대값 차트 데이터
+  const qtyData = data.map(r => {
     const row = { date: r.date.slice(5) };
     activeSeries.forEach(s => { row[s.id] = s.getValue(r); });
     return row;
   });
 
-  // KPI: 구독자수 관련 고정 표시
-  const kpis = last ? [
-    { label: "전체 구독", val: last.naver + last.toss + last.direct_ypx + last.classic, prev: prev4 ? prev4.naver + prev4.toss + prev4.direct_ypx + prev4.classic : null, color: "#1a2742" },
-    { label: "네이버", val: last.naver, prev: prev4?.naver, color: "#03C75A" },
-    { label: "토스", val: last.toss, prev: prev4?.toss, color: "#0064FF" },
-    { label: "직접YPX", val: last.direct_ypx, prev: prev4?.direct_ypx, color: "#f07030" },
-    { label: "클래식", val: last.classic, prev: prev4?.classic, color: "#aaaaaa" },
-  ] : [];
+  // 비중 차트 데이터 (같은 그룹 내 비중 계산)
+  // sub 그룹만 비중 계산 가능 (같은 단위가 혼재하면 비중 의미 없음)
+  const subSeries = activeSeries.filter(s => s.groupId === "sub");
+  const pctData = subSeries.length > 0 ? data.map(r => {
+    const total = r.naver + r.toss + r.direct_ypx + r.classic;
+    const row = { date: r.date.slice(5) };
+    subSeries.forEach(s => {
+      const raw = s.id === "sub_naver" ? r.naver : s.id === "sub_toss" ? r.toss : s.id === "sub_direct" ? r.direct_ypx : r.classic;
+      row[s.id] = +(raw / total * 100).toFixed(1);
+    });
+    return row;
+  }) : [];
 
-  function kpiDelta(cur, prv) {
+  function delta(cur, prv) {
     if (!prv) return null;
     const d = cur - prv;
     return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
   }
 
-  const btnLabel = { loading: "⏳...", error: "❌", idle: "🔄 새로고침" }[refreshStatus] ?? `✅ ${refreshStatus}`;
+  const kpis = last ? [
+    { label: "전체 구독", val: last.naver + last.toss + last.direct_ypx + last.classic, prev: prev4 ? prev4.naver + prev4.toss + prev4.direct_ypx + prev4.classic : null, color: "#1a2742" },
+    { label: "네이버",   val: last.naver,      prev: prev4?.naver,      color: "#03C75A" },
+    { label: "토스",     val: last.toss,       prev: prev4?.toss,       color: "#0064FF" },
+    { label: "직접YPX",  val: last.direct_ypx, prev: prev4?.direct_ypx, color: "#f07030" },
+    { label: "클래식",   val: last.classic,    prev: prev4?.classic,    color: "#aaaaaa" },
+  ] : [];
 
-  // 단위 혼재 여부 체크 (향후 듀얼 Y축 대비)
-  const units = [...new Set(activeSeries.map(s => s.unit))];
+  const btnLabel = { loading: "⏳...", error: "❌", idle: "🔄 새로고침" }[refreshStatus] ?? `✅ ${refreshStatus}`;
 
   return (
     <>
-      {/* KPI 행 + 새로고침 */}
+      {/* KPI + 새로고침 */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {kpis.map(k => (
-          <div key={k.label} style={{ flex: "1 1 90px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만</div>
-            <div style={{ marginTop: 2 }}>{kpiDelta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
+            <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
           </div>
         ))}
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
-          style={{ alignSelf: "flex-end", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          style={{ alignSelf: "flex-end", marginLeft: "auto", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
           {btnLabel}
         </button>
       </div>
 
-      {/* 메인 차트 */}
-      <div style={{ background: "white", borderRadius: 10, padding: "16px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-        {activeSeries.length === 0 ? (
-          <div style={{ height: 260, display: "flex", alignItems: "center", justifyContent: "center", color: "#ccc", fontSize: 13 }}>
-            위에서 차트를 선택하세요
-          </div>
-        ) : (
-          <>
-            <div style={{ fontSize: 11, color: "#888", marginBottom: 10 }}>
-              {activeSeries.map(s => s.label).join(" · ")}
-              {units.length === 1 && <span style={{ marginLeft: 6, color: "#bbb" }}>({units[0]})</span>}
-            </div>
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={7} />
-                <YAxis tickFormatter={v => v + "만"} tick={{ fontSize: 9 }} width={44} />
-                <Tooltip formatter={(v, id) => {
-                  const s = ALL_SERIES.find(x => x.id === id);
-                  return [`${v}${s?.unit || ""}`, `${s?.groupLabel} · ${s?.label}`];
-                }} />
-                <Legend wrapperStyle={{ fontSize: 10 }}
-                  formatter={(id) => {
-                    const s = ALL_SERIES.find(x => x.id === id);
-                    return `${s?.groupLabel} · ${s?.label}`;
-                  }} />
-                {activeSeries.map(s => (
-                  <Line key={s.id} type="monotone" dataKey={s.id}
-                    stroke={s.color} strokeWidth={s.id.includes("classic") ? 1.5 : 2.5}
-                    strokeDasharray={s.dash} dot={false} />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </>
-        )}
-      </div>
+      {activeSeries.length === 0 ? (
+        <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", color: "#ccc", fontSize: 13, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          위 차트 선택에서 항목을 체크하세요
+        </div>
+      ) : (
+        <>
+          {/* 수량 차트 */}
+          <ChartCard
+            title={`수량 추이 · ${[...new Set(activeSeries.map(s => `${s.groupLabel}(${s.unit})`)]).join(", ")}`}
+            data={qtyData} activeSeries={activeSeries}
+            yFormatter={v => { const u = activeSeries[0]?.unit; return u === "만명" || u === "만건" ? v + "만" : v.toLocaleString(); }}
+            tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [`${v}${s?.unit}`, `${s?.groupLabel} · ${s?.label}`]; }}
+          />
+
+          {/* 비중 차트 — sub 계열이 2개 이상 선택됐을 때만 */}
+          {subSeries.length >= 2 && (
+            <ChartCard
+              title="구독자 비중 추이 (%)"
+              data={pctData} activeSeries={subSeries}
+              yFormatter={v => v + "%"}
+              tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [`${v}%`, `${s?.label} 비중`]; }}
+              height={220}
+            />
+          )}
+        </>
+      )}
 
       {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
         데이터 기준: {last.date} · 캐시 {data.length}주
@@ -215,15 +225,14 @@ const TAB_META = {
   region: { icon: "📍", title: "지역별 현황", desc: "시도별 구독자 수, YPX 침투율, 지역별 주문 증감" },
   age:    { icon: "👥", title: "연령별 현황", desc: "연령대별 구독 비중, 주문 빈도, 이탈 패턴" },
 };
-
 function ComingSoon({ tabId }) {
   const m = TAB_META[tabId];
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 340, gap: 12, color: "#bbb" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 340, gap: 12 }}>
       <div style={{ fontSize: 36 }}>{m.icon}</div>
       <div style={{ fontSize: 14, fontWeight: 700, color: "#555" }}>{m.title}</div>
-      <div style={{ fontSize: 12, color: "#aaa", maxWidth: 320, textAlign: "center" }}>{m.desc}</div>
-      <div style={{ marginTop: 8, fontSize: 11, color: "#ccc" }}>알프레도에게 바로 물어보세요</div>
+      <div style={{ fontSize: 12, color: "#aaa", maxWidth: 300, textAlign: "center" }}>{m.desc}</div>
+      <div style={{ fontSize: 11, color: "#ccc", marginTop: 8 }}>알프레도에게 바로 물어보세요</div>
     </div>
   );
 }
@@ -243,11 +252,7 @@ export default function YPXDashboard({ onClose }) {
   }, []);
 
   const toggleSeries = useCallback((id) => {
-    setChecked(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    setChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }, []);
 
   const refresh = useCallback(async () => {
@@ -274,8 +279,7 @@ export default function YPXDashboard({ onClose }) {
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ width: "min(900px, 96vw)", height: "100vh", background: "#f4f6fb", display: "flex", flexDirection: "column", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
 
-        {/* 헤더 */}
-        <div style={{ background: "#1a2742", color: "white", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+        <div style={{ background: "#1a2742", color: "white", padding: "14px 20px", display: "flex", alignItems: "center", flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>📊 트렌드 확인</div>
             <div style={{ fontSize: 11, color: "#8ea8cc", marginTop: 2 }}>YPX 핵심 지표 — 주간</div>
@@ -283,7 +287,6 @@ export default function YPXDashboard({ onClose }) {
           <button onClick={onClose} style={{ marginLeft: "auto", padding: "6px 10px", background: "transparent", color: "#8ea8cc", border: "1px solid #3a4a6a", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✕</button>
         </div>
 
-        {/* 탭 바 */}
         <div style={{ background: "#111d33", display: "flex", flexShrink: 0 }}>
           {TABS.map(tab => {
             const active = activeTab === tab.id;
@@ -296,7 +299,6 @@ export default function YPXDashboard({ onClose }) {
           })}
         </div>
 
-        {/* 콘텐츠 */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {activeTab === "membership" && (
             <>
