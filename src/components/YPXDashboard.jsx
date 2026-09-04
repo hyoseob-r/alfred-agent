@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { queryBigQuery } from "../api/proxy";
 
@@ -7,6 +7,7 @@ const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v3";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
 const AGE_CACHE_KEY = "ypx_age_cache_v1";
+const SEARCH_CACHE_KEY = "ypx_search_cache_v1";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
@@ -41,6 +42,48 @@ const AGE_SQL = (afterDate) =>
     AND order_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
     AND order_age_group_cd IN ('10','20','30','40','50','60')
   GROUP BY 1, 2 ORDER BY 1, 2`;
+
+// 검색어 SQL — 주간별 TOP N 검색어 + 전환율
+const SEARCH_SQL = (afterDate, topN = 15) =>
+  `WITH weekly AS (
+    SELECT DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+      sr.body_search_keyword AS keyword,
+      COUNT(*) AS search_cnt,
+      COUNTIF(EXISTS(SELECT 1 FROM UNNEST(sr.vendor_click) vc WHERE vc.order_no IS NOT NULL AND vc.order_no != "")) AS order_cnt
+    FROM \`ygy-datawarehouse.mart_product.fact_ilog_session_search_keyword\` t,
+    UNNEST(t.search_result) sr
+    WHERE event_date > '${afterDate}'
+      AND event_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
+      AND sr.body_search_keyword IS NOT NULL AND sr.body_search_keyword != ""
+    GROUP BY 1, 2
+  ), top_kw AS (
+    SELECT keyword FROM weekly GROUP BY keyword ORDER BY SUM(search_cnt) DESC LIMIT ${topN}
+  )
+  SELECT w.date, w.keyword, w.search_cnt, w.order_cnt
+  FROM weekly w INNER JOIN top_kw t ON w.keyword = t.keyword
+  ORDER BY w.date, w.search_cnt DESC`;
+
+// 특정 검색어 드릴다운 — 클릭한 가게의 카테고리별 주문/이탈
+const SEARCH_DRILL_SQL = (keyword, startDate, endDate) =>
+  `WITH clicks AS (
+    SELECT
+      vc.vendor_id,
+      IF(vc.order_no IS NOT NULL AND vc.order_no != "", 1, 0) AS ordered
+    FROM \`ygy-datawarehouse.mart_product.fact_ilog_session_search_keyword\` t,
+    UNNEST(t.search_result) sr,
+    UNNEST(sr.vendor_click) vc
+    WHERE event_date >= '${startDate}' AND event_date <= '${endDate}'
+      AND sr.body_search_keyword = '${keyword.replace(/'/g, "\\'")}'
+  )
+  SELECT
+    IFNULL(v.food_category1_nm, '기타') AS category,
+    COUNT(*) AS click_cnt,
+    SUM(c.ordered) AS order_cnt,
+    COUNT(*) - SUM(c.ordered) AS bounce_cnt,
+    ROUND(SAFE_DIVIDE(SUM(c.ordered), COUNT(*))*100, 1) AS cvr
+  FROM clicks c
+  LEFT JOIN \`ygy-datawarehouse.mart.fact_vendor_id\` v ON c.vendor_id = v.vendor_id
+  GROUP BY 1 ORDER BY 2 DESC LIMIT 15`;
 
 const INITIAL_DATA = [{"date":"2025-09-07","classic":23634,"naver":712814,"toss":623287,"direct_ypx":218962},{"date":"2025-09-14","classic":23294,"naver":714251,"toss":624943,"direct_ypx":220248},{"date":"2025-09-21","classic":22959,"naver":715506,"toss":627020,"direct_ypx":220223},{"date":"2025-09-28","classic":22630,"naver":719956,"toss":632051,"direct_ypx":216266},{"date":"2025-10-05","classic":22284,"naver":724122,"toss":636506,"direct_ypx":212836},{"date":"2025-10-12","classic":21973,"naver":733048,"toss":640784,"direct_ypx":209223},{"date":"2025-10-19","classic":21660,"naver":735838,"toss":642952,"direct_ypx":204497},{"date":"2025-10-26","classic":21340,"naver":737238,"toss":643360,"direct_ypx":201110},{"date":"2025-11-02","classic":20985,"naver":747497,"toss":646358,"direct_ypx":201698},{"date":"2025-11-09","classic":20568,"naver":757558,"toss":646379,"direct_ypx":199659},{"date":"2025-11-16","classic":20229,"naver":770270,"toss":646475,"direct_ypx":198381},{"date":"2025-11-23","classic":19931,"naver":774719,"toss":647412,"direct_ypx":199911},{"date":"2025-11-30","classic":19680,"naver":776463,"toss":647784,"direct_ypx":201315},{"date":"2025-12-07","classic":19279,"naver":780039,"toss":648176,"direct_ypx":199175},{"date":"2025-12-14","classic":19007,"naver":791676,"toss":648492,"direct_ypx":203038},{"date":"2025-12-21","classic":18738,"naver":815202,"toss":647780,"direct_ypx":203460},{"date":"2025-12-28","classic":18486,"naver":836587,"toss":648151,"direct_ypx":203876},{"date":"2026-01-04","classic":18226,"naver":851352,"toss":648495,"direct_ypx":204590},{"date":"2026-01-11","classic":18006,"naver":866774,"toss":648939,"direct_ypx":205115},{"date":"2026-01-18","classic":17793,"naver":887554,"toss":649238,"direct_ypx":204200},{"date":"2026-01-25","classic":17612,"naver":902592,"toss":649559,"direct_ypx":206690},{"date":"2026-02-01","classic":17457,"naver":912592,"toss":650036,"direct_ypx":208602},{"date":"2026-02-08","classic":17235,"naver":919061,"toss":650287,"direct_ypx":208732},{"date":"2026-02-15","classic":17000,"naver":915042,"toss":650675,"direct_ypx":209871},{"date":"2026-02-22","classic":16847,"naver":915224,"toss":651058,"direct_ypx":210932},{"date":"2026-03-01","classic":16607,"naver":921116,"toss":651520,"direct_ypx":214398},{"date":"2026-03-08","classic":16413,"naver":928254,"toss":652019,"direct_ypx":220614},{"date":"2026-03-15","classic":16229,"naver":931924,"toss":652301,"direct_ypx":222761},{"date":"2026-03-22","classic":16055,"naver":936882,"toss":652582,"direct_ypx":223868},{"date":"2026-03-29","classic":15895,"naver":957460,"toss":652769,"direct_ypx":221503},{"date":"2026-04-05","classic":15668,"naver":970964,"toss":653012,"direct_ypx":218669},{"date":"2026-04-12","classic":15487,"naver":974096,"toss":653455,"direct_ypx":220846},{"date":"2026-04-19","classic":15309,"naver":975609,"toss":653885,"direct_ypx":222073},{"date":"2026-04-26","classic":15155,"naver":982393,"toss":654175,"direct_ypx":216956},{"date":"2026-05-03","classic":14975,"naver":987700,"toss":654516,"direct_ypx":213161},{"date":"2026-05-10","classic":14795,"naver":988791,"toss":654892,"direct_ypx":213440},{"date":"2026-05-17","classic":14653,"naver":990011,"toss":655103,"direct_ypx":212563},{"date":"2026-05-24","classic":14514,"naver":990061,"toss":655268,"direct_ypx":209583},{"date":"2026-05-31","classic":14422,"naver":990286,"toss":655472,"direct_ypx":212470},{"date":"2026-06-07","classic":14162,"naver":990395,"toss":655570,"direct_ypx":214984},{"date":"2026-06-14","classic":14003,"naver":993261,"toss":655667,"direct_ypx":222066},{"date":"2026-06-21","classic":13850,"naver":996941,"toss":655833,"direct_ypx":225524},{"date":"2026-06-28","classic":13696,"naver":998161,"toss":655964,"direct_ypx":232215},{"date":"2026-07-05","classic":13498,"naver":999974,"toss":656099,"direct_ypx":237654},{"date":"2026-07-12","classic":13344,"naver":1001179,"toss":656201,"direct_ypx":238924},{"date":"2026-07-19","classic":13188,"naver":1001550,"toss":656287,"direct_ypx":240909},{"date":"2026-07-26","classic":13008,"naver":1001962,"toss":656355,"direct_ypx":247044},{"date":"2026-08-02","classic":12871,"naver":1001636,"toss":655961,"direct_ypx":269777},{"date":"2026-08-09","classic":12692,"naver":1003506,"toss":656165,"direct_ypx":273548},{"date":"2026-08-16","classic":12571,"naver":1003719,"toss":656346,"direct_ypx":273126},{"date":"2026-08-23","classic":12448,"naver":1004277,"toss":656492,"direct_ypx":275539},{"date":"2026-08-30","classic":12330,"naver":1004522,"toss":656629,"direct_ypx":280490}];
 
@@ -175,6 +218,7 @@ const TABS = [
   { id: "orders",     label: "주문 현황",   icon: "🛒" },
   { id: "region",     label: "지역",        icon: "📍" },
   { id: "age",        label: "연령",        icon: "👥" },
+  { id: "search",     label: "검색어",      icon: "🔍" },
 ];
 
 // ─── 차트 선택 컨테이너 ───────────────────────────────────────────────────────
@@ -934,6 +978,254 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh }) {
   );
 }
 
+// ─── 검색어 탭 ──────────────────────────────────────────────────────────────
+const SEARCH_COLORS = ['#e74c3c','#3498db','#f39c12','#9b59b6','#2ecc71','#1abc9c','#e67e22','#34495e','#e91e63','#00bcd4','#8bc34a','#ff5722','#607d8b','#795548','#3f51b5'];
+
+function pivotSearch(rows) {
+  // rows: [{date, keyword, search_cnt, order_cnt}, ...]
+  // → [{date, kw_치킨_search: N, kw_치킨_order: N, kw_치킨_cvr: N, ...}]
+  const map = {};
+  const kwSet = new Set();
+  for (const r of rows) {
+    if (!map[r.date]) map[r.date] = { date: r.date };
+    const k = r.keyword;
+    kwSet.add(k);
+    map[r.date]['kw_' + k + '_search'] = +r.search_cnt;
+    map[r.date]['kw_' + k + '_order'] = +r.order_cnt;
+    map[r.date]['kw_' + k + '_cvr'] = +r.search_cnt > 0 ? Math.round(+r.order_cnt / +r.search_cnt * 1000) / 10 : 0;
+  }
+  const keywords = [...kwSet];
+  const data = Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+  return { data, keywords };
+}
+
+function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus, onRefresh }) {
+  const [range, setRange] = useState("1m");
+  const [mode, setMode] = useState("search"); // search | cvr
+  const [selectedKw, setSelectedKw] = useState(null);
+  const [drillData, setDrillData] = useState([]);
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [visibleKw, setVisibleKw] = useState(new Set());
+  const initRef = useRef(false);
+
+  // 처음 로드되면 상위 5개 기본 체크
+  useEffect(() => {
+    if (searchKeywords.length > 0 && !initRef.current) {
+      setVisibleKw(new Set(searchKeywords.slice(0, 5)));
+      initRef.current = true;
+    }
+  }, [searchKeywords]);
+
+  const toggleKw = (kw) => {
+    setVisibleKw(prev => { const n = new Set(prev); n.has(kw) ? n.delete(kw) : n.add(kw); return n; });
+  };
+
+  const filteredData = filterByRange(searchData, range);
+
+  // 최신 주의 랭킹
+  const last = searchData[searchData.length - 1];
+  const prev = searchData.length > 1 ? searchData[searchData.length - 2] : null;
+  const ranking = last ? searchKeywords.map((kw, i) => ({
+    kw, color: SEARCH_COLORS[i % SEARCH_COLORS.length],
+    search: last['kw_' + kw + '_search'] || 0,
+    order: last['kw_' + kw + '_order'] || 0,
+    cvr: last['kw_' + kw + '_cvr'] || 0,
+    prevSearch: prev ? (prev['kw_' + kw + '_search'] || 0) : null,
+  })).sort((a, b) => b.search - a.search) : [];
+
+  // 차트 데이터
+  const suffix = mode === "search" ? "_search" : "_cvr";
+  const unit = mode === "search" ? "건" : "%";
+  const chartData = filteredData.map(r => {
+    const row = { date: r.date.slice(5) };
+    searchKeywords.forEach(kw => {
+      if (visibleKw.has(kw)) row['kw_' + kw + suffix] = r['kw_' + kw + suffix] || 0;
+    });
+    return row;
+  });
+  const activeSeries = searchKeywords.filter(kw => visibleKw.has(kw)).map((kw, i) => ({
+    id: 'kw_' + kw + suffix, label: kw, color: SEARCH_COLORS[searchKeywords.indexOf(kw) % SEARCH_COLORS.length],
+  }));
+
+  // 드릴다운
+  async function loadDrill(kw) {
+    if (selectedKw === kw) { setSelectedKw(null); return; }
+    setSelectedKw(kw);
+    setDrillLoading(true);
+    setDrillData([]);
+    try {
+      const fd = filterByRange(searchData, range);
+      const startDate = fd[0]?.date || '2026-08-01';
+      const endDate = searchData[searchData.length - 1]?.date || '2026-08-31';
+      const result = await queryBigQuery(SEARCH_DRILL_SQL(kw, startDate, endDate));
+      setDrillData(result.rows || []);
+    } catch (e) { console.error(e); setDrillData([]); }
+    setDrillLoading(false);
+  }
+
+  // range 바뀌면 열려있는 드릴 자동 재조회
+  useEffect(() => {
+    if (selectedKw && searchData.length) {
+      loadDrill(selectedKw);
+    }
+  }, [range]);
+
+  const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
+
+  if (!searchLoaded) {
+    return (
+      <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>검색어 데이터를 먼저 불러오세요</div>
+        <div style={{ fontSize: 11, color: "#bbb", marginBottom: 16 }}>mart_product.fact_ilog_session_search_keyword 기반</div>
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {refreshStatus === "loading" ? "⏳ 불러오는 중..." : "🔄 데이터 새로고침"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* 검색어 선택 */}
+      <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em" }}>검색어 선택</div>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+            {[{id:"search",label:"검색량"},{id:"cvr",label:"전환율"}].map(m => (
+              <button key={m.id} onClick={() => setMode(m.id)}
+                style={{ padding: "3px 10px", borderRadius: 12, border: "1px solid " + (mode === m.id ? "#3a6fd8" : "#ddd"), background: mode === m.id ? "#3a6fd8" : "white", color: mode === m.id ? "white" : "#999", fontSize: 10, cursor: "pointer" }}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {searchKeywords.map((kw, i) => {
+            const on = visibleKw.has(kw);
+            const color = SEARCH_COLORS[i % SEARCH_COLORS.length];
+            return (
+              <button key={kw} onClick={() => toggleKw(kw)}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 11px", border: "1.5px solid " + (on ? color : "#e0e0e0"), borderRadius: 20, background: on ? color + "18" : "#fafafa", cursor: "pointer", transition: "all 0.12s" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: on ? color : "#ccc", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: on ? color : "#bbb", fontWeight: on ? 700 : 400 }}>{kw}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 기간 선택 */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {RANGES.map(r => {
+          const on = range === r.id;
+          return (
+            <button key={r.id} onClick={() => setRange(r.id)}
+              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
+              {r.label}
+            </button>
+          );
+        })}
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
+          {filteredData.length}주
+        </span>
+      </div>
+
+      {/* 검색어 랭킹 — 클릭 시 드릴다운 */}
+      <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>
+          TOP 검색어 ({last?.date}) — 클릭하면 카테고리 전환 확인
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {ranking.slice(0, 10).map((r, i) => {
+            const maxSearch = ranking[0]?.search || 1;
+            const pct = (r.search / maxSearch * 100).toFixed(0);
+            const isOpen = selectedKw === r.kw;
+            return (
+              <div key={r.kw} onClick={() => loadDrill(r.kw)}
+                style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 0", borderRadius: 6, background: isOpen ? r.color + "10" : "transparent", transition: "background 0.15s" }}>
+                <div style={{ width: 18, fontSize: 10, color: "#bbb", textAlign: "right", flexShrink: 0 }}>{i + 1}</div>
+                <div style={{ width: 90, fontSize: 11, color: isOpen ? r.color : "#555", fontWeight: isOpen ? 700 : 400, flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.kw}</div>
+                <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 12, overflow: "hidden" }}>
+                  <div style={{ width: pct + "%", height: "100%", background: r.color + "aa", borderRadius: 4, transition: "width 0.3s" }} />
+                </div>
+                <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(r.search / 10000).toFixed(1)}만</div>
+                <div style={{ width: 36, fontSize: 10, color: r.cvr >= 10 ? "#22aa55" : "#e67e22", textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{r.cvr}%</div>
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ marginTop: 10, padding: "6px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1, float: "right" }}>
+          {btnLabel}
+        </button>
+        <div style={{ clear: "both" }} />
+      </div>
+
+      {/* 검색어 드릴다운 — 카테고리별 전환 */}
+      {selectedKw && (
+        <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#e74c3c", marginBottom: 10 }}>
+            🔍 "{selectedKw}" 검색 후 카테고리별 전환 ({filteredData[0]?.date} ~ {last?.date})
+          </div>
+          {drillLoading ? (
+            <div style={{ color: "#aaa", fontSize: 12, padding: "20px 0", textAlign: "center" }}>⏳ 조회 중...</div>
+          ) : drillData.length === 0 ? (
+            <div style={{ color: "#ccc", fontSize: 12, padding: "20px 0", textAlign: "center" }}>데이터 없음</div>
+          ) : (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                {drillData.map((r, i) => {
+                  const maxClick = Math.max(...drillData.map(d => +d.click_cnt || 0));
+                  const pct = maxClick ? (+r.click_cnt / maxClick * 100).toFixed(0) : 0;
+                  const cvr = +r.cvr || 0;
+                  return (
+                    <div key={r.category} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 18, fontSize: 10, color: "#bbb", textAlign: "right", flexShrink: 0 }}>{i + 1}</div>
+                      <div style={{ width: 80, fontSize: 11, color: "#555", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.category}</div>
+                      <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 14, overflow: "hidden", position: "relative" }}>
+                        <div style={{ width: pct + "%", height: "100%", background: cvr >= 10 ? "#2ecc71aa" : cvr >= 5 ? "#f39c12aa" : "#e74c3caa", borderRadius: 4, transition: "width 0.3s" }} />
+                      </div>
+                      <div style={{ width: 50, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(+r.click_cnt).toLocaleString("ko-KR")}건</div>
+                      <div style={{ width: 40, fontSize: 10, color: "#22aa55", textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{(+r.order_cnt).toLocaleString("ko-KR")}</div>
+                      <div style={{ width: 36, fontSize: 10, color: cvr >= 10 ? "#22aa55" : cvr >= 5 ? "#e67e22" : "#cc3333", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>{cvr}%</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 10, color: "#aaa" }}>
+                <span>건: 클릭수</span>
+                <span style={{ color: "#22aa55" }}>초록: 주문수</span>
+                <span>%: 전환율</span>
+                <span>바 색상: 초록=10%+ / 주황=5%+ / 빨강=5%미만</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 트렌드 차트 */}
+      {activeSeries.length > 0 && (
+        <ChartCard
+          title={mode === "search" ? "검색량 추이 (건)" : "전환율 추이 (%)"}
+          data={chartData}
+          activeSeries={activeSeries}
+          yFormatter={mode === "search" ? v => (v / 10000).toFixed(1) + "만" : v => v + "%"}
+          tooltipFormatter={(v, id) => {
+            const kw = id.replace(/^kw_/, '').replace(/_search$|_cvr$/, '');
+            return mode === "search" ? [(+v).toLocaleString("ko-KR") + "건", kw] : [v + "%", kw];
+          }}
+        />
+      )}
+
+      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+        기준: {last.date} · 캐시 {searchData.length}주 · TOP {searchKeywords.length} 키워드
+      </div>}
+    </>
+  );
+}
+
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_classic"]);
 
@@ -947,10 +1239,14 @@ export default function YPXDashboard({ onClose }) {
   const [orderLoaded, setOrderLoaded] = useState(false);
   const [regionData, setRegionData] = useState([]);
   const [ageData, setAgeData] = useState([]);
+  const [searchData, setSearchData] = useState([]);
+  const [searchKeywords, setSearchKeywords] = useState([]);
   const [regionLoaded, setRegionLoaded] = useState(false);
   const [ageLoaded, setAgeLoaded] = useState(false);
+  const [searchLoaded, setSearchLoaded] = useState(false);
   const [regionRefreshStatus, setRegionRefreshStatus] = useState("idle");
   const [ageRefreshStatus, setAgeRefreshStatus] = useState("idle");
+  const [searchRefreshStatus, setSearchRefreshStatus] = useState("idle");
 
   // 구독자 + 주문 데이터 병합 (날짜 키 기준)
   const chartData = (() => {
@@ -974,6 +1270,23 @@ export default function YPXDashboard({ onClose }) {
     // 연령 데이터
     const cachedAge = loadCache(AGE_CACHE_KEY);
     if (cachedAge.length) { setAgeData(cachedAge); setAgeLoaded(true); }
+    // 검색어 데이터
+    const cachedSearch = loadCache(SEARCH_CACHE_KEY);
+    if (cachedSearch.length) {
+      try {
+        const parsed = JSON.parse(cachedSearch[0]._raw || "{}");
+        const { data, keywords } = pivotSearch(parsed.rows || []);
+        setSearchData(data); setSearchKeywords(keywords); setSearchLoaded(true);
+      } catch {
+        // raw 형태가 아니면 pivoted 데이터로 가정
+        if (cachedSearch[0]?.date) {
+          setSearchData(cachedSearch);
+          const kws = Object.keys(cachedSearch[0]).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search',''));
+          setSearchKeywords(kws);
+          setSearchLoaded(true);
+        }
+      }
+    }
   }, []);
 
   const toggleSeries = useCallback((id) => {
@@ -1079,6 +1392,25 @@ export default function YPXDashboard({ onClose }) {
     setTimeout(() => setAgeRefreshStatus("idle"), 3000);
   }, []);
 
+  const refreshSearch = useCallback(async () => {
+    setSearchRefreshStatus("loading");
+    try {
+      const afterDate = "2025-09-01";
+      const result = await queryBigQuery(SEARCH_SQL(afterDate, 15));
+      if (result.rows?.length) {
+        const { data, keywords } = pivotSearch(result.rows);
+        saveCache(SEARCH_CACHE_KEY, data);
+        setSearchData(data);
+        setSearchKeywords(keywords);
+        setSearchLoaded(true);
+        setSearchRefreshStatus("+" + data.length + "주");
+      } else {
+        setSearchRefreshStatus("최신");
+      }
+    } catch (e) { console.error(e); setSearchRefreshStatus("error"); }
+    setTimeout(() => setSearchRefreshStatus("idle"), 3000);
+  }, []);
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -1123,7 +1455,10 @@ export default function YPXDashboard({ onClose }) {
           {activeTab === "age" && (
             <AgeContent ageData={ageData} ageLoaded={ageLoaded} refreshStatus={ageRefreshStatus} onRefresh={refreshAge} />
           )}
-          {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && <ComingSoon tabId={activeTab} />}
+          {activeTab === "search" && (
+            <SearchContent searchData={searchData} searchKeywords={searchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} />
+          )}
+          {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && <ComingSoon tabId={activeTab} />}
         </div>
       </div>
     </div>
