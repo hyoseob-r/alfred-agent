@@ -1022,16 +1022,18 @@ function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus
 
   const filteredData = filterByRange(searchData, range);
 
-  // 최신 주의 랭킹
   const last = searchData[searchData.length - 1];
-  const prev = searchData.length > 1 ? searchData[searchData.length - 2] : null;
-  const ranking = last ? searchKeywords.map((kw, i) => ({
-    kw, color: SEARCH_COLORS[i % SEARCH_COLORS.length],
-    search: last['kw_' + kw + '_search'] || 0,
-    order: last['kw_' + kw + '_order'] || 0,
-    cvr: last['kw_' + kw + '_cvr'] || 0,
-    prevSearch: prev ? (prev['kw_' + kw + '_search'] || 0) : null,
-  })).sort((a, b) => b.search - a.search) : [];
+
+  // 기간 합산 랭킹
+  const ranking = searchKeywords.map((kw, i) => {
+    let search = 0, order = 0;
+    for (const r of filteredData) {
+      search += r['kw_' + kw + '_search'] || 0;
+      order += r['kw_' + kw + '_order'] || 0;
+    }
+    const cvr = search > 0 ? Math.round(order / search * 1000) / 10 : 0;
+    return { kw, color: SEARCH_COLORS[i % SEARCH_COLORS.length], search, order, cvr };
+  }).sort((a, b) => b.search - a.search);
 
   // 차트 데이터
   const suffix = mode === "search" ? "_search" : "_cvr";
@@ -1135,7 +1137,7 @@ function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus
       {/* 검색어 랭킹 — 클릭 시 드릴다운 */}
       <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>
-          TOP 검색어 ({last?.date}) — 클릭하면 카테고리 전환 확인
+          TOP 검색어 ({filteredData[0]?.date} ~ {last?.date} 합산) — 클릭하면 카테고리 전환 확인
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {ranking.slice(0, 10).map((r, i) => {
