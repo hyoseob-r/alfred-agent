@@ -606,18 +606,37 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
     }
   };
 
-  async function loadDrill(sido, lastDate) {
-    if (drillSido === sido) { setDrillSido(null); return; }
-    setDrillSido(sido);
+  async function fetchDrill(sido, startDate, endDate) {
     setDrillLoading(true);
     setDrillData([]);
     try {
-      const sql = `SELECT sigungu_nm, SUM(ypx_revise_subscriber_cnt+ypxn_revise_subscriber_cnt+ypxt_revise_subscriber_cnt) as ypx_sub, SUM(ypx_order_cnt) as ord FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\` WHERE week_last_date = '${lastDate}' AND sido_nm = '${sido}' GROUP BY 1 ORDER BY 2 DESC LIMIT 20`;
+      // 구독자: 마지막 주 스냅샷, 주문수: 기간 합산
+      const sql = `SELECT sigungu_nm,
+        MAX(ypx_revise_subscriber_cnt+ypxn_revise_subscriber_cnt+ypxt_revise_subscriber_cnt) as ypx_sub,
+        SUM(ypx_order_cnt) as ord
+        FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\`
+        WHERE week_last_date >= '${startDate}' AND week_last_date <= '${endDate}'
+          AND sido_nm = '${sido}'
+        GROUP BY 1 ORDER BY 3 DESC LIMIT 20`;
       const result = await queryBigQuery(sql);
       setDrillData(result.rows || []);
     } catch (e) { setDrillData([]); }
     setDrillLoading(false);
   }
+
+  function loadDrill(sido, startDate, endDate) {
+    if (drillSido === sido) { setDrillSido(null); return; }
+    setDrillSido(sido);
+    fetchDrill(sido, startDate, endDate);
+  }
+
+  // range 바뀌면 열려있는 드릴다운 자동 재조회
+  useEffect(() => {
+    if (drillSido && regionData.length) {
+      const fd = filterByRange(regionData, range);
+      fetchDrill(drillSido, fd[0]?.date, regionData[regionData.length - 1]?.date);
+    }
+  }, [range]);
 
   const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
 
@@ -703,7 +722,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
           const isOpen = drillSido === k.sido;
           return (
             <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", cursor: isDrillable ? "pointer" : "default", border: isOpen ? "1.5px solid " + k.color : "1.5px solid transparent", transition: "border 0.15s" }}
-              onClick={() => isDrillable && loadDrill(k.sido, last.date)}>
+              onClick={() => isDrillable && loadDrill(k.sido, filteredData[0]?.date, last.date)}>
               <div style={{ fontSize: 10, color: "#999", marginBottom: 3, display: "flex", justifyContent: "space-between" }}>
                 <span>{k.label}</span>
                 {isDrillable && <span style={{ color: isOpen ? k.color : "#ccc" }}>시군구 {isOpen ? "▲" : "▼"}</span>}
@@ -723,7 +742,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
       {drillSido && (
         <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: SIDO_COLORS[drillSido] || "#444", marginBottom: 10 }}>
-            📍 {drillSido} 시군구 상세 ({last?.date} 기준)
+            📍 {drillSido} 시군구 상세 ({filteredData[0]?.date} ~ {last?.date} · 주문 합산)
           </div>
           {drillLoading ? (
             <div style={{ color: "#aaa", fontSize: 12, padding: "20px 0", textAlign: "center" }}>⏳ 조회 중...</div>
@@ -732,9 +751,9 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {(() => {
-                const maxSub = Math.max(...drillData.map(r => +r.ypx_sub || 0));
+                const maxOrd = Math.max(...drillData.map(r => +r.ord || 0));
                 return drillData.map((r, i) => {
-                  const pct = maxSub ? (+r.ypx_sub / maxSub * 100).toFixed(0) : 0;
+                  const pct = maxOrd ? (+r.ord / maxOrd * 100).toFixed(0) : 0;
                   const color = SIDO_COLORS[drillSido] || "#3a6fd8";
                   return (
                     <div key={r.sigungu_nm} style={{ display: "flex", alignItems: "center", gap: 8 }}>
