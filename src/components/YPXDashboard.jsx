@@ -5,6 +5,42 @@ import { queryBigQuery } from "../api/proxy";
 // ─── 캐시 ─────────────────────────────────────────────────────────────────────
 const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v3";
+const REGION_CACHE_KEY = "ypx_region_cache_v1";
+const AGE_CACHE_KEY = "ypx_age_cache_v1";
+
+const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
+const SIDO_COLORS = {
+  '경기도': '#e74c3c', '서울특별시': '#3498db', '인천광역시': '#f39c12',
+  '부산광역시': '#9b59b6', '경상남도': '#2ecc71', '전라북도': '#1abc9c',
+};
+const AGE_GROUPS = [
+  {id:'10', label:'10대', color:'#bdc3c7'},
+  {id:'20', label:'20대', color:'#3498db'},
+  {id:'30', label:'30대', color:'#e74c3c'},
+  {id:'40', label:'40대', color:'#f39c12'},
+  {id:'50', label:'50대', color:'#9b59b6'},
+  {id:'60', label:'60대', color:'#1abc9c'},
+];
+
+const REGION_SQL = (afterDate) =>
+  `SELECT week_last_date as date, sido_nm,
+    SUM(ypx_revise_subscriber_cnt + ypxn_revise_subscriber_cnt + ypxt_revise_subscriber_cnt) as ypx_sub,
+    SUM(revise_subscriber_cnt) as total_sub,
+    SUM(ypx_order_cnt) as ord
+  FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\`
+  WHERE week_last_date > '${afterDate}'
+  GROUP BY 1, 2 ORDER BY 1`;
+
+const AGE_SQL = (afterDate) =>
+  `SELECT DATE_ADD(DATE_TRUNC(order_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+    order_age_group_cd as age,
+    SUM(\`ORDER\`.success_order_cnt) as ord,
+    SAFE_DIVIDE(SUM(gmv_amt), SUM(\`ORDER\`.success_order_cnt)) as aov
+  FROM \`ygy-datawarehouse.mart.fact_daily_order_customer\`
+  WHERE order_date > '${afterDate}'
+    AND order_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
+    AND order_age_group_cd IN ('10','20','30','40','50','60')
+  GROUP BY 1, 2 ORDER BY 1, 2`;
 
 const INITIAL_DATA = [{"date":"2025-09-07","classic":23634,"naver":712814,"toss":623287,"direct_ypx":218962},{"date":"2025-09-14","classic":23294,"naver":714251,"toss":624943,"direct_ypx":220248},{"date":"2025-09-21","classic":22959,"naver":715506,"toss":627020,"direct_ypx":220223},{"date":"2025-09-28","classic":22630,"naver":719956,"toss":632051,"direct_ypx":216266},{"date":"2025-10-05","classic":22284,"naver":724122,"toss":636506,"direct_ypx":212836},{"date":"2025-10-12","classic":21973,"naver":733048,"toss":640784,"direct_ypx":209223},{"date":"2025-10-19","classic":21660,"naver":735838,"toss":642952,"direct_ypx":204497},{"date":"2025-10-26","classic":21340,"naver":737238,"toss":643360,"direct_ypx":201110},{"date":"2025-11-02","classic":20985,"naver":747497,"toss":646358,"direct_ypx":201698},{"date":"2025-11-09","classic":20568,"naver":757558,"toss":646379,"direct_ypx":199659},{"date":"2025-11-16","classic":20229,"naver":770270,"toss":646475,"direct_ypx":198381},{"date":"2025-11-23","classic":19931,"naver":774719,"toss":647412,"direct_ypx":199911},{"date":"2025-11-30","classic":19680,"naver":776463,"toss":647784,"direct_ypx":201315},{"date":"2025-12-07","classic":19279,"naver":780039,"toss":648176,"direct_ypx":199175},{"date":"2025-12-14","classic":19007,"naver":791676,"toss":648492,"direct_ypx":203038},{"date":"2025-12-21","classic":18738,"naver":815202,"toss":647780,"direct_ypx":203460},{"date":"2025-12-28","classic":18486,"naver":836587,"toss":648151,"direct_ypx":203876},{"date":"2026-01-04","classic":18226,"naver":851352,"toss":648495,"direct_ypx":204590},{"date":"2026-01-11","classic":18006,"naver":866774,"toss":648939,"direct_ypx":205115},{"date":"2026-01-18","classic":17793,"naver":887554,"toss":649238,"direct_ypx":204200},{"date":"2026-01-25","classic":17612,"naver":902592,"toss":649559,"direct_ypx":206690},{"date":"2026-02-01","classic":17457,"naver":912592,"toss":650036,"direct_ypx":208602},{"date":"2026-02-08","classic":17235,"naver":919061,"toss":650287,"direct_ypx":208732},{"date":"2026-02-15","classic":17000,"naver":915042,"toss":650675,"direct_ypx":209871},{"date":"2026-02-22","classic":16847,"naver":915224,"toss":651058,"direct_ypx":210932},{"date":"2026-03-01","classic":16607,"naver":921116,"toss":651520,"direct_ypx":214398},{"date":"2026-03-08","classic":16413,"naver":928254,"toss":652019,"direct_ypx":220614},{"date":"2026-03-15","classic":16229,"naver":931924,"toss":652301,"direct_ypx":222761},{"date":"2026-03-22","classic":16055,"naver":936882,"toss":652582,"direct_ypx":223868},{"date":"2026-03-29","classic":15895,"naver":957460,"toss":652769,"direct_ypx":221503},{"date":"2026-04-05","classic":15668,"naver":970964,"toss":653012,"direct_ypx":218669},{"date":"2026-04-12","classic":15487,"naver":974096,"toss":653455,"direct_ypx":220846},{"date":"2026-04-19","classic":15309,"naver":975609,"toss":653885,"direct_ypx":222073},{"date":"2026-04-26","classic":15155,"naver":982393,"toss":654175,"direct_ypx":216956},{"date":"2026-05-03","classic":14975,"naver":987700,"toss":654516,"direct_ypx":213161},{"date":"2026-05-10","classic":14795,"naver":988791,"toss":654892,"direct_ypx":213440},{"date":"2026-05-17","classic":14653,"naver":990011,"toss":655103,"direct_ypx":212563},{"date":"2026-05-24","classic":14514,"naver":990061,"toss":655268,"direct_ypx":209583},{"date":"2026-05-31","classic":14422,"naver":990286,"toss":655472,"direct_ypx":212470},{"date":"2026-06-07","classic":14162,"naver":990395,"toss":655570,"direct_ypx":214984},{"date":"2026-06-14","classic":14003,"naver":993261,"toss":655667,"direct_ypx":222066},{"date":"2026-06-21","classic":13850,"naver":996941,"toss":655833,"direct_ypx":225524},{"date":"2026-06-28","classic":13696,"naver":998161,"toss":655964,"direct_ypx":232215},{"date":"2026-07-05","classic":13498,"naver":999974,"toss":656099,"direct_ypx":237654},{"date":"2026-07-12","classic":13344,"naver":1001179,"toss":656201,"direct_ypx":238924},{"date":"2026-07-19","classic":13188,"naver":1001550,"toss":656287,"direct_ypx":240909},{"date":"2026-07-26","classic":13008,"naver":1001962,"toss":656355,"direct_ypx":247044},{"date":"2026-08-02","classic":12871,"naver":1001636,"toss":655961,"direct_ypx":269777},{"date":"2026-08-09","classic":12692,"naver":1003506,"toss":656165,"direct_ypx":273548},{"date":"2026-08-16","classic":12571,"naver":1003719,"toss":656346,"direct_ypx":273126},{"date":"2026-08-23","classic":12448,"naver":1004277,"toss":656492,"direct_ypx":275539},{"date":"2026-08-30","classic":12330,"naver":1004522,"toss":656629,"direct_ypx":280490}];
 
@@ -40,6 +76,27 @@ function mergeData(a, b) {
   return Object.values(map).sort((x, y) => x.date.localeCompare(y.date));
 }
 function toMan(n) { return +(n / 10000).toFixed(1); }
+
+function pivotRegion(rows) {
+  const map = {};
+  for (const r of rows) {
+    if (!map[r.date]) map[r.date] = { date: r.date };
+    const key = r.sido_nm;
+    map[r.date]['reg_sub_' + key] = +r.ypx_sub;
+    map[r.date]['reg_ord_' + key] = +r.ord;
+  }
+  return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function pivotAge(rows) {
+  const map = {};
+  for (const r of rows) {
+    if (!map[r.date]) map[r.date] = { date: r.date };
+    map[r.date]['age_ord_' + r.age] = +r.ord;
+    map[r.date]['age_aov_' + r.age] = r.aov != null ? +r.aov : null;
+  }
+  return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+}
 
 // 기간 필터
 const RANGES = [
@@ -493,6 +550,304 @@ function ComingSoon({ tabId }) {
   );
 }
 
+// ─── 지역 탭 ─────────────────────────────────────────────────────────────────
+const REG_SUB_DEFAULT = new Set(TOP_SIDO.map(s => 'reg_sub_' + s));
+const REG_ORD_DEFAULT = new Set(TOP_SIDO.map(s => 'reg_ord_' + s));
+
+function RegionChartSelector({ subChecked, ordChecked, onToggle }) {
+  return (
+    <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>차트 선택</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[
+          { label: "구독자", prefix: "reg_sub_", checked: subChecked },
+          { label: "주문수", prefix: "reg_ord_", checked: ordChecked },
+        ].map(group => (
+          <div key={group.prefix} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ width: 52, fontSize: 11, fontWeight: 600, color: "#555", flexShrink: 0 }}>{group.label}</div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              {TOP_SIDO.map(sido => {
+                const id = group.prefix + sido;
+                const on = group.checked.has(id);
+                const color = SIDO_COLORS[sido];
+                return (
+                  <button key={id} onClick={() => onToggle(id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 11px", border: "1.5px solid " + (on ? color : "#e0e0e0"), borderRadius: 20, background: on ? color + "18" : "#fafafa", cursor: "pointer", transition: "all 0.12s" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: on ? color : "#ccc", flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: on ? color : "#bbb", fontWeight: on ? 700 : 400 }}>{sido.replace('특별시','').replace('광역시','').replace('도','')}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
+  const [range, setRange] = useState("1y");
+  const [subChecked, setSubChecked] = useState(REG_SUB_DEFAULT);
+  const [ordChecked, setOrdChecked] = useState(REG_ORD_DEFAULT);
+
+  const onToggle = (id) => {
+    if (id.startsWith('reg_sub_')) {
+      setSubChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    } else {
+      setOrdChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    }
+  };
+
+  const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
+
+  if (!regionLoaded) {
+    return (
+      <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>📍</div>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>지역 데이터를 먼저 불러오세요</div>
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {refreshStatus === "loading" ? "⏳ 불러오는 중..." : "🔄 데이터 새로고침"}
+        </button>
+      </div>
+    );
+  }
+
+  const filteredData = filterByRange(regionData, range);
+  const last = regionData[regionData.length - 1];
+  const prev4 = regionData[regionData.length - 5];
+
+  // KPI: 전체 YPX 구독자(top6 합산) + top 3 시도
+  const totalYpxSub = last ? TOP_SIDO.reduce((s, sido) => s + (last['reg_sub_' + sido] || 0), 0) : 0;
+  const totalYpxSubPrev = prev4 ? TOP_SIDO.reduce((s, sido) => s + (prev4['reg_sub_' + sido] || 0), 0) : 0;
+  const top3 = TOP_SIDO.slice(0, 3);
+
+  const kpis = last ? [
+    { label: "전체 YPX 구독", val: totalYpxSub, prev: totalYpxSubPrev, color: "#1a2742" },
+    ...top3.map(sido => ({
+      label: sido.replace('특별시','').replace('광역시','').replace('도',''),
+      val: last['reg_sub_' + sido] || 0,
+      prev: prev4 ? (prev4['reg_sub_' + sido] || 0) : null,
+      color: SIDO_COLORS[sido],
+    })),
+  ] : [];
+
+  const activeSubSeries = TOP_SIDO.filter(s => subChecked.has('reg_sub_' + s)).map(sido => ({
+    id: 'reg_sub_' + sido, label: sido.replace('특별시','').replace('광역시','').replace('도',''), color: SIDO_COLORS[sido],
+  }));
+  const activeOrdSeries = TOP_SIDO.filter(s => ordChecked.has('reg_ord_' + s)).map(sido => ({
+    id: 'reg_ord_' + sido, label: sido.replace('특별시','').replace('광역시','').replace('도',''), color: SIDO_COLORS[sido],
+  }));
+
+  const subChartData = filteredData.map(r => {
+    const row = { date: r.date.slice(5) };
+    TOP_SIDO.forEach(sido => { row['reg_sub_' + sido] = r['reg_sub_' + sido] != null ? toMan(r['reg_sub_' + sido]) : null; });
+    return row;
+  });
+  const ordChartData = filteredData.map(r => {
+    const row = { date: r.date.slice(5) };
+    TOP_SIDO.forEach(sido => { row['reg_ord_' + sido] = r['reg_ord_' + sido] != null ? toMan(r['reg_ord_' + sido]) : null; });
+    return row;
+  });
+
+  function delta(cur, prv) {
+    if (!prv) return null;
+    const d = cur - prv;
+    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
+  }
+
+  return (
+    <>
+      <RegionChartSelector subChecked={subChecked} ordChecked={ordChecked} onToggle={onToggle} />
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {RANGES.map(r => {
+          const on = range === r.id;
+          return (
+            <button key={r.id} onClick={() => setRange(r.id)}
+              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
+              {r.label}
+            </button>
+          );
+        })}
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
+          {filteredData.length}주
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        {kpis.map(k => (
+          <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만</div>
+            <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
+          </div>
+        ))}
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ alignSelf: "flex-end", marginLeft: "auto", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {btnLabel}
+        </button>
+      </div>
+      {activeSubSeries.length > 0 && (
+        <ChartCard title="시도별 YPX 구독자 추이 (만명)" data={subChartData} activeSeries={activeSubSeries}
+          yFormatter={v => v + "만"}
+          tooltipFormatter={(v, id) => { const sido = id.replace('reg_sub_',''); return [v + "만명", sido]; }} />
+      )}
+      {activeOrdSeries.length > 0 && (
+        <ChartCard title="시도별 주문 추이 (만건)" data={ordChartData} activeSeries={activeOrdSeries}
+          yFormatter={v => v + "만"}
+          tooltipFormatter={(v, id) => { const sido = id.replace('reg_ord_',''); return [v + "만건", sido]; }} />
+      )}
+      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+        기준: {last.date} · 캐시 {regionData.length}주
+      </div>}
+    </>
+  );
+}
+
+// ─── 연령 탭 ─────────────────────────────────────────────────────────────────
+const AGE_ORD_DEFAULT = new Set(['age_ord_20','age_ord_30','age_ord_40','age_ord_50']);
+const AGE_AOV_DEFAULT = new Set(['age_aov_20','age_aov_30','age_aov_40','age_aov_50']);
+
+function AgeChartSelector({ ordChecked, aovChecked, onToggle }) {
+  return (
+    <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>차트 선택</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[
+          { label: "주문수", prefix: "age_ord_", checked: ordChecked },
+          { label: "AOV",   prefix: "age_aov_", checked: aovChecked },
+        ].map(group => (
+          <div key={group.prefix} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ width: 52, fontSize: 11, fontWeight: 600, color: "#555", flexShrink: 0 }}>{group.label}</div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+              {AGE_GROUPS.map(ag => {
+                const id = group.prefix + ag.id;
+                const on = group.checked.has(id);
+                return (
+                  <button key={id} onClick={() => onToggle(id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 11px", border: "1.5px solid " + (on ? ag.color : "#e0e0e0"), borderRadius: 20, background: on ? ag.color + "18" : "#fafafa", cursor: "pointer", transition: "all 0.12s" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: on ? ag.color : "#ccc", flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: on ? ag.color : "#bbb", fontWeight: on ? 700 : 400 }}>{ag.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh }) {
+  const [range, setRange] = useState("1y");
+  const [ordChecked, setOrdChecked] = useState(AGE_ORD_DEFAULT);
+  const [aovChecked, setAovChecked] = useState(AGE_AOV_DEFAULT);
+
+  const onToggle = (id) => {
+    if (id.startsWith('age_ord_')) {
+      setOrdChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    } else {
+      setAovChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    }
+  };
+
+  const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
+
+  if (!ageLoaded) {
+    return (
+      <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>연령 데이터를 먼저 불러오세요</div>
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {refreshStatus === "loading" ? "⏳ 불러오는 중..." : "🔄 데이터 새로고침"}
+        </button>
+      </div>
+    );
+  }
+
+  const filteredData = filterByRange(ageData, range);
+  const last = ageData[ageData.length - 1];
+  const prev4 = ageData[ageData.length - 5];
+
+  // KPI: 최신 주 연령대별 주문수 top3
+  const ageByOrd = last
+    ? AGE_GROUPS.map(ag => ({ ...ag, val: last['age_ord_' + ag.id] || 0, prev: prev4 ? (prev4['age_ord_' + ag.id] || 0) : null }))
+        .sort((a, b) => b.val - a.val).slice(0, 3)
+    : [];
+
+  const activeOrdSeries = AGE_GROUPS.filter(ag => ordChecked.has('age_ord_' + ag.id)).map(ag => ({
+    id: 'age_ord_' + ag.id, label: ag.label, color: ag.color,
+  }));
+  const activeAovSeries = AGE_GROUPS.filter(ag => aovChecked.has('age_aov_' + ag.id)).map(ag => ({
+    id: 'age_aov_' + ag.id, label: ag.label, color: ag.color,
+  }));
+
+  const ordChartData = filteredData.map(r => {
+    const row = { date: r.date.slice(5) };
+    AGE_GROUPS.forEach(ag => { row['age_ord_' + ag.id] = r['age_ord_' + ag.id] != null ? toMan(r['age_ord_' + ag.id]) : null; });
+    return row;
+  });
+  const aovChartData = filteredData.map(r => {
+    const row = { date: r.date.slice(5) };
+    AGE_GROUPS.forEach(ag => { row['age_aov_' + ag.id] = r['age_aov_' + ag.id] != null ? Math.round(r['age_aov_' + ag.id]) : null; });
+    return row;
+  });
+
+  function delta(cur, prv) {
+    if (!prv) return null;
+    const d = cur - prv;
+    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
+  }
+
+  return (
+    <>
+      <AgeChartSelector ordChecked={ordChecked} aovChecked={aovChecked} onToggle={onToggle} />
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {RANGES.map(r => {
+          const on = range === r.id;
+          return (
+            <button key={r.id} onClick={() => setRange(r.id)}
+              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
+              {r.label}
+            </button>
+          );
+        })}
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
+          {filteredData.length}주
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        {ageByOrd.map(ag => (
+          <div key={ag.id} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{ag.label} 주문</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: ag.color }}>{toMan(ag.val)}만건</div>
+            <div style={{ marginTop: 2 }}>{delta(ag.val, ag.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
+          </div>
+        ))}
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ alignSelf: "flex-end", marginLeft: "auto", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {btnLabel}
+        </button>
+      </div>
+      {activeOrdSeries.length > 0 && (
+        <ChartCard title="연령대별 주문수 (만건)" data={ordChartData} activeSeries={activeOrdSeries}
+          yFormatter={v => v + "만"}
+          tooltipFormatter={(v, id) => { const ag = AGE_GROUPS.find(a => 'age_ord_' + a.id === id); return [v + "만건", ag?.label || id]; }} />
+      )}
+      {activeAovSeries.length > 0 && (
+        <ChartCard title="연령대별 AOV (원)" data={aovChartData} activeSeries={activeAovSeries}
+          yFormatter={v => v.toLocaleString("ko-KR")}
+          tooltipFormatter={(v, id) => { const ag = AGE_GROUPS.find(a => 'age_aov_' + a.id === id); return [v.toLocaleString("ko-KR") + "원", ag?.label || id]; }} />
+      )}
+      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+        기준: {last.date} · 캐시 {ageData.length}주
+      </div>}
+    </>
+  );
+}
+
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_classic"]);
 
@@ -504,6 +859,12 @@ export default function YPXDashboard({ onClose }) {
   const [ordData, setOrdData] = useState([]);   // 주문 데이터
   const [refreshStatus, setRefreshStatus] = useState("idle");
   const [orderLoaded, setOrderLoaded] = useState(false);
+  const [regionData, setRegionData] = useState([]);
+  const [ageData, setAgeData] = useState([]);
+  const [regionLoaded, setRegionLoaded] = useState(false);
+  const [ageLoaded, setAgeLoaded] = useState(false);
+  const [regionRefreshStatus, setRegionRefreshStatus] = useState("idle");
+  const [ageRefreshStatus, setAgeRefreshStatus] = useState("idle");
 
   // 구독자 + 주문 데이터 병합 (날짜 키 기준)
   const chartData = (() => {
@@ -521,6 +882,12 @@ export default function YPXDashboard({ onClose }) {
       setOrdData(cachedOrd);
       setOrderLoaded(true);
     }
+    // 지역 데이터
+    const cachedReg = loadCache(REGION_CACHE_KEY);
+    if (cachedReg.length) { setRegionData(cachedReg); setRegionLoaded(true); }
+    // 연령 데이터
+    const cachedAge = loadCache(AGE_CACHE_KEY);
+    if (cachedAge.length) { setAgeData(cachedAge); setAgeLoaded(true); }
   }, []);
 
   const toggleSeries = useCallback((id) => {
@@ -586,6 +953,46 @@ export default function YPXDashboard({ onClose }) {
     setTimeout(() => setRefreshStatus("idle"), 3000);
   }, []);
 
+  const refreshRegion = useCallback(async () => {
+    setRegionRefreshStatus("loading");
+    try {
+      const cached = loadCache(REGION_CACHE_KEY);
+      const after = cached.length ? cached[cached.length - 1].date : "2025-09-01";
+      const result = await queryBigQuery(REGION_SQL(after));
+      if (result.rows?.length) {
+        const pivoted = pivotRegion(result.rows);
+        const merged = mergeData(cached, pivoted);
+        saveCache(REGION_CACHE_KEY, merged);
+        setRegionData(merged);
+        setRegionLoaded(true);
+        setRegionRefreshStatus("+" + pivoted.length + "주");
+      } else {
+        setRegionRefreshStatus("최신");
+      }
+    } catch { setRegionRefreshStatus("error"); }
+    setTimeout(() => setRegionRefreshStatus("idle"), 3000);
+  }, []);
+
+  const refreshAge = useCallback(async () => {
+    setAgeRefreshStatus("loading");
+    try {
+      const cached = loadCache(AGE_CACHE_KEY);
+      const after = cached.length ? cached[cached.length - 1].date : "2025-09-01";
+      const result = await queryBigQuery(AGE_SQL(after));
+      if (result.rows?.length) {
+        const pivoted = pivotAge(result.rows);
+        const merged = mergeData(cached, pivoted);
+        saveCache(AGE_CACHE_KEY, merged);
+        setAgeData(merged);
+        setAgeLoaded(true);
+        setAgeRefreshStatus("+" + pivoted.length + "주");
+      } else {
+        setAgeRefreshStatus("최신");
+      }
+    } catch { setAgeRefreshStatus("error"); }
+    setTimeout(() => setAgeRefreshStatus("idle"), 3000);
+  }, []);
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -624,7 +1031,13 @@ export default function YPXDashboard({ onClose }) {
               <OrderContent chartData={chartData} ordChecked={ordChecked} onToggle={toggleOrdSeries} orderLoaded={orderLoaded} refreshStatus={refreshStatus} onRefresh={refresh} />
             </>
           )}
-          {(activeTab === "region" || activeTab === "age") && <ComingSoon tabId={activeTab} />}
+          {activeTab === "region" && (
+            <RegionContent regionData={regionData} regionLoaded={regionLoaded} refreshStatus={regionRefreshStatus} onRefresh={refreshRegion} />
+          )}
+          {activeTab === "age" && (
+            <AgeContent ageData={ageData} ageLoaded={ageLoaded} refreshStatus={ageRefreshStatus} onRefresh={refreshAge} />
+          )}
+          {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && <ComingSoon tabId={activeTab} />}
         </div>
       </div>
     </div>
