@@ -40,6 +40,38 @@ function mergeData(a, b) {
 }
 function toMan(n) { return +(n / 10000).toFixed(1); }
 
+// 기간 필터
+const RANGES = [
+  { id: "1w", label: "1주" },
+  { id: "1m", label: "1달" },
+  { id: "6m", label: "6개월" },
+  { id: "1y", label: "1년" },
+];
+function filterByRange(data, range) {
+  if (!data.length || range === "1y") return data;
+  const lastDate = new Date(data[data.length - 1].date);
+  const cut = new Date(lastDate);
+  if (range === "1w") cut.setDate(cut.getDate() - 7);
+  else if (range === "1m") cut.setMonth(cut.getMonth() - 1);
+  else if (range === "6m") cut.setMonth(cut.getMonth() - 6);
+  const cutStr = cut.toISOString().slice(0, 10);
+  return data.filter(r => r.date >= cutStr);
+}
+function xInterval(count) {
+  if (count <= 8) return 0;
+  if (count <= 20) return 1;
+  if (count <= 40) return 3;
+  return 7;
+}
+// Y축 domain: 최솟값~최댓값 + 5% 여백
+function yDomain(data, seriesIds) {
+  const vals = data.flatMap(r => seriesIds.map(id => r[id]).filter(v => v != null && isFinite(v)));
+  if (!vals.length) return ["auto", "auto"];
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  const pad = (mx - mn) * 0.08 || mx * 0.05;
+  return [mn - pad, mx + pad];
+}
+
 // ─── 차트 선택 정의 (그룹 × 시리즈) ─────────────────────────────────────────
 const CHART_GROUPS = [
   {
@@ -130,14 +162,16 @@ function ChartSelector({ checked, onToggle, orderLoaded }) {
 // ─── 차트 카드 ────────────────────────────────────────────────────────────────
 function ChartCard({ title, data, activeSeries, yFormatter, tooltipFormatter, height = 280 }) {
   if (activeSeries.length === 0) return null;
+  const domain = yDomain(data, activeSeries.map(s => s.id));
+  const interval = xInterval(data.length);
   return (
     <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 12 }}>{title}</div>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={7} />
-          <YAxis tickFormatter={yFormatter} tick={{ fontSize: 9 }} width={52} />
+          <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={interval} />
+          <YAxis tickFormatter={yFormatter} tick={{ fontSize: 9 }} width={52} domain={domain} />
           <Tooltip formatter={tooltipFormatter} />
           <Legend wrapperStyle={{ fontSize: 10 }}
             formatter={id => { const s = ALL_SERIES.find(x => x.id === id); return (s?.groupLabel || "") + " · " + (s?.label || id); }} />
@@ -154,6 +188,8 @@ function ChartCard({ title, data, activeSeries, yFormatter, tooltipFormatter, he
 
 // ─── 멤버십 탭 ───────────────────────────────────────────────────────────────
 function MembershipContent({ chartData, checked, refreshStatus, onRefresh }) {
+  const [range, setRange] = useState("1y");
+
   const subData = chartData.filter(r => r.naver != null);
   const last = subData[subData.length - 1];
   const prev4 = subData[subData.length - 5];
@@ -163,15 +199,19 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh }) {
   const ordSeries = activeSeries.filter(s => s.groupId === "ord");
   const aovSeries = activeSeries.filter(s => s.groupId === "aov");
 
+  // 기간 필터 적용
+  const filteredData = filterByRange(chartData, range);
+  const filteredSubData = filterByRange(subData, range);
+
   // 각 그룹별 chart data (null 값 그대로 전달 → connectNulls=false로 끊김 표시)
-  const qtyData = chartData.map(r => {
+  const qtyData = filteredData.map(r => {
     const row = { date: r.date.slice(5) };
     activeSeries.forEach(s => { row[s.id] = s.getValue(r); });
     return row;
   });
 
   // 비중 차트 (sub 그룹만)
-  const pctData = subSeries.length >= 2 ? subData.map(r => {
+  const pctData = subSeries.length >= 2 ? filteredSubData.map(r => {
     const total = r.naver + r.toss + r.direct_ypx + r.classic;
     const row = { date: r.date.slice(5) };
     subSeries.forEach(s => {
@@ -211,6 +251,22 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh }) {
 
   return (
     <>
+      {/* 기간 선택 */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {RANGES.map(r => {
+          const on = range === r.id;
+          return (
+            <button key={r.id} onClick={() => setRange(r.id)}
+              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
+              {r.label}
+            </button>
+          );
+        })}
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
+          {filteredData.length}주 · {filteredData[0]?.date?.slice(2)} ~ {filteredData[filteredData.length - 1]?.date?.slice(2)}
+        </span>
+      </div>
+
       {/* KPI + 새로고침 */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {kpis.map(k => (
