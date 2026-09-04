@@ -590,6 +590,9 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
   const [range, setRange] = useState("1y");
   const [subChecked, setSubChecked] = useState(REG_SUB_DEFAULT);
   const [ordChecked, setOrdChecked] = useState(REG_ORD_DEFAULT);
+  const [drillSido, setDrillSido] = useState(null);
+  const [drillData, setDrillData] = useState([]);
+  const [drillLoading, setDrillLoading] = useState(false);
 
   const onToggle = (id) => {
     if (id.startsWith('reg_sub_')) {
@@ -598,6 +601,19 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
       setOrdChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
     }
   };
+
+  async function loadDrill(sido, lastDate) {
+    if (drillSido === sido) { setDrillSido(null); return; }
+    setDrillSido(sido);
+    setDrillLoading(true);
+    setDrillData([]);
+    try {
+      const sql = `SELECT sigungu_nm, SUM(ypx_revise_subscriber_cnt+ypxn_revise_subscriber_cnt+ypxt_revise_subscriber_cnt) as ypx_sub, SUM(ypx_order_cnt) as ord FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\` WHERE week_last_date = '${lastDate}' AND sido_nm = '${sido}' GROUP BY 1 ORDER BY 2 DESC LIMIT 20`;
+      const result = await queryBigQuery(sql);
+      setDrillData(result.rows || []);
+    } catch (e) { setDrillData([]); }
+    setDrillLoading(false);
+  }
 
   const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
 
@@ -624,12 +640,13 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
   const top3 = TOP_SIDO.slice(0, 3);
 
   const kpis = last ? [
-    { label: "전체 YPX 구독", val: totalYpxSub, prev: totalYpxSubPrev, color: "#1a2742" },
+    { label: "전체 YPX 구독", val: totalYpxSub, prev: totalYpxSubPrev, color: "#1a2742", sido: null },
     ...top3.map(sido => ({
       label: sido.replace('특별시','').replace('광역시','').replace('도',''),
       val: last['reg_sub_' + sido] || 0,
       prev: prev4 ? (prev4['reg_sub_' + sido] || 0) : null,
       color: SIDO_COLORS[sido],
+      sido,
     })),
   ] : [];
 
@@ -675,18 +692,62 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-        {kpis.map(k => (
-          <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만</div>
-            <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
-          </div>
-        ))}
+        {kpis.map(k => {
+          const isDrillable = k.sido != null;
+          const isOpen = drillSido === k.sido;
+          return (
+            <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", cursor: isDrillable ? "pointer" : "default", border: isOpen ? "1.5px solid " + k.color : "1.5px solid transparent", transition: "border 0.15s" }}
+              onClick={() => isDrillable && loadDrill(k.sido, last.date)}>
+              <div style={{ fontSize: 10, color: "#999", marginBottom: 3, display: "flex", justifyContent: "space-between" }}>
+                <span>{k.label}</span>
+                {isDrillable && <span style={{ color: isOpen ? k.color : "#ccc" }}>시군구 {isOpen ? "▲" : "▼"}</span>}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만</div>
+              <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
+            </div>
+          );
+        })}
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
           style={{ alignSelf: "flex-end", marginLeft: "auto", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
           {btnLabel}
         </button>
       </div>
+
+      {/* 시군구 드릴다운 패널 */}
+      {drillSido && (
+        <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: SIDO_COLORS[drillSido] || "#444", marginBottom: 10 }}>
+            📍 {drillSido} 시군구 상세 ({last?.date} 기준)
+          </div>
+          {drillLoading ? (
+            <div style={{ color: "#aaa", fontSize: 12, padding: "20px 0", textAlign: "center" }}>⏳ 조회 중...</div>
+          ) : drillData.length === 0 ? (
+            <div style={{ color: "#ccc", fontSize: 12, padding: "20px 0", textAlign: "center" }}>데이터 없음</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {(() => {
+                const maxSub = Math.max(...drillData.map(r => +r.ypx_sub || 0));
+                return drillData.map((r, i) => {
+                  const pct = maxSub ? (+r.ypx_sub / maxSub * 100).toFixed(0) : 0;
+                  const color = SIDO_COLORS[drillSido] || "#3a6fd8";
+                  return (
+                    <div key={r.sigungu_nm} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 18, fontSize: 10, color: "#bbb", textAlign: "right", flexShrink: 0 }}>{i + 1}</div>
+                      <div style={{ width: 90, fontSize: 11, color: "#555", flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.sigungu_nm}</div>
+                      <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 12, overflow: "hidden" }}>
+                        <div style={{ width: pct + "%", height: "100%", background: color + "aa", borderRadius: 4, transition: "width 0.3s" }} />
+                      </div>
+                      <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{toMan(+r.ypx_sub)}만명</div>
+                      <div style={{ width: 54, fontSize: 10, color: "#aaa", textAlign: "right", flexShrink: 0 }}>{toMan(+r.ord)}만건</div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
       {activeSubSeries.length > 0 && (
         <ChartCard title="시도별 YPX 구독자 추이 (만명)" data={subChartData} activeSeries={activeSubSeries}
           yFormatter={v => v + "만"}
