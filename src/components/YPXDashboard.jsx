@@ -316,9 +316,167 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh }) {
   );
 }
 
+// ─── 주문 현황 탭 ────────────────────────────────────────────────────────────
+const ORD_SERIES = ALL_SERIES.filter(s => s.groupId === "ord");
+const AOV_SERIES = ALL_SERIES.filter(s => s.groupId === "aov");
+const ORD_CHART_GROUPS = CHART_GROUPS.filter(g => g.id === "ord" || g.id === "aov");
+
+const ORD_DEFAULT = new Set(["ord_naver","ord_toss","ord_direct","ord_classic","ord_nonmem"]);
+
+function OrderChartSelector({ checked, onToggle, orderLoaded }) {
+  return (
+    <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>차트 선택</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {ORD_CHART_GROUPS.map(group => {
+          const disabled = !orderLoaded;
+          return (
+            <div key={group.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ width: 80, fontSize: 11, fontWeight: 600, color: disabled ? "#ccc" : "#555", flexShrink: 0 }}>
+                {group.label}
+                {disabled && <span style={{ fontSize: 9, color: "#ddd", marginLeft: 4 }}>로드 필요</span>}
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {group.series.map(s => {
+                  const on = checked.has(s.id) && !disabled;
+                  return (
+                    <button key={s.id} onClick={() => !disabled && onToggle(s.id)}
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 11px", border: "1.5px solid " + (on ? s.color : "#e0e0e0"), borderRadius: 20, background: on ? s.color + "18" : "#fafafa", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.35 : 1, transition: "all 0.12s" }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: on ? s.color : "#ccc", flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: on ? s.color : "#bbb", fontWeight: on ? 700 : 400 }}>{s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshStatus, onRefresh }) {
+  const [range, setRange] = useState("1y");
+
+  const ordRows = chartData.filter(r => r.ord_naver != null);
+  const last = ordRows[ordRows.length - 1];
+  const prev4 = ordRows[ordRows.length - 5];
+
+  const activeOrd = ORD_SERIES.filter(s => ordChecked.has(s.id));
+  const activeAov = AOV_SERIES.filter(s => ordChecked.has(s.id));
+
+  const filteredData = filterByRange(chartData, range);
+
+  const ordQtyData = filteredData.map(r => {
+    const row = { date: r.date.slice(5) };
+    ORD_SERIES.forEach(s => { row[s.id] = s.getValue(r); });
+    return row;
+  });
+  const aovData = filteredData.map(r => {
+    const row = { date: r.date.slice(5) };
+    AOV_SERIES.forEach(s => { row[s.id] = s.getValue(r); });
+    return row;
+  });
+
+  function deltaOrd(cur, prv) {
+    if (!prv) return null;
+    const d = cur - prv;
+    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
+  }
+
+  const TYPES = [
+    { label: "네이버",   ordKey: "ord_naver",   aovKey: "aov_naver",   color: "#03C75A" },
+    { label: "토스",     ordKey: "ord_toss",    aovKey: "aov_toss",    color: "#0064FF" },
+    { label: "직접YPX",  ordKey: "ord_direct",  aovKey: "aov_direct",  color: "#f07030" },
+    { label: "클래식",   ordKey: "ord_classic", aovKey: "aov_classic", color: "#aaaaaa" },
+    { label: "논멤버십", ordKey: "ord_nonmem",  aovKey: "aov_nonmem",  color: "#9b59b6" },
+  ];
+
+  const totalOrd = last ? TYPES.reduce((s, t) => s + (last[t.ordKey] || 0), 0) : 0;
+  const totalOrdPrev = prev4 ? TYPES.reduce((s, t) => s + (prev4[t.ordKey] || 0), 0) : 0;
+
+  const kpis = last ? [
+    { label: "전체 주문", val: totalOrd, prev: totalOrdPrev, color: "#1a2742" },
+    ...TYPES.map(t => ({ label: t.label, val: last[t.ordKey] || 0, prev: prev4?.[t.ordKey] || 0, color: t.color })),
+  ] : [];
+
+  const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
+
+  if (!orderLoaded) {
+    return (
+      <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>📥</div>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>주문 데이터를 먼저 불러오세요</div>
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {refreshStatus === "loading" ? "⏳ 불러오는 중..." : "🔄 데이터 새로고침"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* 기간 선택 */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {RANGES.map(r => {
+          const on = range === r.id;
+          return (
+            <button key={r.id} onClick={() => setRange(r.id)}
+              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
+              {r.label}
+            </button>
+          );
+        })}
+        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
+          {filteredData.length}주 · {filteredData[0]?.date?.slice(2)} ~ {filteredData[filteredData.length - 1]?.date?.slice(2)}
+        </span>
+      </div>
+
+      {/* KPI + 새로고침 */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        {kpis.map(k => (
+          <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만건</div>
+            <div style={{ marginTop: 2 }}>{deltaOrd(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
+          </div>
+        ))}
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ alignSelf: "flex-end", marginLeft: "auto", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {btnLabel}
+        </button>
+      </div>
+
+      {activeOrd.length === 0 && activeAov.length === 0 ? (
+        <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", color: "#ccc", fontSize: 13, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          위 차트 선택에서 항목을 체크하세요
+        </div>
+      ) : (
+        <>
+          {activeOrd.length > 0 && (
+            <ChartCard title="주문 수 추이 (만건)" data={ordQtyData} activeSeries={activeOrd}
+              yFormatter={v => v + "만"}
+              tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v + "만건", s?.label || id]; }} />
+          )}
+          {activeAov.length > 0 && (
+            <ChartCard title="평균 주문금액 추이 (원)" data={aovData} activeSeries={activeAov}
+              yFormatter={v => v.toLocaleString("ko-KR")}
+              tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v.toLocaleString("ko-KR") + "원", s?.label || id]; }} />
+          )}
+        </>
+      )}
+
+      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+        주문 기준: {last.date} · 캐시 {ordRows.length}주
+      </div>}
+    </>
+  );
+}
+
 // ─── 준비 중 탭 ──────────────────────────────────────────────────────────────
 const TAB_META = {
-  orders: { icon: "🛒", title: "주문 현황", desc: "채널·구독유형·할인여부별 주문 수 및 adj.CM 추이" },
   region: { icon: "📍", title: "지역별 현황", desc: "시도별 구독자 수, YPX 침투율, 지역별 주문 증감" },
   age:    { icon: "👥", title: "연령별 현황", desc: "연령대별 구독 비중, 주문 빈도, 이탈 패턴" },
 };
@@ -340,6 +498,7 @@ const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_cla
 export default function YPXDashboard({ onClose }) {
   const [activeTab, setActiveTab] = useState("membership");
   const [checked, setChecked] = useState(DEFAULT_CHECKED);
+  const [ordChecked, setOrdChecked] = useState(ORD_DEFAULT);
   const [subData, setSubData] = useState([]);   // 구독자 데이터
   const [ordData, setOrdData] = useState([]);   // 주문 데이터
   const [refreshStatus, setRefreshStatus] = useState("idle");
@@ -365,6 +524,9 @@ export default function YPXDashboard({ onClose }) {
 
   const toggleSeries = useCallback((id) => {
     setChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }, []);
+  const toggleOrdSeries = useCallback((id) => {
+    setOrdChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }, []);
 
   const refresh = useCallback(async () => {
@@ -455,7 +617,13 @@ export default function YPXDashboard({ onClose }) {
               <MembershipContent chartData={chartData} checked={checked} refreshStatus={refreshStatus} onRefresh={refresh} />
             </>
           )}
-          {activeTab !== "membership" && <ComingSoon tabId={activeTab} />}
+          {activeTab === "orders" && (
+            <>
+              <OrderChartSelector checked={ordChecked} onToggle={toggleOrdSeries} orderLoaded={orderLoaded} />
+              <OrderContent chartData={chartData} ordChecked={ordChecked} onToggle={toggleOrdSeries} orderLoaded={orderLoaded} refreshStatus={refreshStatus} onRefresh={refresh} />
+            </>
+          )}
+          {(activeTab === "region" || activeTab === "age") && <ComingSoon tabId={activeTab} />}
         </div>
       </div>
     </div>
