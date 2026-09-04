@@ -48,12 +48,14 @@ const RANGES = [
   { id: "1y", label: "1년" },
 ];
 function filterByRange(data, range) {
-  if (!data.length || range === "1y") return data;
-  const lastDate = new Date(data[data.length - 1].date);
-  const cut = new Date(lastDate);
+  if (!data.length) return data;
+  // 기준: 데이터셋의 마지막 날짜 (= 불러올 수 있는 가장 최근 날)
+  const ref = new Date(data[data.length - 1].date);
+  const cut = new Date(ref);
   if (range === "1w") cut.setDate(cut.getDate() - 7);
   else if (range === "1m") cut.setMonth(cut.getMonth() - 1);
   else if (range === "6m") cut.setMonth(cut.getMonth() - 6);
+  else cut.setFullYear(cut.getFullYear() - 1); // 1y
   const cutStr = cut.toISOString().slice(0, 10);
   return data.filter(r => r.date >= cutStr);
 }
