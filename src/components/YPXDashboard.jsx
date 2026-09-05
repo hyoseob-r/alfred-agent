@@ -63,6 +63,19 @@ const SEARCH_SQL = (afterDate, topN = 15) =>
   FROM weekly w INNER JOIN top_kw t ON w.keyword = t.keyword
   ORDER BY w.date, w.search_cnt DESC`;
 
+// 특정 검색어 1개 주간 데이터 추가 조회
+const SEARCH_ADD_SQL = (keyword, afterDate) =>
+  `SELECT DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+    sr.body_search_keyword AS keyword,
+    COUNT(*) AS search_cnt,
+    COUNTIF(EXISTS(SELECT 1 FROM UNNEST(sr.vendor_click) vc WHERE vc.order_no IS NOT NULL AND vc.order_no != "")) AS order_cnt
+  FROM \`ygy-datawarehouse.mart_product.fact_ilog_session_search_keyword\` t,
+  UNNEST(t.search_result) sr
+  WHERE event_date > '${afterDate}'
+    AND event_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
+    AND sr.body_search_keyword = '${keyword.replace(/'/g, "\\'")}'
+  GROUP BY 1, 2 ORDER BY 1`;
+
 // 특정 검색어 드릴다운 — 클릭한 가게의 카테고리별 주문/이탈
 const SEARCH_DRILL_SQL = (keyword, startDate, endDate) =>
   `WITH clicks AS (
@@ -1006,13 +1019,16 @@ function pivotSearch(rows) {
   return { data, keywords };
 }
 
-function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus, onRefresh }) {
+function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKeywords, searchLoaded, refreshStatus, onRefresh }) {
   const [range, setRange] = useState("1m");
   const [mode, setMode] = useState("search"); // search | cvr
   const [selectedKw, setSelectedKw] = useState(null);
   const [drillData, setDrillData] = useState([]);
   const [drillLoading, setDrillLoading] = useState(false);
   const [visibleKw, setVisibleKw] = useState(new Set());
+  const [searchInput, setSearchInput] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const initRef = useRef(false);
 
   // 처음 로드되면 상위 5개 기본 체크
@@ -1026,6 +1042,41 @@ function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus
   const toggleKw = (kw) => {
     setVisibleKw(prev => { const n = new Set(prev); n.has(kw) ? n.delete(kw) : n.add(kw); return n; });
   };
+
+  // 검색어 추가 — BQ에서 해당 키워드 주간 데이터 조회 후 병합
+  async function addKeyword(kw) {
+    const normalized = kw.trim().normalize('NFC');
+    if (!normalized || searchKeywords.includes(normalized)) {
+      // 이미 있으면 visible 토글만
+      if (searchKeywords.includes(normalized)) toggleKw(normalized);
+      setSearchInput("");
+      return;
+    }
+    setAddLoading(true);
+    try {
+      const result = await queryBigQuery(SEARCH_ADD_SQL(normalized, "2025-09-01"));
+      if (result.rows?.length) {
+        // 기존 데이터에 새 키워드 병합
+        const newData = searchData.map(r => ({ ...r }));
+        for (const row of result.rows) {
+          const date = row.date;
+          const existing = newData.find(r => r.date === date);
+          if (existing) {
+            existing['kw_' + normalized + '_search'] = +row.search_cnt;
+            existing['kw_' + normalized + '_order'] = +row.order_cnt;
+            const s = +row.search_cnt, o = +row.order_cnt;
+            existing['kw_' + normalized + '_cvr'] = s > 0 ? Math.round(o / s * 1000) / 10 : 0;
+          }
+        }
+        setSearchData(newData);
+        setSearchKeywords(prev => [...prev, normalized]);
+        setVisibleKw(prev => { const n = new Set(prev); n.add(normalized); return n; });
+        saveCache(SEARCH_CACHE_KEY, newData);
+      }
+    } catch (e) { console.error("keyword add failed:", e); }
+    setAddLoading(false);
+    setSearchInput("");
+  }
 
   const filteredData = filterByRange(searchData, range);
 
@@ -1100,7 +1151,7 @@ function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus
       {/* 검색어 선택 */}
       <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em" }}>검색어 선택</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em" }}>차트 검색어 ({visibleKw.size}개)</div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
             {[{id:"search",label:"검색량"},{id:"cvr",label:"전환율"}].map(m => (
               <button key={m.id} onClick={() => setMode(m.id)}
@@ -1110,8 +1161,9 @@ function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus
             ))}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {searchKeywords.map((kw, i) => {
+        {/* 선택된 검색어 */}
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+          {searchKeywords.slice(0, showAll ? undefined : 10).map((kw, i) => {
             const on = visibleKw.has(kw);
             const color = SEARCH_COLORS[i % SEARCH_COLORS.length];
             return (
@@ -1122,6 +1174,25 @@ function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus
               </button>
             );
           })}
+          {searchKeywords.length > 10 && (
+            <button onClick={() => setShowAll(!showAll)}
+              style={{ padding: "4px 11px", border: "1.5px solid #ddd", borderRadius: 20, background: "#fafafa", cursor: "pointer", fontSize: 11, color: "#999" }}>
+              {showAll ? "접기" : "+" + (searchKeywords.length - 10) + "개 더보기"}
+            </button>
+          )}
+        </div>
+        {/* 검색어 추가 입력 */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input
+            type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && searchInput.trim()) addKeyword(searchInput); }}
+            placeholder="검색어 추가 (예: 삼겹살, 초밥, 버거킹...)"
+            style={{ flex: 1, padding: "6px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12, outline: "none" }}
+          />
+          <button onClick={() => searchInput.trim() && addKeyword(searchInput)} disabled={addLoading || !searchInput.trim()}
+            style={{ padding: "6px 14px", background: addLoading ? "#ccc" : "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: addLoading ? "wait" : "pointer", whiteSpace: "nowrap" }}>
+            {addLoading ? "조회중..." : "추가"}
+          </button>
         </div>
       </div>
 
@@ -1430,7 +1501,7 @@ export default function YPXDashboard({ onClose }) {
     setSearchRefreshStatus("loading");
     try {
       const afterDate = "2025-09-01";
-      const result = await queryBigQuery(SEARCH_SQL(afterDate, 15));
+      const result = await queryBigQuery(SEARCH_SQL(afterDate, 50));
       if (result.rows?.length) {
         const { data, keywords } = pivotSearch(result.rows);
         saveCache(SEARCH_CACHE_KEY, data);
@@ -1490,7 +1561,7 @@ export default function YPXDashboard({ onClose }) {
             <AgeContent ageData={ageData} ageLoaded={ageLoaded} refreshStatus={ageRefreshStatus} onRefresh={refreshAge} />
           )}
           {activeTab === "search" && (
-            <SearchContent searchData={searchData} searchKeywords={searchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} />
+            <SearchContent searchData={searchData} setSearchData={setSearchData} searchKeywords={searchKeywords} setSearchKeywords={setSearchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} />
           )}
           {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && <ComingSoon tabId={activeTab} />}
         </div>
