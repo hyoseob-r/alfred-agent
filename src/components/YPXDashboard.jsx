@@ -7,7 +7,7 @@ const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v3";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
 const AGE_CACHE_KEY = "ypx_age_cache_v1";
-const SEARCH_CACHE_KEY = "ypx_search_cache_v1";
+const SEARCH_CACHE_KEY = "ypx_search_cache_v2";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
@@ -1377,20 +1377,11 @@ export default function YPXDashboard({ onClose }) {
     if (cachedAge.length) { setAgeData(cachedAge); setAgeLoaded(true); }
     // 검색어 데이터
     const cachedSearch = loadCache(SEARCH_CACHE_KEY);
-    if (cachedSearch.length) {
-      try {
-        const parsed = JSON.parse(cachedSearch[0]._raw || "{}");
-        const { data, keywords } = pivotSearch(parsed.rows || []);
-        setSearchData(data); setSearchKeywords(keywords); setSearchLoaded(true);
-      } catch {
-        // raw 형태가 아니면 pivoted 데이터로 가정
-        if (cachedSearch[0]?.date) {
-          setSearchData(cachedSearch);
-          const kws = Object.keys(cachedSearch[0]).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search',''));
-          setSearchKeywords(kws);
-          setSearchLoaded(true);
-        }
-      }
+    if (cachedSearch.length && cachedSearch[0]?.date) {
+      setSearchData(cachedSearch);
+      const kws = Object.keys(cachedSearch[0]).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search',''));
+      setSearchKeywords(kws);
+      setSearchLoaded(true);
     }
   }, []);
 
@@ -1500,16 +1491,24 @@ export default function YPXDashboard({ onClose }) {
   const refreshSearch = useCallback(async () => {
     setSearchRefreshStatus("loading");
     try {
-      const afterDate = "2025-09-01";
+      const cached = loadCache(SEARCH_CACHE_KEY);
+      const afterDate = cached.length ? cached[cached.length - 1].date : "2025-01-01";
       const result = await queryBigQuery(SEARCH_SQL(afterDate, 50));
       if (result.rows?.length) {
-        const { data, keywords } = pivotSearch(result.rows);
-        saveCache(SEARCH_CACHE_KEY, data);
-        setSearchData(data);
-        setSearchKeywords(keywords);
+        const { data: freshData, keywords: freshKws } = pivotSearch(result.rows);
+        const merged = cached.length ? mergeData(cached, freshData) : freshData;
+        // 기존 캐시에 없는 키워드 컬럼 보완
+        const allKws = [...new Set([
+          ...Object.keys(merged[0] || {}).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search','')),
+          ...freshKws,
+        ])];
+        saveCache(SEARCH_CACHE_KEY, merged);
+        setSearchData(merged);
+        setSearchKeywords(allKws);
         setSearchLoaded(true);
-        setSearchRefreshStatus("+" + data.length + "주");
+        setSearchRefreshStatus("+" + freshData.length + "주");
       } else {
+        if (cached.length) { setSearchData(cached); setSearchLoaded(true); }
         setSearchRefreshStatus("최신");
       }
     } catch (e) { console.error(e); setSearchRefreshStatus("error"); }
