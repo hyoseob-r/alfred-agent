@@ -7,7 +7,7 @@ const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v3";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
 const AGE_CACHE_KEY = "ypx_age_cache_v1";
-const SEARCH_CACHE_KEY = "ypx_search_cache_v2";
+const SEARCH_CACHE_KEY = "ypx_search_cache_v3";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
@@ -1492,7 +1492,7 @@ export default function YPXDashboard({ onClose }) {
     setSearchRefreshStatus("loading");
     try {
       const cached = loadCache(SEARCH_CACHE_KEY);
-      const afterDate = cached.length ? cached[cached.length - 1].date : "2025-01-01";
+      const afterDate = cached.length ? cached[cached.length - 1].date : "2025-09-01";
       const result = await queryBigQuery(SEARCH_SQL(afterDate, 50));
       if (result.rows?.length) {
         const { data: freshData, keywords: freshKws } = pivotSearch(result.rows);
