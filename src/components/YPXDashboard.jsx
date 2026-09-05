@@ -988,13 +988,20 @@ function pivotSearch(rows) {
   const kwSet = new Set();
   for (const r of rows) {
     if (!map[r.date]) map[r.date] = { date: r.date };
-    const k = r.keyword;
+    const k = (r.keyword || '').normalize('NFC');
     kwSet.add(k);
-    map[r.date]['kw_' + k + '_search'] = +r.search_cnt;
-    map[r.date]['kw_' + k + '_order'] = +r.order_cnt;
-    map[r.date]['kw_' + k + '_cvr'] = +r.search_cnt > 0 ? Math.round(+r.order_cnt / +r.search_cnt * 1000) / 10 : 0;
+    map[r.date]['kw_' + k + '_search'] = (map[r.date]['kw_' + k + '_search'] || 0) + (+r.search_cnt);
+    map[r.date]['kw_' + k + '_order'] = (map[r.date]['kw_' + k + '_order'] || 0) + (+r.order_cnt);
   }
+  // CVR 재계산 (NFC 통합 후)
   const keywords = [...kwSet];
+  for (const row of Object.values(map)) {
+    for (const k of keywords) {
+      const s = row['kw_' + k + '_search'] || 0;
+      const o = row['kw_' + k + '_order'] || 0;
+      row['kw_' + k + '_cvr'] = s > 0 ? Math.round(o / s * 1000) / 10 : 0;
+    }
+  }
   const data = Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
   return { data, keywords };
 }
