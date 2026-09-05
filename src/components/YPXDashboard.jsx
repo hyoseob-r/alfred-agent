@@ -304,8 +304,7 @@ function ChartCard({ title, data, activeSeries, yFormatter, tooltipFormatter, he
 }
 
 // ─── 멤버십 탭 ───────────────────────────────────────────────────────────────
-function MembershipContent({ chartData, checked, refreshStatus, onRefresh }) {
-  const [range, setRange] = useState("1y");
+function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range }) {
 
   const subData = chartData.filter(r => r.naver != null);
   const last = subData[subData.length - 1];
@@ -370,20 +369,8 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh }) {
 
   return (
     <>
-      {/* 기간 선택 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        {RANGES.map(r => {
-          const on = range === r.id;
-          return (
-            <button key={r.id} onClick={() => setRange(r.id)}
-              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
-              {r.label}
-            </button>
-          );
-        })}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
-          {filteredData.length}주 · {filteredData[0]?.date?.slice(2)} ~ {filteredData[filteredData.length - 1]?.date?.slice(2)}
-        </span>
+      <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
+        {filteredData.length}주 · {filteredData[0]?.date?.slice(2)} ~ {filteredData[filteredData.length - 1]?.date?.slice(2)}
       </div>
 
       {/* KPI + 새로고침 */}
@@ -473,8 +460,7 @@ function OrderChartSelector({ checked, onToggle, orderLoaded }) {
   );
 }
 
-function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshStatus, onRefresh }) {
-  const [range, setRange] = useState("1y");
+function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshStatus, onRefresh, range }) {
 
   const ordRows = chartData.filter(r => r.ord_naver != null);
   const last = ordRows[ordRows.length - 1];
@@ -537,20 +523,8 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
 
   return (
     <>
-      {/* 기간 선택 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        {RANGES.map(r => {
-          const on = range === r.id;
-          return (
-            <button key={r.id} onClick={() => setRange(r.id)}
-              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
-              {r.label}
-            </button>
-          );
-        })}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
-          {filteredData.length}주 · {filteredData[0]?.date?.slice(2)} ~ {filteredData[filteredData.length - 1]?.date?.slice(2)}
-        </span>
+      <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
+        {filteredData.length}주 · {filteredData[0]?.date?.slice(2)} ~ {filteredData[filteredData.length - 1]?.date?.slice(2)}
       </div>
 
       {/* KPI + 새로고침 */}
@@ -647,8 +621,7 @@ function RegionChartSelector({ subChecked, ordChecked, onToggle }) {
   );
 }
 
-function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
-  const [range, setRange] = useState("1y");
+function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, range }) {
   const [subChecked, setSubChecked] = useState(REG_SUB_DEFAULT);
   const [ordChecked, setOrdChecked] = useState(REG_ORD_DEFAULT);
   const [drillSido, setDrillSido] = useState(null);
@@ -759,19 +732,8 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh }) {
   return (
     <>
       <RegionChartSelector subChecked={subChecked} ordChecked={ordChecked} onToggle={onToggle} />
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        {RANGES.map(r => {
-          const on = range === r.id;
-          return (
-            <button key={r.id} onClick={() => setRange(r.id)}
-              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
-              {r.label}
-            </button>
-          );
-        })}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
-          {filteredData.length}주
-        </span>
+      <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
+        {filteredData.length}주
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {kpis.map(k => {
@@ -882,8 +844,7 @@ function AgeChartSelector({ ordChecked, aovChecked, onToggle }) {
   );
 }
 
-function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh }) {
-  const [range, setRange] = useState("1y");
+function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
   const [ordChecked, setOrdChecked] = useState(AGE_ORD_DEFAULT);
   const [aovChecked, setAovChecked] = useState(AGE_AOV_DEFAULT);
 
@@ -947,19 +908,8 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh }) {
   return (
     <>
       <AgeChartSelector ordChecked={ordChecked} aovChecked={aovChecked} onToggle={onToggle} />
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        {RANGES.map(r => {
-          const on = range === r.id;
-          return (
-            <button key={r.id} onClick={() => setRange(r.id)}
-              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
-              {r.label}
-            </button>
-          );
-        })}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
-          {filteredData.length}주
-        </span>
+      <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
+        {filteredData.length}주
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {ageByOrd.map(ag => (
@@ -1019,8 +969,7 @@ function pivotSearch(rows) {
   return { data, keywords };
 }
 
-function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKeywords, searchLoaded, refreshStatus, onRefresh }) {
-  const [range, setRange] = useState("1m");
+function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKeywords, searchLoaded, refreshStatus, onRefresh, range }) {
   const [mode, setMode] = useState("search"); // search | cvr
   const [selectedKw, setSelectedKw] = useState(null);
   const [drillData, setDrillData] = useState([]);
@@ -1029,6 +978,7 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
   const [searchInput, setSearchInput] = useState("");
   const [addLoading, setAddLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [addMsg, setAddMsg] = useState("");
   const initRef = useRef(false);
 
   // 처음 로드되면 상위 5개 기본 체크
@@ -1046,9 +996,11 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
   // 검색어 추가 — BQ에서 해당 키워드 주간 데이터 조회 후 병합
   async function addKeyword(kw) {
     const normalized = kw.trim().normalize('NFC');
-    if (!normalized || searchKeywords.includes(normalized)) {
-      // 이미 있으면 visible 토글만
-      if (searchKeywords.includes(normalized)) toggleKw(normalized);
+    if (!normalized) return;
+    if (searchKeywords.includes(normalized)) {
+      setAddMsg("'" + normalized + "' 이미 있는 검색어에요");
+      setTimeout(() => setAddMsg(""), 2000);
+      if (!visibleKw.has(normalized)) toggleKw(normalized);
       setSearchInput("");
       return;
     }
@@ -1093,19 +1045,18 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
     return { kw, color: SEARCH_COLORS[i % SEARCH_COLORS.length], search, order, cvr };
   }).sort((a, b) => b.search - a.search);
 
-  // 차트 데이터
-  const suffix = mode === "search" ? "_search" : "_cvr";
-  const unit = mode === "search" ? "건" : "%";
-  const chartData = filteredData.map(r => {
+  // 듀얼 차트 데이터 (검색량 + 전환율)
+  const dualChartData = filteredData.map(r => {
     const row = { date: r.date.slice(5) };
     searchKeywords.forEach(kw => {
-      if (visibleKw.has(kw)) row['kw_' + kw + suffix] = r['kw_' + kw + suffix] || 0;
+      if (visibleKw.has(kw)) {
+        row['kw_' + kw + '_search'] = r['kw_' + kw + '_search'] || 0;
+        row['kw_' + kw + '_cvr'] = r['kw_' + kw + '_cvr'] || 0;
+      }
     });
     return row;
   });
-  const activeSeries = searchKeywords.filter(kw => visibleKw.has(kw)).map((kw, i) => ({
-    id: 'kw_' + kw + suffix, label: kw, color: SEARCH_COLORS[searchKeywords.indexOf(kw) % SEARCH_COLORS.length],
-  }));
+  const visibleKwList = searchKeywords.filter(kw => visibleKw.has(kw));
 
   // 드릴다운
   async function loadDrill(kw) {
@@ -1152,14 +1103,6 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
       <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em" }}>차트 검색어 ({visibleKw.size}개)</div>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-            {[{id:"search",label:"검색량"},{id:"cvr",label:"전환율"}].map(m => (
-              <button key={m.id} onClick={() => setMode(m.id)}
-                style={{ padding: "3px 10px", borderRadius: 12, border: "1px solid " + (mode === m.id ? "#3a6fd8" : "#ddd"), background: mode === m.id ? "#3a6fd8" : "white", color: mode === m.id ? "white" : "#999", fontSize: 10, cursor: "pointer" }}>
-                {m.label}
-              </button>
-            ))}
-          </div>
         </div>
         {/* 선택된 검색어 */}
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
@@ -1193,23 +1136,12 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
             style={{ padding: "6px 14px", background: addLoading ? "#ccc" : "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: addLoading ? "wait" : "pointer", whiteSpace: "nowrap" }}>
             {addLoading ? "조회중..." : "추가"}
           </button>
+          {addMsg && <span style={{ fontSize: 11, color: "#e67e22", whiteSpace: "nowrap" }}>{addMsg}</span>}
         </div>
       </div>
 
-      {/* 기간 선택 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-        {RANGES.map(r => {
-          const on = range === r.id;
-          return (
-            <button key={r.id} onClick={() => setRange(r.id)}
-              style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
-              {r.label}
-            </button>
-          );
-        })}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "#bbb", alignSelf: "center" }}>
-          {filteredData.length}주
-        </span>
+      <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
+        {filteredData.length}주
       </div>
 
       {/* 검색어 랭킹 — 클릭 시 드릴다운 */}
@@ -1311,17 +1243,36 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
       )}
 
       {/* 트렌드 차트 */}
-      {activeSeries.length > 0 && (
-        <ChartCard
-          title={mode === "search" ? "검색량 추이 (건)" : "전환율 추이 (%)"}
-          data={chartData}
-          activeSeries={activeSeries}
-          yFormatter={mode === "search" ? v => (v / 10000).toFixed(1) + "만" : v => v + "%"}
-          tooltipFormatter={(v, id) => {
-            const kw = id.replace(/^kw_/, '').replace(/_search$|_cvr$/, '');
-            return mode === "search" ? [(+v).toLocaleString("ko-KR") + "건", kw] : [v + "%", kw];
-          }}
-        />
+      {/* 듀얼 Y축 차트: 검색량(실선, 왼쪽) + 전환율(점선, 오른쪽) */}
+      {visibleKwList.length > 0 && (
+        <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>검색량 + 전환율 추이</div>
+          <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>실선 = 검색량 (왼쪽) · 점선 = 전환율 (오른쪽)</div>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={dualChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(dualChartData.length)} />
+              <YAxis yAxisId="left" tickFormatter={v => (v / 10000).toFixed(0) + "만"} tick={{ fontSize: 9 }} width={44} />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={v => v + "%"} tick={{ fontSize: 9 }} width={36} />
+              <Tooltip formatter={(v, id) => {
+                const kw = id.replace(/^kw_/, '').replace(/_search$|_cvr$/, '');
+                const isCvr = id.endsWith('_cvr');
+                return isCvr ? [v + "%", kw + " 전환율"] : [(+v).toLocaleString("ko-KR") + "건", kw + " 검색량"];
+              }} />
+              <Legend wrapperStyle={{ fontSize: 10 }} formatter={id => {
+                const kw = id.replace(/^kw_/, '').replace(/_search$|_cvr$/, '');
+                return id.endsWith('_cvr') ? kw + " CVR" : kw;
+              }} />
+              {visibleKwList.map(kw => {
+                const color = SEARCH_COLORS[searchKeywords.indexOf(kw) % SEARCH_COLORS.length];
+                return [
+                  <Line key={'s_' + kw} yAxisId="left" type="monotone" dataKey={'kw_' + kw + '_search'} stroke={color} strokeWidth={2} dot={false} connectNulls={false} />,
+                  <Line key={'c_' + kw} yAxisId="right" type="monotone" dataKey={'kw_' + kw + '_cvr'} stroke={color} strokeWidth={1.5} strokeDasharray="4 3" dot={false} connectNulls={false} />,
+                ];
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       )}
 
       {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
@@ -1352,6 +1303,7 @@ export default function YPXDashboard({ onClose }) {
   const [regionRefreshStatus, setRegionRefreshStatus] = useState("idle");
   const [ageRefreshStatus, setAgeRefreshStatus] = useState("idle");
   const [searchRefreshStatus, setSearchRefreshStatus] = useState("idle");
+  const [globalRange, setGlobalRange] = useState("1y");
 
   // 구독자 + 주문 데이터 병합 (날짜 키 기준)
   const chartData = (() => {
@@ -1379,7 +1331,7 @@ export default function YPXDashboard({ onClose }) {
     const cachedSearch = loadCache(SEARCH_CACHE_KEY);
     if (cachedSearch.length && cachedSearch[0]?.date) {
       setSearchData(cachedSearch);
-      const kws = Object.keys(cachedSearch[0]).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search',''));
+      const kws = [...new Set(Object.keys(cachedSearch[0]).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search','').normalize('NFC')))];
       setSearchKeywords(kws);
       setSearchLoaded(true);
     }
@@ -1540,27 +1492,40 @@ export default function YPXDashboard({ onClose }) {
           })}
         </div>
 
+        {/* 글로벌 기간 선택 */}
+        <div style={{ background: "#f4f6fb", padding: "10px 16px 0", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+          {RANGES.map(r => {
+            const on = globalRange === r.id;
+            return (
+              <button key={r.id} onClick={() => setGlobalRange(r.id)}
+                style={{ padding: "5px 13px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#ddd"), background: on ? "#3a6fd8" : "white", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
+                {r.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {activeTab === "membership" && (
             <>
               <ChartSelector checked={checked} onToggle={toggleSeries} orderLoaded={orderLoaded} />
-              <MembershipContent chartData={chartData} checked={checked} refreshStatus={refreshStatus} onRefresh={refresh} />
+              <MembershipContent chartData={chartData} checked={checked} refreshStatus={refreshStatus} onRefresh={refresh} range={globalRange} />
             </>
           )}
           {activeTab === "orders" && (
             <>
               <OrderChartSelector checked={ordChecked} onToggle={toggleOrdSeries} orderLoaded={orderLoaded} />
-              <OrderContent chartData={chartData} ordChecked={ordChecked} onToggle={toggleOrdSeries} orderLoaded={orderLoaded} refreshStatus={refreshStatus} onRefresh={refresh} />
+              <OrderContent chartData={chartData} ordChecked={ordChecked} onToggle={toggleOrdSeries} orderLoaded={orderLoaded} refreshStatus={refreshStatus} onRefresh={refresh} range={globalRange} />
             </>
           )}
           {activeTab === "region" && (
-            <RegionContent regionData={regionData} regionLoaded={regionLoaded} refreshStatus={regionRefreshStatus} onRefresh={refreshRegion} />
+            <RegionContent regionData={regionData} regionLoaded={regionLoaded} refreshStatus={regionRefreshStatus} onRefresh={refreshRegion} range={globalRange} />
           )}
           {activeTab === "age" && (
-            <AgeContent ageData={ageData} ageLoaded={ageLoaded} refreshStatus={ageRefreshStatus} onRefresh={refreshAge} />
+            <AgeContent ageData={ageData} ageLoaded={ageLoaded} refreshStatus={ageRefreshStatus} onRefresh={refreshAge} range={globalRange} />
           )}
           {activeTab === "search" && (
-            <SearchContent searchData={searchData} setSearchData={setSearchData} searchKeywords={searchKeywords} setSearchKeywords={setSearchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} />
+            <SearchContent searchData={searchData} setSearchData={setSearchData} searchKeywords={searchKeywords} setSearchKeywords={setSearchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} range={globalRange} />
           )}
           {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && <ComingSoon tabId={activeTab} />}
         </div>
