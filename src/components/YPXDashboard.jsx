@@ -1139,24 +1139,49 @@ function SearchContent({ searchData, searchKeywords, searchLoaded, refreshStatus
         <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>
           TOP 검색어 ({filteredData[0]?.date} ~ {last?.date} 합산) — 클릭하면 카테고리 전환 확인
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {ranking.slice(0, 10).map((r, i) => {
+        {/* 헤더 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "0 0 4px 0", borderBottom: "1px solid #eee" }}>
+          <div style={{ width: 18, flexShrink: 0 }} />
+          <div style={{ width: 90, flexShrink: 0, fontSize: 9, color: "#bbb" }}>검색어</div>
+          <div style={{ flex: 1, display: "flex", gap: 4, fontSize: 9, color: "#bbb" }}>
+            <span>검색량</span><span style={{ marginLeft: "auto" }}>전환율</span>
+          </div>
+          <div style={{ width: 56, flexShrink: 0, fontSize: 9, color: "#bbb", textAlign: "right" }}>검색</div>
+          <div style={{ width: 44, flexShrink: 0, fontSize: 9, color: "#bbb", textAlign: "right" }}>주문</div>
+          <div style={{ width: 36, flexShrink: 0, fontSize: 9, color: "#bbb", textAlign: "right" }}>CVR</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {(() => {
             const maxSearch = ranking[0]?.search || 1;
-            const pct = (r.search / maxSearch * 100).toFixed(0);
-            const isOpen = selectedKw === r.kw;
-            return (
-              <div key={r.kw} onClick={() => loadDrill(r.kw)}
-                style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 0", borderRadius: 6, background: isOpen ? r.color + "10" : "transparent", transition: "background 0.15s" }}>
-                <div style={{ width: 18, fontSize: 10, color: "#bbb", textAlign: "right", flexShrink: 0 }}>{i + 1}</div>
-                <div style={{ width: 90, fontSize: 11, color: isOpen ? r.color : "#555", fontWeight: isOpen ? 700 : 400, flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.kw}</div>
-                <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 12, overflow: "hidden" }}>
-                  <div style={{ width: pct + "%", height: "100%", background: r.color + "aa", borderRadius: 4, transition: "width 0.3s" }} />
+            const maxCvr = Math.max(...ranking.slice(0, 10).map(r => r.cvr), 1);
+            return ranking.slice(0, 10).map((r, i) => {
+              const searchPct = (r.search / maxSearch * 100).toFixed(0);
+              const cvrPct = (r.cvr / maxCvr * 100).toFixed(0);
+              const isOpen = selectedKw === r.kw;
+              return (
+                <div key={r.kw} onClick={() => loadDrill(r.kw)}
+                  style={{ cursor: "pointer", padding: "3px 0", borderRadius: 6, background: isOpen ? r.color + "10" : "transparent", transition: "background 0.15s" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 18, fontSize: 10, color: "#bbb", textAlign: "right", flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ width: 90, fontSize: 11, color: isOpen ? r.color : "#555", fontWeight: isOpen ? 700 : 400, flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.kw}</div>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                      {/* 검색량 바 */}
+                      <div style={{ background: "#f0f0f0", borderRadius: 3, height: 10, overflow: "hidden" }}>
+                        <div style={{ width: searchPct + "%", height: "100%", background: r.color + "aa", borderRadius: 3, transition: "width 0.3s" }} />
+                      </div>
+                      {/* 전환율 바 */}
+                      <div style={{ background: "#f0f0f0", borderRadius: 3, height: 6, overflow: "hidden" }}>
+                        <div style={{ width: cvrPct + "%", height: "100%", background: r.cvr >= 10 ? "#22aa55" : r.cvr >= 7 ? "#f39c12" : "#e74c3c", borderRadius: 3, transition: "width 0.3s" }} />
+                      </div>
+                    </div>
+                    <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(r.search / 10000).toFixed(1)}만</div>
+                    <div style={{ width: 44, fontSize: 10, color: "#22aa55", textAlign: "right", flexShrink: 0 }}>{(r.order / 10000).toFixed(1)}만</div>
+                    <div style={{ width: 36, fontSize: 10, color: r.cvr >= 10 ? "#22aa55" : r.cvr >= 7 ? "#f39c12" : "#e74c3c", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>{r.cvr}%</div>
+                  </div>
                 </div>
-                <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(r.search / 10000).toFixed(1)}만</div>
-                <div style={{ width: 36, fontSize: 10, color: r.cvr >= 10 ? "#22aa55" : "#e67e22", textAlign: "right", flexShrink: 0, fontWeight: 600 }}>{r.cvr}%</div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
           style={{ marginTop: 10, padding: "6px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1, float: "right" }}>
