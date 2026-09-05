@@ -7,7 +7,7 @@ const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v3";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
 const AGE_CACHE_KEY = "ypx_age_cache_v1";
-const SEARCH_CACHE_KEY = "ypx_search_cache_v3";
+const SEARCH_CACHE_KEY = "ypx_search_cache_v4";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
