@@ -177,6 +177,20 @@ export async function streamChatAPI(body, onChunk, signal) {
 }
 
 // BigQuery 쿼리 실행 (로컬 프록시 경유)
+let _authPopupOpened = 0; // 중복 팝업 방지 타임스탬프
+
+async function triggerGcloudAuth() {
+  const now = Date.now();
+  if (now - _authPopupOpened < 30000) return; // 30초 내 중복 방지
+  _authPopupOpened = now;
+  try {
+    const proxyUrl = getProxyUrl() || LOCALHOST_PROXY;
+    const res = await fetch(proxyUrl + '/gcloud-auth', { method: 'POST' });
+    const data = await res.json();
+    if (data.url) window.open(data.url, '_blank', 'width=600,height=700');
+  } catch {}
+}
+
 export async function queryBigQuery(sql, dryRun = false) {
   const proxyUrl = getProxyUrl() || LOCALHOST_PROXY;
   const url = `${proxyUrl.replace(/\/$/, '')}/bigquery`;
@@ -186,6 +200,10 @@ export async function queryBigQuery(sql, dryRun = false) {
     body: JSON.stringify({ sql, dryRun }),
     signal: AbortSignal.timeout(60000),
   });
+  if (resp.status === 401) {
+    triggerGcloudAuth();
+    throw new Error('GCloud 인증 만료 — 열린 창에서 로그인 후 다시 시도하세요');
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
     throw new Error(err.error || `BigQuery HTTP ${resp.status}`);
