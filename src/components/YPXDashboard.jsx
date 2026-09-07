@@ -1282,6 +1282,44 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
   );
 }
 
+// ─── OTP 표시 ────────────────────────────────────────────────────────────────
+function OtpDisplay() {
+  const [code, setCode] = useState("");
+  const [remaining, setRemaining] = useState(30);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    async function fetchOtp() {
+      try {
+        const res = await fetch("http://localhost:7432/otp");
+        const data = await res.json();
+        if (mounted && data.code) { setCode(data.code); setRemaining(data.remaining); }
+      } catch {}
+    }
+    fetchOtp();
+    const id = setInterval(fetchOtp, 3000);
+    return () => { mounted = false; clearInterval(id); };
+  }, []);
+
+  function copyCode() {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  if (!code) return null;
+  return (
+    <button onClick={copyCode} title="클릭하면 복사"
+      style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: copied ? "#22aa55" : "rgba(255,255,255,0.08)", border: "1px solid #3a4a6a", borderRadius: 7, cursor: "pointer", transition: "background 0.15s" }}>
+      <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: remaining <= 5 ? "#e74c3c" : "#fff", letterSpacing: 2 }}>{code}</span>
+      <span style={{ fontSize: 9, color: remaining <= 5 ? "#e74c3c" : "#8ea8cc", minWidth: 18 }}>{remaining}s</span>
+      {copied && <span style={{ fontSize: 9, color: "#22aa55" }}>OK</span>}
+    </button>
+  );
+}
+
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_classic"]);
 
@@ -1477,7 +1515,10 @@ export default function YPXDashboard({ onClose }) {
             <div style={{ fontSize: 15, fontWeight: 700 }}>📊 트렌드 확인</div>
             <div style={{ fontSize: 11, color: "#8ea8cc", marginTop: 2 }}>YPX 핵심 지표 — 주간</div>
           </div>
-          <button onClick={onClose} style={{ marginLeft: "auto", padding: "6px 10px", background: "transparent", color: "#8ea8cc", border: "1px solid #3a4a6a", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✕</button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <OtpDisplay />
+            <button onClick={onClose} style={{ padding: "6px 10px", background: "transparent", color: "#8ea8cc", border: "1px solid #3a4a6a", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✕</button>
+          </div>
         </div>
 
         <div style={{ background: "#111d33", display: "flex", flexShrink: 0 }}>
