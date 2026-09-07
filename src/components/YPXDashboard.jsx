@@ -979,6 +979,7 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
   const [addLoading, setAddLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [addMsg, setAddMsg] = useState("");
+  const [sortBy, setSortBy] = useState("search"); // search | order | cvr
   const initRef = useRef(false);
 
   // 처음 로드되면 상위 5개 기본 체크
@@ -1043,7 +1044,7 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
     }
     const cvr = search > 0 ? Math.round(order / search * 1000) / 10 : 0;
     return { kw, color: SEARCH_COLORS[i % SEARCH_COLORS.length], search, order, cvr };
-  }).sort((a, b) => b.search - a.search);
+  }).sort((a, b) => sortBy === "cvr" ? b.cvr - a.cvr : sortBy === "order" ? b.order - a.order : b.search - a.search);
 
   // 듀얼 차트 데이터 (검색량 + 전환율)
   const dualChartData = filteredData.map(r => {
@@ -1149,16 +1150,19 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
         <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.06em", marginBottom: 10 }}>
           TOP 검색어 ({filteredData[0]?.date} ~ {last?.date} 합산) — 클릭하면 카테고리 전환 확인
         </div>
-        {/* 헤더 */}
+        {/* 헤더 — 클릭 정렬 */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "0 0 4px 0", borderBottom: "1px solid #eee" }}>
           <div style={{ width: 18, flexShrink: 0 }} />
           <div style={{ width: 90, flexShrink: 0, fontSize: 9, color: "#bbb" }}>검색어</div>
           <div style={{ flex: 1, display: "flex", gap: 4, fontSize: 9, color: "#bbb" }}>
             <span>검색량</span><span style={{ marginLeft: "auto" }}>전환율</span>
           </div>
-          <div style={{ width: 56, flexShrink: 0, fontSize: 9, color: "#bbb", textAlign: "right" }}>검색</div>
-          <div style={{ width: 44, flexShrink: 0, fontSize: 9, color: "#bbb", textAlign: "right" }}>주문</div>
-          <div style={{ width: 36, flexShrink: 0, fontSize: 9, color: "#bbb", textAlign: "right" }}>CVR</div>
+          {[{id:"search",label:"검색",w:56},{id:"order",label:"주문",w:44},{id:"cvr",label:"CVR",w:36}].map(col => (
+            <div key={col.id} onClick={() => setSortBy(col.id)}
+              style={{ width: col.w, flexShrink: 0, fontSize: 9, color: sortBy === col.id ? "#3a6fd8" : "#bbb", textAlign: "right", cursor: "pointer", fontWeight: sortBy === col.id ? 700 : 400, userSelect: "none" }}>
+              {col.label}{sortBy === col.id ? " ▼" : ""}
+            </div>
+          ))}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {(() => {
