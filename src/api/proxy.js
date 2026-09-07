@@ -185,9 +185,8 @@ async function triggerGcloudAuth() {
   _authPopupOpened = now;
   try {
     const proxyUrl = getProxyUrl() || LOCALHOST_PROXY;
-    const res = await fetch(proxyUrl + '/gcloud-auth', { method: 'POST' });
-    const data = await res.json();
-    if (data.url) window.open(data.url, '_blank', 'width=600,height=700');
+    await fetch(proxyUrl + '/gcloud-auth', { method: 'POST' });
+    // 브라우저가 자동으로 열림
   } catch {}
 }
 
