@@ -1284,9 +1284,9 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
 
 // ─── OTP 표시 ────────────────────────────────────────────────────────────────
 function OtpDisplay() {
-  const [code, setCode] = useState("");
+  const [otps, setOtps] = useState({});
   const [remaining, setRemaining] = useState(30);
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -1294,7 +1294,13 @@ function OtpDisplay() {
       try {
         const res = await fetch("http://localhost:7432/otp");
         const data = await res.json();
-        if (mounted && data.code) { setCode(data.code); setRemaining(data.remaining); }
+        if (!mounted) return;
+        setRemaining(data.remaining || 30);
+        const entries = {};
+        for (const [k, v] of Object.entries(data)) {
+          if (v && v.code) entries[k] = v;
+        }
+        setOtps(entries);
       } catch {}
     }
     fetchOtp();
@@ -1302,21 +1308,26 @@ function OtpDisplay() {
     return () => { mounted = false; clearInterval(id); };
   }, []);
 
-  function copyCode() {
-    if (!code) return;
+  function copyCode(id, code) {
     navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
   }
 
-  if (!code) return null;
+  const keys = Object.keys(otps);
+  if (!keys.length) return null;
   return (
-    <button onClick={copyCode} title="클릭하면 복사"
-      style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: copied ? "#22aa55" : "rgba(255,255,255,0.08)", border: "1px solid #3a4a6a", borderRadius: 7, cursor: "pointer", transition: "background 0.15s" }}>
-      <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: remaining <= 5 ? "#e74c3c" : "#fff", letterSpacing: 2 }}>{code}</span>
-      <span style={{ fontSize: 9, color: remaining <= 5 ? "#e74c3c" : "#8ea8cc", minWidth: 18 }}>{remaining}s</span>
-      {copied && <span style={{ fontSize: 9, color: "#22aa55" }}>OK</span>}
-    </button>
+    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+      {keys.map(k => (
+        <button key={k} onClick={() => copyCode(k, otps[k].code)} title={otps[k].label + " — 클릭하면 복사"}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: copiedId === k ? "#22aa55" : "rgba(255,255,255,0.08)", border: "1px solid #3a4a6a", borderRadius: 7, cursor: "pointer", transition: "background 0.15s" }}>
+          <span style={{ fontSize: 9, color: "#8ea8cc" }}>{otps[k].label}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "monospace", color: remaining <= 5 ? "#e74c3c" : "#fff", letterSpacing: 2 }}>{otps[k].code}</span>
+          {copiedId === k && <span style={{ fontSize: 9, color: "#fff" }}>OK</span>}
+        </button>
+      ))}
+      <span style={{ fontSize: 9, color: remaining <= 5 ? "#e74c3c" : "#8ea8cc" }}>{remaining}s</span>
+    </div>
   );
 }
 
