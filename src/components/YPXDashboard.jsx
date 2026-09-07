@@ -1282,6 +1282,37 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
   );
 }
 
+// ─── GCloud 인증 버튼 ────────────────────────────────────────────────────────
+function GcloudAuthButton() {
+  const [status, setStatus] = useState("idle"); // idle | loading | ok | fail
+  const PROXY = "http://localhost:7432";
+
+  async function doAuth() {
+    setStatus("loading");
+    try {
+      const res = await fetch(PROXY + "/gcloud-auth", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank", "width=600,height=700");
+        setStatus("ok");
+      } else {
+        // URL 없으면 이미 인증됐거나 오류
+        setStatus("fail");
+      }
+    } catch { setStatus("fail"); }
+    setTimeout(() => setStatus("idle"), 3000);
+  }
+
+  const label = { idle: "🔑 GC 인증", loading: "⏳...", ok: "✅ 열림", fail: "❌ 실패" }[status];
+
+  return (
+    <button onClick={doAuth} disabled={status === "loading"}
+      style={{ padding: "5px 12px", background: status === "ok" ? "#22aa55" : "transparent", color: status === "ok" ? "white" : "#8ea8cc", border: "1px solid #3a4a6a", borderRadius: 7, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap" }}>
+      {label}
+    </button>
+  );
+}
+
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_classic"]);
 
@@ -1477,7 +1508,10 @@ export default function YPXDashboard({ onClose }) {
             <div style={{ fontSize: 15, fontWeight: 700 }}>📊 트렌드 확인</div>
             <div style={{ fontSize: 11, color: "#8ea8cc", marginTop: 2 }}>YPX 핵심 지표 — 주간</div>
           </div>
-          <button onClick={onClose} style={{ marginLeft: "auto", padding: "6px 10px", background: "transparent", color: "#8ea8cc", border: "1px solid #3a4a6a", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✕</button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <GcloudAuthButton />
+            <button onClick={onClose} style={{ padding: "6px 10px", background: "transparent", color: "#8ea8cc", border: "1px solid #3a4a6a", borderRadius: 7, fontSize: 13, cursor: "pointer" }}>✕</button>
+          </div>
         </div>
 
         <div style={{ background: "#111d33", display: "flex", flexShrink: 0 }}>
