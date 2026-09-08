@@ -7,7 +7,7 @@ const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v4";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
 const AGE_CACHE_KEY = "ypx_age_cache_v1";
-const SEARCH_CACHE_KEY = "ypx_search_cache_v5";
+const SEARCH_CACHE_KEY = "ypx_search_cache_v6";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
@@ -43,36 +43,36 @@ const AGE_SQL = (afterDate) =>
     AND order_age_group_cd IN ('10','20','30','40','50','60')
   GROUP BY 1, 2 ORDER BY 1, 2`;
 
-// 검색어 SQL — 주간별 TOP N 검색어 + 전환율
+// 검색어 SQL — 일별 TOP N 검색어 + 전환율
 const SEARCH_SQL = (afterDate, topN = 15) =>
-  `WITH weekly AS (
-    SELECT DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+  `WITH daily AS (
+    SELECT event_date as date,
       sr.body_search_keyword AS keyword,
       COUNT(*) AS search_cnt,
       COUNTIF(EXISTS(SELECT 1 FROM UNNEST(sr.vendor_click) vc WHERE vc.order_no IS NOT NULL AND vc.order_no != "")) AS order_cnt
     FROM \`ygy-datawarehouse.mart_product.fact_ilog_session_search_keyword\` t,
     UNNEST(t.search_result) sr
     WHERE event_date > '${afterDate}'
-      AND event_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
+      AND event_date < CURRENT_DATE()
       AND sr.body_search_keyword IS NOT NULL AND sr.body_search_keyword != ""
     GROUP BY 1, 2
   ), top_kw AS (
-    SELECT keyword FROM weekly GROUP BY keyword ORDER BY SUM(search_cnt) DESC LIMIT ${topN}
+    SELECT keyword FROM daily GROUP BY keyword ORDER BY SUM(search_cnt) DESC LIMIT ${topN}
   )
-  SELECT w.date, w.keyword, w.search_cnt, w.order_cnt
-  FROM weekly w INNER JOIN top_kw t ON w.keyword = t.keyword
-  ORDER BY w.date, w.search_cnt DESC`;
+  SELECT d.date, d.keyword, d.search_cnt, d.order_cnt
+  FROM daily d INNER JOIN top_kw t ON d.keyword = t.keyword
+  ORDER BY d.date, d.search_cnt DESC`;
 
-// 특정 검색어 1개 주간 데이터 추가 조회
+// 특정 검색어 1개 일별 데이터 추가 조회
 const SEARCH_ADD_SQL = (keyword, afterDate) =>
-  `SELECT DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+  `SELECT event_date as date,
     sr.body_search_keyword AS keyword,
     COUNT(*) AS search_cnt,
     COUNTIF(EXISTS(SELECT 1 FROM UNNEST(sr.vendor_click) vc WHERE vc.order_no IS NOT NULL AND vc.order_no != "")) AS order_cnt
   FROM \`ygy-datawarehouse.mart_product.fact_ilog_session_search_keyword\` t,
   UNNEST(t.search_result) sr
   WHERE event_date > '${afterDate}'
-    AND event_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
+    AND event_date < CURRENT_DATE()
     AND sr.body_search_keyword = '${keyword.replace(/'/g, "\\'")}'
   GROUP BY 1, 2 ORDER BY 1`;
 
