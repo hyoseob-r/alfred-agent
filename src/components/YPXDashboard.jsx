@@ -522,16 +522,14 @@ function OrderChartSelector({ checked, onToggle, orderLoaded }) {
 
 function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshStatus, onRefresh, range }) {
 
-  const ordRows = chartData.filter(r => r.ord_naver != null);
-  const last = ordRows[ordRows.length - 1];
-  const prevOffset = { "1w": 1, "1m": 4, "6m": 26, "1y": 52 }[range] || 4;
-  const prevLabel = { "1w": "1주전", "1m": "4주전", "6m": "6개월전", "1y": "1년전" }[range];
-  const prev4 = ordRows.length > prevOffset ? ordRows[ordRows.length - 1 - prevOffset] : null;
-
   const activeOrd = ORD_SERIES.filter(s => ordChecked.has(s.id));
   const activeAov = AOV_SERIES.filter(s => ordChecked.has(s.id));
 
   const filteredData = filterByRange(chartData, range);
+  const filteredOrd = filteredData.filter(r => r.ord_naver != null);
+  const last = filteredOrd[filteredOrd.length - 1];
+  const prevLabel = { "1w": "1주전", "1m": "1달전", "6m": "6개월전", "1y": "1년전" }[range];
+  const prev4 = filteredOrd[0]; // 기간 시작점과 비교
 
   const ordQtyData = filteredData.map(r => {
     const row = { date: dateLabel(r.date) };
