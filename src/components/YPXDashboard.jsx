@@ -98,7 +98,7 @@ const SEARCH_DRILL_SQL = (keyword, startDate, endDate) =>
   LEFT JOIN \`ygy-datawarehouse.mart.fact_vendor_id\` v ON c.vendor_id = v.vendor_id
   GROUP BY 1 ORDER BY 2 DESC LIMIT 15`;
 
-// CPS SQL — 주간별 yogithe vs 일반 CPS 전환율
+// CPS SQL — 주간별 yogithe vs 일반 CPS 전환율 + 주문수 + AOV
 const CPS_CVR_SQL = (afterDate) =>
   `WITH clicks AS (
     SELECT event_date,
@@ -110,17 +110,21 @@ const CPS_CVR_SQL = (afterDate) =>
       AND page_action = 'click.list.vendor'
       AND vendor_ad_id IS NOT NULL AND vendor_ad_id > 0
   ), orders AS (
-    SELECT DISTINCT gauser_session_id, vendor_id
+    SELECT gauser_session_id, vendor_id,
+      MAX(CAST(order_amt AS INT64)) as order_amt
     FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
     WHERE event_date > '${afterDate}'
       AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
       AND order_no IS NOT NULL AND order_no != ''
+      AND order_amt IS NOT NULL
+    GROUP BY 1, 2
   )
   SELECT DATE_ADD(DATE_TRUNC(c.event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
     c.channel,
     COUNT(*) as clicks,
     COUNTIF(o.vendor_id IS NOT NULL) as orders,
-    ROUND(SAFE_DIVIDE(COUNTIF(o.vendor_id IS NOT NULL), COUNT(*))*100, 2) as cvr
+    ROUND(SAFE_DIVIDE(COUNTIF(o.vendor_id IS NOT NULL), COUNT(*))*100, 2) as cvr,
+    ROUND(SAFE_DIVIDE(SUM(o.order_amt), COUNTIF(o.vendor_id IS NOT NULL))) as aov
   FROM clicks c
   LEFT JOIN orders o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
   GROUP BY 1, 2 ORDER BY 1, 2`;
@@ -1419,6 +1423,10 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
     yogi_cvr: r.yogi_cvr || 0,
     gen_clicks: r.gen_clicks || 0,
     yogi_clicks: r.yogi_clicks || 0,
+    gen_orders: r.gen_orders || 0,
+    yogi_orders: r.yogi_orders || 0,
+    gen_aov: r.gen_aov || 0,
+    yogi_aov: r.yogi_aov || 0,
   }));
 
   // 퍼널 차트 데이터
@@ -1435,6 +1443,10 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
   // KPI — 최신 주 기준
   const genCvr = last?.gen_cvr || 0;
   const yogiCvr = last?.yogi_cvr || 0;
+  const genOrders = last?.gen_orders || 0;
+  const yogiOrders = last?.yogi_orders || 0;
+  const genAov = last?.gen_aov || 0;
+  const yogiAov = last?.yogi_aov || 0;
   const lastFunnel = funnelData[funnelData.length - 1];
   const enterToClick = lastFunnel ? Math.round(lastFunnel.vendor_click / (lastFunnel.page_enter || 1) * 1000) / 10 : 0;
   const clickToOrder = lastFunnel ? Math.round(lastFunnel.order_cnt / (lastFunnel.vendor_click || 1) * 1000) / 10 : 0;
@@ -1448,15 +1460,17 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
       {/* KPI 카드 */}
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {[
-          { label: "CPS 일반 CVR", val: genCvr + "%", color: "#3498db" },
-          { label: "CPS yogithe CVR", val: yogiCvr + "%", color: "#e74c3c" },
-          { label: "차이", val: (yogiCvr - genCvr >= 0 ? "+" : "") + (yogiCvr - genCvr).toFixed(1) + "%p", color: yogiCvr >= genCvr ? "#22aa55" : "#cc3333" },
-          { label: "yogithe 진입→클릭", val: enterToClick + "%", color: "#f39c12" },
-          { label: "yogithe 클릭→주문", val: clickToOrder + "%", color: "#9b59b6" },
+          { label: "일반 CVR", val: genCvr + "%", color: "#3498db" },
+          { label: "yogithe CVR", val: yogiCvr + "%", color: "#e74c3c" },
+          { label: "CVR 차이", val: (yogiCvr - genCvr >= 0 ? "+" : "") + (yogiCvr - genCvr).toFixed(1) + "%p", color: yogiCvr >= genCvr ? "#22aa55" : "#cc3333" },
+          { label: "일반 주문", val: genOrders.toLocaleString("ko-KR") + "건", color: "#3498db" },
+          { label: "yogithe 주문", val: yogiOrders.toLocaleString("ko-KR") + "건", color: "#e74c3c" },
+          { label: "일반 AOV", val: genAov.toLocaleString("ko-KR") + "원", color: "#3498db" },
+          { label: "yogithe AOV", val: yogiAov.toLocaleString("ko-KR") + "원", color: "#e74c3c" },
         ].map(k => (
           <div key={k.label} style={{ flex: "1 1 100px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: k.color }}>{k.val}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{k.val}</div>
           </div>
         ))}
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
@@ -1484,6 +1498,38 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
             <Line yAxisId="left" type="monotone" dataKey="yogi_cvr" name="yogithe CVR" stroke="#e74c3c" strokeWidth={2.5} dot={false} />
             <Line yAxisId="right" type="monotone" dataKey="gen_clicks" name="일반 클릭수" stroke="#3498db" strokeWidth={1} strokeDasharray="4 3" dot={false} />
             <Line yAxisId="right" type="monotone" dataKey="yogi_clicks" name="yogithe 클릭수" stroke="#e74c3c" strokeWidth={1} strokeDasharray="4 3" dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 주문수 비교 차트 */}
+      <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 12 }}>CPS 주문수 비교</div>
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={cvrChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(cvrChartData.length)} />
+            <YAxis tickFormatter={v => (+((v / 10000).toFixed(0))).toLocaleString("ko-KR") + "만"} tick={{ fontSize: 9 }} width={40} />
+            <Tooltip formatter={(v, name) => [(+v).toLocaleString("ko-KR") + "건", name]} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Line type="monotone" dataKey="gen_orders" name="일반 CPS 주문" stroke="#3498db" strokeWidth={2.5} dot={false} />
+            <Line type="monotone" dataKey="yogi_orders" name="yogithe 주문" stroke="#e74c3c" strokeWidth={2.5} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* AOV 비교 차트 */}
+      <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 12 }}>CPS 평균 주문금액 (AOV)</div>
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={cvrChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(cvrChartData.length)} />
+            <YAxis tickFormatter={v => (+v).toLocaleString("ko-KR")} tick={{ fontSize: 9 }} width={52} domain={yDomain(cvrChartData, ['gen_aov', 'yogi_aov'])} />
+            <Tooltip formatter={(v, name) => [(+v).toLocaleString("ko-KR") + "원", name]} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Line type="monotone" dataKey="gen_aov" name="일반 CPS AOV" stroke="#3498db" strokeWidth={2.5} dot={false} />
+            <Line type="monotone" dataKey="yogi_aov" name="yogithe AOV" stroke="#e74c3c" strokeWidth={2.5} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -1799,8 +1845,8 @@ export default function YPXDashboard({ onClose }) {
         const map = {};
         for (const r of cvrResult.rows) {
           if (!map[r.date]) map[r.date] = { date: r.date };
-          if (r.channel === 'general') { map[r.date].gen_cvr = +r.cvr; map[r.date].gen_clicks = +r.clicks; map[r.date].gen_orders = +r.orders; }
-          else { map[r.date].yogi_cvr = +r.cvr; map[r.date].yogi_clicks = +r.clicks; map[r.date].yogi_orders = +r.orders; }
+          if (r.channel === 'general') { map[r.date].gen_cvr = +r.cvr; map[r.date].gen_clicks = +r.clicks; map[r.date].gen_orders = +r.orders; map[r.date].gen_aov = +r.aov || 0; }
+          else { map[r.date].yogi_cvr = +r.cvr; map[r.date].yogi_clicks = +r.clicks; map[r.date].yogi_orders = +r.orders; map[r.date].yogi_aov = +r.aov || 0; }
         }
         const data = Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
         saveCache(CPS_CACHE_KEY, data);
