@@ -153,7 +153,7 @@ const CPS_YOGITHE_ORDER_SQL = (afterDate, daily = false) =>
     AND p.order_dt < CURRENT_DATE('+09:00')
   GROUP BY 1 ORDER BY 1`;
 
-const CPS_CACHE_KEY = "ypx_cps_cache_v3";
+const CPS_CACHE_KEY = "ypx_cps_cache_v4";
 const CPS_FUNNEL_CACHE_KEY = "ypx_cps_funnel_cache_v3";
 
 const INITIAL_DATA = [{"date":"2025-09-07","classic":23634,"naver":712814,"toss":623287,"direct_ypx":218962},{"date":"2025-09-14","classic":23294,"naver":714251,"toss":624943,"direct_ypx":220248},{"date":"2025-09-21","classic":22959,"naver":715506,"toss":627020,"direct_ypx":220223},{"date":"2025-09-28","classic":22630,"naver":719956,"toss":632051,"direct_ypx":216266},{"date":"2025-10-05","classic":22284,"naver":724122,"toss":636506,"direct_ypx":212836},{"date":"2025-10-12","classic":21973,"naver":733048,"toss":640784,"direct_ypx":209223},{"date":"2025-10-19","classic":21660,"naver":735838,"toss":642952,"direct_ypx":204497},{"date":"2025-10-26","classic":21340,"naver":737238,"toss":643360,"direct_ypx":201110},{"date":"2025-11-02","classic":20985,"naver":747497,"toss":646358,"direct_ypx":201698},{"date":"2025-11-09","classic":20568,"naver":757558,"toss":646379,"direct_ypx":199659},{"date":"2025-11-16","classic":20229,"naver":770270,"toss":646475,"direct_ypx":198381},{"date":"2025-11-23","classic":19931,"naver":774719,"toss":647412,"direct_ypx":199911},{"date":"2025-11-30","classic":19680,"naver":776463,"toss":647784,"direct_ypx":201315},{"date":"2025-12-07","classic":19279,"naver":780039,"toss":648176,"direct_ypx":199175},{"date":"2025-12-14","classic":19007,"naver":791676,"toss":648492,"direct_ypx":203038},{"date":"2025-12-21","classic":18738,"naver":815202,"toss":647780,"direct_ypx":203460},{"date":"2025-12-28","classic":18486,"naver":836587,"toss":648151,"direct_ypx":203876},{"date":"2026-01-04","classic":18226,"naver":851352,"toss":648495,"direct_ypx":204590},{"date":"2026-01-11","classic":18006,"naver":866774,"toss":648939,"direct_ypx":205115},{"date":"2026-01-18","classic":17793,"naver":887554,"toss":649238,"direct_ypx":204200},{"date":"2026-01-25","classic":17612,"naver":902592,"toss":649559,"direct_ypx":206690},{"date":"2026-02-01","classic":17457,"naver":912592,"toss":650036,"direct_ypx":208602},{"date":"2026-02-08","classic":17235,"naver":919061,"toss":650287,"direct_ypx":208732},{"date":"2026-02-15","classic":17000,"naver":915042,"toss":650675,"direct_ypx":209871},{"date":"2026-02-22","classic":16847,"naver":915224,"toss":651058,"direct_ypx":210932},{"date":"2026-03-01","classic":16607,"naver":921116,"toss":651520,"direct_ypx":214398},{"date":"2026-03-08","classic":16413,"naver":928254,"toss":652019,"direct_ypx":220614},{"date":"2026-03-15","classic":16229,"naver":931924,"toss":652301,"direct_ypx":222761},{"date":"2026-03-22","classic":16055,"naver":936882,"toss":652582,"direct_ypx":223868},{"date":"2026-03-29","classic":15895,"naver":957460,"toss":652769,"direct_ypx":221503},{"date":"2026-04-05","classic":15668,"naver":970964,"toss":653012,"direct_ypx":218669},{"date":"2026-04-12","classic":15487,"naver":974096,"toss":653455,"direct_ypx":220846},{"date":"2026-04-19","classic":15309,"naver":975609,"toss":653885,"direct_ypx":222073},{"date":"2026-04-26","classic":15155,"naver":982393,"toss":654175,"direct_ypx":216956},{"date":"2026-05-03","classic":14975,"naver":987700,"toss":654516,"direct_ypx":213161},{"date":"2026-05-10","classic":14795,"naver":988791,"toss":654892,"direct_ypx":213440},{"date":"2026-05-17","classic":14653,"naver":990011,"toss":655103,"direct_ypx":212563},{"date":"2026-05-24","classic":14514,"naver":990061,"toss":655268,"direct_ypx":209583},{"date":"2026-05-31","classic":14422,"naver":990286,"toss":655472,"direct_ypx":212470},{"date":"2026-06-07","classic":14162,"naver":990395,"toss":655570,"direct_ypx":214984},{"date":"2026-06-14","classic":14003,"naver":993261,"toss":655667,"direct_ypx":222066},{"date":"2026-06-21","classic":13850,"naver":996941,"toss":655833,"direct_ypx":225524},{"date":"2026-06-28","classic":13696,"naver":998161,"toss":655964,"direct_ypx":232215},{"date":"2026-07-05","classic":13498,"naver":999974,"toss":656099,"direct_ypx":237654},{"date":"2026-07-12","classic":13344,"naver":1001179,"toss":656201,"direct_ypx":238924},{"date":"2026-07-19","classic":13188,"naver":1001550,"toss":656287,"direct_ypx":240909},{"date":"2026-07-26","classic":13008,"naver":1001962,"toss":656355,"direct_ypx":247044},{"date":"2026-08-02","classic":12871,"naver":1001636,"toss":655961,"direct_ypx":269777},{"date":"2026-08-09","classic":12692,"naver":1003506,"toss":656165,"direct_ypx":273548},{"date":"2026-08-16","classic":12571,"naver":1003719,"toss":656346,"direct_ypx":273126},{"date":"2026-08-23","classic":12448,"naver":1004277,"toss":656492,"direct_ypx":275539},{"date":"2026-08-30","classic":12330,"naver":1004522,"toss":656629,"direct_ypx":280490}];
@@ -1417,11 +1417,17 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
 
   const filteredCps = filterByRange(cpsData, range);
   const filteredFunnel = filterByRange(funnelData, range);
-  const last = cpsData[cpsData.length - 1];
+
+  // X축 날짜+요일 포맷
+  const DOW = ['일','월','화','수','목','금','토'];
+  function dateLabel(dateStr) {
+    const d = new Date(dateStr);
+    return dateStr.slice(5) + '(' + DOW[d.getDay()] + ')';
+  }
 
   // CVR 차트 데이터
   const cvrChartData = filteredCps.map(r => ({
-    date: r.date.slice(5),
+    date: dateLabel(r.date),
     gen_cvr: r.gen_cvr || 0,
     yogi_cvr: r.yogi_cvr || 0,
     gen_clicks: r.gen_clicks || 0,
@@ -1434,7 +1440,7 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
 
   // 퍼널 차트 데이터
   const funnelChartData = filteredFunnel.map(r => ({
-    date: r.date.slice(5),
+    date: dateLabel(r.date),
     enter: r.page_enter || 0,
     vendor_click: r.vendor_click || 0,
     category: r.category_click || 0,
@@ -1443,33 +1449,41 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
     order: r.order_cnt || 0,
   }));
 
-  // KPI — 최신 주 기준
-  const genCvr = last?.gen_cvr || 0;
-  const yogiCvr = last?.yogi_cvr || 0;
-  const genOrders = last?.gen_orders || 0;
-  const yogiOrders = last?.yogi_orders || 0;
-  const genAov = last?.gen_aov || 0;
-  const yogiAov = last?.yogi_aov || 0;
-  const lastFunnel = funnelData[funnelData.length - 1];
-  const enterToClick = lastFunnel ? Math.round(lastFunnel.vendor_click / (lastFunnel.page_enter || 1) * 1000) / 10 : 0;
-  const clickToOrder = lastFunnel ? Math.round(lastFunnel.order_cnt / (lastFunnel.vendor_click || 1) * 1000) / 10 : 0;
+  // KPI — 선택 기간 합산
+  const totalGenClicks = filteredCps.reduce((s, r) => s + (r.gen_clicks || 0), 0);
+  const totalGenOrders = filteredCps.reduce((s, r) => s + (r.gen_orders || 0), 0);
+  const totalYogiClicks = filteredCps.reduce((s, r) => s + (r.yogi_clicks || 0), 0);
+  const totalYogiOrders = filteredCps.reduce((s, r) => s + (r.yogi_orders || 0), 0);
+  const avgGenCvr = totalGenClicks ? Math.round(totalGenOrders / totalGenClicks * 10000) / 100 : 0;
+  const avgYogiCvr = totalYogiClicks ? Math.round(totalYogiOrders / totalYogiClicks * 10000) / 100 : 0;
+  // AOV 평균 (0 제외)
+  const genAovArr = filteredCps.map(r => r.gen_aov || 0).filter(v => v > 0);
+  const yogiAovArr = filteredCps.map(r => r.yogi_aov || 0).filter(v => v > 0);
+  const avgGenAov = genAovArr.length ? Math.round(genAovArr.reduce((a, b) => a + b, 0) / genAovArr.length) : 0;
+  const avgYogiAov = yogiAovArr.length ? Math.round(yogiAovArr.reduce((a, b) => a + b, 0) / yogiAovArr.length) : 0;
+  const lastFunnel = filteredFunnel[filteredFunnel.length - 1];
+  const totalEnter = filteredFunnel.reduce((s, r) => s + (r.page_enter || 0), 0);
+  const totalVendorClick = filteredFunnel.reduce((s, r) => s + (r.vendor_click || 0), 0);
+  const enterToClick = totalEnter ? Math.round(totalVendorClick / totalEnter * 1000) / 10 : 0;
+  const totalFunnelOrder = filteredFunnel.reduce((s, r) => s + (r.order_cnt || 0), 0);
+  const clickToOrder = totalVendorClick ? Math.round(totalFunnelOrder / totalVendorClick * 1000) / 10 : 0;
 
   return (
     <>
       <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
-        {filteredCps.length}주
+        {filteredCps.length}일 · {filteredCps[0]?.date} ~ {filteredCps[filteredCps.length - 1]?.date}
       </div>
 
       {/* KPI 카드 */}
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {[
-          { label: "일반 CVR", val: genCvr + "%", color: "#3498db" },
-          { label: "yogithe CVR", val: yogiCvr + "%", color: "#e74c3c" },
-          { label: "CVR 차이", val: (yogiCvr - genCvr >= 0 ? "+" : "") + (yogiCvr - genCvr).toFixed(1) + "%p", color: yogiCvr >= genCvr ? "#22aa55" : "#cc3333" },
-          { label: "일반 주문", val: genOrders.toLocaleString("ko-KR") + "건", color: "#3498db" },
-          { label: "yogithe 주문", val: yogiOrders.toLocaleString("ko-KR") + "건", color: "#e74c3c" },
-          { label: "일반 AOV", val: genAov.toLocaleString("ko-KR") + "원", color: "#3498db" },
-          { label: "yogithe AOV", val: yogiAov.toLocaleString("ko-KR") + "원", color: "#e74c3c" },
+          { label: "일반 CVR", val: avgGenCvr + "%", color: "#3498db" },
+          { label: "yogithe CVR", val: avgYogiCvr + "%", color: "#e74c3c" },
+          { label: "CVR 차이", val: (avgYogiCvr - avgGenCvr >= 0 ? "+" : "") + (avgYogiCvr - avgGenCvr).toFixed(1) + "%p", color: avgYogiCvr >= avgGenCvr ? "#22aa55" : "#cc3333" },
+          { label: "일반 주문", val: totalGenOrders.toLocaleString("ko-KR") + "건", color: "#3498db" },
+          { label: "yogithe 주문", val: totalYogiOrders.toLocaleString("ko-KR") + "건", color: "#e74c3c" },
+          { label: "일반 AOV", val: avgGenAov.toLocaleString("ko-KR") + "원", color: "#3498db" },
+          { label: "yogithe AOV", val: avgYogiAov.toLocaleString("ko-KR") + "원", color: "#e74c3c" },
         ].map(k => (
           <div key={k.label} style={{ flex: "1 1 100px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
@@ -1843,7 +1857,7 @@ export default function YPXDashboard({ onClose }) {
     console.log("[CPS] refresh start");
     try {
       const afterDate = "2025-09-01";
-      const daily = false;
+      const daily = true;
       console.log("[CPS] querying CVR...");
       const cvrResult = await queryBigQuery(CPS_CVR_SQL(afterDate, daily));
       console.log("[CPS] CVR result:", cvrResult.rowCount || cvrResult.rows?.length, "rows");
