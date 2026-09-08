@@ -367,10 +367,10 @@ function ChartCard({ title, data, activeSeries, yFormatter, tooltipFormatter, he
 function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range }) {
 
   const subData = chartData.filter(r => r.naver != null);
-  const last = subData[subData.length - 1];
-  const prevOffset = { "1w": 1, "1m": 4, "6m": 26, "1y": 52 }[range] || 4;
-  const prevLabel = { "1w": "1주전", "1m": "4주전", "6m": "6개월전", "1y": "1년전" }[range];
-  const prev4 = subData.length > prevOffset ? subData[subData.length - 1 - prevOffset] : null;
+  const filteredSubData = filterByRange(subData, range);
+  const last = filteredSubData[filteredSubData.length - 1];
+  const prev4 = filteredSubData[0];
+  const prevLabel = "기간시작";
 
   const activeSeries = ALL_SERIES.filter(s => checked.has(s.id) && s.ready);
   const subSeries = activeSeries.filter(s => s.groupId === "sub");
@@ -379,7 +379,6 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
 
   // 기간 필터 적용
   const filteredData = filterByRange(chartData, range);
-  const filteredSubData = filterByRange(subData, range);
 
   // 각 그룹별 chart data (null 값 그대로 전달 → connectNulls=false로 끊김 표시)
   const qtyData = filteredData.map(r => {
@@ -745,10 +744,9 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
   }
 
   const filteredData = filterByRange(regionData, range);
-  const last = regionData[regionData.length - 1];
-  const prevOffset = { "1w": 1, "1m": 4, "6m": 26, "1y": 52 }[range] || 4;
-  const prevLabel = { "1w": "1주전", "1m": "4주전", "6m": "6개월전", "1y": "1년전" }[range];
-  const prev4 = regionData.length > prevOffset ? regionData[regionData.length - 1 - prevOffset] : null;
+  const last = filteredData[filteredData.length - 1];
+  const prev4 = filteredData[0];
+  const prevLabel = "기간시작";
 
   // KPI: 전체 YPX 구독자(top6 합산) + top 3 시도
   const totalYpxSub = last ? TOP_SIDO.reduce((s, sido) => s + (last['reg_sub_' + sido] || 0), 0) : 0;
@@ -933,8 +931,8 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
   }
 
   const filteredData = filterByRange(ageData, range);
-  const last = ageData[ageData.length - 1];
-  const prev4 = ageData[ageData.length - 5];
+  const last = filteredData[filteredData.length - 1];
+  const prev4 = filteredData[0];
 
   // KPI: 최신 주 연령대별 주문수 top3
   const ageByOrd = last
@@ -977,7 +975,7 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
           <div key={ag.id} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{ag.label} 주문</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: ag.color }}>{toMan(ag.val).toLocaleString("ko-KR")}만건</div>
-            <div style={{ marginTop: 2 }}>{delta(ag.val, ag.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
+            <div style={{ marginTop: 2 }}>{delta(ag.val, ag.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>기간시작</span></div>
           </div>
         ))}
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
