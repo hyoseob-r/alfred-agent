@@ -125,34 +125,29 @@ const CPS_CVR_SQL = (afterDate) =>
   LEFT JOIN orders o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
   GROUP BY 1, 2 ORDER BY 1, 2`;
 
-// 요기더적립 관 퍼널 SQL — 주간 진입→가게클릭→주문 (세션 기준)
+// 요기더적립 관 퍼널 SQL — 주간 (액션 집계 + 주문은 lst_order_property_etc 기반)
 const CPS_FUNNEL_SQL = (afterDate) =>
-  `WITH yogithe_events AS (
-    SELECT event_date, gauser_session_id, page_action, page_id, order_no
-    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
-    WHERE event_date > '${afterDate}'
-      AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
-      AND page_id IN ('/yogithe_home', '/yogithe_home/search')
-  ), yogithe_sessions AS (
-    SELECT DISTINCT event_date, gauser_session_id
-    FROM yogithe_events WHERE page_action = 'page_show'
-  ), session_orders AS (
-    SELECT DISTINCT gauser_session_id
-    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
-    WHERE event_date > '${afterDate}'
-      AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
-      AND order_no IS NOT NULL AND order_no != ''
-      AND gauser_session_id IN (SELECT gauser_session_id FROM yogithe_sessions)
-  )
-  SELECT DATE_ADD(DATE_TRUNC(e.event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
-    COUNT(DISTINCT CASE WHEN e.page_action = 'page_show' THEN e.gauser_session_id END) as page_enter,
-    COUNT(DISTINCT CASE WHEN e.page_action = 'click.list.vendor' THEN e.gauser_session_id END) as vendor_click,
-    COUNT(DISTINCT CASE WHEN e.page_action = 'click.navi.category' THEN e.gauser_session_id END) as category_click,
-    COUNT(DISTINCT CASE WHEN e.page_action = 'click.navi.filter' THEN e.gauser_session_id END) as filter_click,
-    COUNT(DISTINCT CASE WHEN e.page_action = 'click.search.yogithe' THEN e.gauser_session_id END) as search_click,
-    COUNT(DISTINCT CASE WHEN o.gauser_session_id IS NOT NULL THEN e.gauser_session_id END) as order_cnt
-  FROM yogithe_events e
-  LEFT JOIN session_orders o ON e.gauser_session_id = o.gauser_session_id
+  `SELECT DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+    COUNTIF(page_action = 'page_show') as page_enter,
+    COUNTIF(page_action = 'click.list.vendor') as vendor_click,
+    COUNTIF(page_action = 'click.navi.category') as category_click,
+    COUNTIF(page_action = 'click.navi.filter') as filter_click,
+    COUNTIF(page_action = 'click.search.yogithe') as search_click
+  FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+  WHERE event_date > '${afterDate}'
+    AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
+    AND page_id IN ('/yogithe_home', '/yogithe_home/search')
+  GROUP BY 1 ORDER BY 1`;
+
+// 요기더적립 주문수 — lst_order_property_etc 기반
+const CPS_YOGITHE_ORDER_SQL = (afterDate) =>
+  `SELECT DATE_ADD(DATE_TRUNC(o.order_dt, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+    COUNT(*) as order_cnt
+  FROM \`ygy-datawarehouse.edw.lst_order_property_etc\` p
+  JOIN \`ygy-datawarehouse.edw.lst_order\` o ON p.order_no = o.order_no
+  WHERE p.yogithe_promotion_inflow_order_yn = TRUE
+    AND o.order_dt > '${afterDate}'
+    AND o.order_dt < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
   GROUP BY 1 ORDER BY 1`;
 
 const CPS_CACHE_KEY = "ypx_cps_cache_v1";
@@ -1748,12 +1743,9 @@ export default function YPXDashboard({ onClose }) {
     setCpsRefreshStatus("loading");
     try {
       const afterDate = "2025-09-01";
-      const [cvrResult, funnelResult] = await Promise.all([
-        queryBigQuery(CPS_CVR_SQL(afterDate)),
-        queryBigQuery(CPS_FUNNEL_SQL(afterDate)),
-      ]);
+      // CVR 비교 먼저 (가장 중요)
+      const cvrResult = await queryBigQuery(CPS_CVR_SQL(afterDate));
       if (cvrResult.rows?.length) {
-        // pivot: {date, gen_cvr, gen_clicks, yogi_cvr, yogi_clicks}
         const map = {};
         for (const r of cvrResult.rows) {
           if (!map[r.date]) map[r.date] = { date: r.date };
@@ -1765,15 +1757,31 @@ export default function YPXDashboard({ onClose }) {
         setCpsData(data);
         setCpsLoaded(true);
       }
-      if (funnelResult.rows?.length) {
-        const data = funnelResult.rows.map(r => ({
-          date: r.date, page_enter: +r.page_enter, vendor_click: +r.vendor_click,
-          category_click: +r.category_click, filter_click: +r.filter_click,
-          search_click: +r.search_click, order_cnt: +r.order_cnt,
-        }));
-        saveCache(CPS_FUNNEL_CACHE_KEY, data);
-        setCpsFunnelData(data);
-      }
+      // 퍼널 + 요기더적립 주문 (병렬)
+      try {
+        const [funnelResult, orderResult] = await Promise.all([
+          queryBigQuery(CPS_FUNNEL_SQL(afterDate)),
+          queryBigQuery(CPS_YOGITHE_ORDER_SQL(afterDate)),
+        ]);
+        const funnelMap = {};
+        if (funnelResult.rows?.length) {
+          for (const r of funnelResult.rows) {
+            funnelMap[r.date] = {
+              date: r.date, page_enter: +r.page_enter, vendor_click: +r.vendor_click,
+              category_click: +r.category_click, filter_click: +r.filter_click,
+              search_click: +r.search_click, order_cnt: 0,
+            };
+          }
+        }
+        if (orderResult.rows?.length) {
+          for (const r of orderResult.rows) {
+            if (funnelMap[r.date]) funnelMap[r.date].order_cnt = +r.order_cnt;
+            else funnelMap[r.date] = { date: r.date, page_enter: 0, vendor_click: 0, category_click: 0, filter_click: 0, search_click: 0, order_cnt: +r.order_cnt };
+          }
+        }
+        const funnelData = Object.values(funnelMap).sort((a, b) => a.date.localeCompare(b.date));
+        if (funnelData.length) { saveCache(CPS_FUNNEL_CACHE_KEY, funnelData); setCpsFunnelData(funnelData); }
+      } catch (e) { console.warn("funnel query failed:", e.message); }
       setCpsRefreshStatus("+OK");
     } catch (e) { console.error(e); setCpsRefreshStatus("error"); }
     setTimeout(() => setCpsRefreshStatus("idle"), 3000);
