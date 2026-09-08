@@ -528,8 +528,6 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
   const filteredData = filterByRange(chartData, range);
   const filteredOrd = filteredData.filter(r => r.ord_naver != null);
   const last = filteredOrd[filteredOrd.length - 1];
-  const prevLabel = { "1w": "1주전", "1m": "1달전", "6m": "6개월전", "1y": "1년전" }[range];
-  const prev4 = filteredOrd[0]; // 기간 시작점과 비교
 
   const ordQtyData = filteredData.map(r => {
     const row = { date: dateLabel(r.date) };
@@ -556,13 +554,18 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
     { label: "논멤버십", ordKey: "ord_nonmem",  aovKey: "aov_nonmem",  color: "#9b59b6" },
   ];
 
-  const totalOrd = last ? TYPES.reduce((s, t) => s + (last[t.ordKey] || 0), 0) : 0;
-  const totalOrdPrev = prev4 ? TYPES.reduce((s, t) => s + (prev4[t.ordKey] || 0), 0) : 0;
-
-  const kpis = last ? [
-    { label: "전체 주문", val: totalOrd, prev: totalOrdPrev, color: "#1a2742" },
-    ...TYPES.map(t => ({ label: t.label, val: last[t.ordKey] || 0, prev: prev4?.[t.ordKey] || 0, color: t.color })),
-  ] : [];
+  // 기간 합산 KPI
+  const sumByKey = (key) => filteredOrd.reduce((s, r) => s + (r[key] || 0), 0);
+  const totalOrd = TYPES.reduce((s, t) => s + sumByKey(t.ordKey), 0);
+  // 일평균
+  const days = filteredOrd.length || 1;
+  const kpis = [
+    { label: "기간 총 주문", val: totalOrd, sub: "일평균 " + toMan(totalOrd / days).toLocaleString("ko-KR") + "만건", color: "#1a2742" },
+    ...TYPES.map(t => {
+      const sum = sumByKey(t.ordKey);
+      return { label: t.label, val: sum, sub: "일평균 " + toMan(sum / days).toLocaleString("ko-KR") + "만건", color: t.color };
+    }),
+  ];
 
   const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
 
@@ -591,7 +594,7 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
           <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val).toLocaleString("ko-KR")}만건</div>
-            <div style={{ marginTop: 2 }}>{deltaOrd(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>{prevLabel}</span></div>
+            <div style={{ marginTop: 2, fontSize: 10, color: "#aaa" }}>{k.sub}</div>
           </div>
         ))}
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
