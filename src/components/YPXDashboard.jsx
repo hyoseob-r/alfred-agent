@@ -5,7 +5,7 @@ import { queryBigQuery } from "../api/proxy";
 // ─── 캐시 ─────────────────────────────────────────────────────────────────────
 const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v4";
-const REGION_CACHE_KEY = "ypx_region_cache_v1";
+const REGION_CACHE_KEY = "ypx_region_cache_v2";
 const AGE_CACHE_KEY = "ypx_age_cache_v2";
 const SEARCH_CACHE_KEY = "ypx_search_cache_v6";
 
@@ -23,13 +23,22 @@ const AGE_GROUPS = [
   {id:'60', label:'60대', color:'#1abc9c'},
 ];
 
-const REGION_SQL = (afterDate) =>
+// 지역 구독자 (주간 — 원본이 주간)
+const REGION_SUB_SQL = (afterDate) =>
   `SELECT week_last_date as date, sido_nm,
     SUM(ypx_revise_subscriber_cnt + ypxn_revise_subscriber_cnt + ypxt_revise_subscriber_cnt) as ypx_sub,
-    SUM(revise_subscriber_cnt) as total_sub,
-    SUM(ypx_order_cnt) as ord
+    SUM(revise_subscriber_cnt) as total_sub
   FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\`
   WHERE week_last_date > '${afterDate}'
+  GROUP BY 1, 2 ORDER BY 1`;
+
+// 지역 주문 (일별)
+const REGION_ORD_SQL = (afterDate) =>
+  `SELECT base_date as date, sido_nm,
+    SUM(success_order_cnt) as ord
+  FROM \`ygy-datawarehouse.report.yogiyo_hourly_region_order\`
+  WHERE base_date > '${afterDate}'
+    AND base_date < CURRENT_DATE()
   GROUP BY 1, 2 ORDER BY 1`;
 
 const AGE_SQL = (afterDate) =>
@@ -1783,18 +1792,24 @@ export default function YPXDashboard({ onClose }) {
     try {
       const cached = loadCache(REGION_CACHE_KEY);
       const after = cached.length ? cached[cached.length - 1].date : "2025-09-01";
-      const result = await queryBigQuery(REGION_SQL(after));
-      if (result.rows?.length) {
-        const pivoted = pivotRegion(result.rows);
+      // 구독자(주간) + 주문(일별) 병렬 조회
+      const [subResult, ordResult] = await Promise.all([
+        queryBigQuery(REGION_SUB_SQL(after)),
+        queryBigQuery(REGION_ORD_SQL(after)),
+      ]);
+      // 주문 일별 데이터를 pivotRegion으로 변환
+      const allRows = [...(subResult.rows || []).map(r => ({ ...r, ord: null })), ...(ordResult.rows || []).map(r => ({ ...r, ypx_sub: null, total_sub: null }))];
+      if (allRows.length) {
+        const pivoted = pivotRegion(allRows);
         const merged = mergeData(cached, pivoted);
         saveCache(REGION_CACHE_KEY, merged);
         setRegionData(merged);
         setRegionLoaded(true);
-        setRegionRefreshStatus("+" + pivoted.length + "주");
+        setRegionRefreshStatus("+" + pivoted.length + "일");
       } else {
         setRegionRefreshStatus("최신");
       }
-    } catch { setRegionRefreshStatus("error"); }
+    } catch (e) { console.error(e); setRegionRefreshStatus("error"); }
     setTimeout(() => setRegionRefreshStatus("idle"), 3000);
   }, []);
 
