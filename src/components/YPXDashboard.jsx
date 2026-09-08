@@ -125,23 +125,38 @@ const CPS_CVR_SQL = (afterDate) =>
   LEFT JOIN orders o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
   GROUP BY 1, 2 ORDER BY 1, 2`;
 
-// 요기더적립 관 퍼널 SQL — 일별 진입→가게클릭→주문
+// 요기더적립 관 퍼널 SQL — 주간 진입→가게클릭→주문 (세션 기준)
 const CPS_FUNNEL_SQL = (afterDate) =>
-  `SELECT DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
-    COUNTIF(page_action = 'page_show') as page_enter,
-    COUNTIF(page_action = 'click.list.vendor') as vendor_click,
-    COUNTIF(page_action = 'click.navi.category') as category_click,
-    COUNTIF(page_action = 'click.navi.filter') as filter_click,
-    COUNTIF(page_action = 'click.search.yogithe') as search_click,
-    COUNTIF(order_no IS NOT NULL AND order_no != '') as order_cnt
-  FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
-  WHERE event_date > '${afterDate}'
-    AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
-    AND page_id = '/yogithe_home'
+  `WITH yogithe_events AS (
+    SELECT event_date, gauser_session_id, page_action, page_id, order_no
+    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+    WHERE event_date > '${afterDate}'
+      AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
+      AND page_id IN ('/yogithe_home', '/yogithe_home/search')
+  ), yogithe_sessions AS (
+    SELECT DISTINCT event_date, gauser_session_id
+    FROM yogithe_events WHERE page_action = 'page_show'
+  ), session_orders AS (
+    SELECT DISTINCT gauser_session_id
+    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+    WHERE event_date > '${afterDate}'
+      AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
+      AND order_no IS NOT NULL AND order_no != ''
+      AND gauser_session_id IN (SELECT gauser_session_id FROM yogithe_sessions)
+  )
+  SELECT DATE_ADD(DATE_TRUNC(e.event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+    COUNT(DISTINCT CASE WHEN e.page_action = 'page_show' THEN e.gauser_session_id END) as page_enter,
+    COUNT(DISTINCT CASE WHEN e.page_action = 'click.list.vendor' THEN e.gauser_session_id END) as vendor_click,
+    COUNT(DISTINCT CASE WHEN e.page_action = 'click.navi.category' THEN e.gauser_session_id END) as category_click,
+    COUNT(DISTINCT CASE WHEN e.page_action = 'click.navi.filter' THEN e.gauser_session_id END) as filter_click,
+    COUNT(DISTINCT CASE WHEN e.page_action = 'click.search.yogithe' THEN e.gauser_session_id END) as search_click,
+    COUNT(DISTINCT CASE WHEN o.gauser_session_id IS NOT NULL THEN e.gauser_session_id END) as order_cnt
+  FROM yogithe_events e
+  LEFT JOIN session_orders o ON e.gauser_session_id = o.gauser_session_id
   GROUP BY 1 ORDER BY 1`;
 
 const CPS_CACHE_KEY = "ypx_cps_cache_v1";
-const CPS_FUNNEL_CACHE_KEY = "ypx_cps_funnel_cache_v1";
+const CPS_FUNNEL_CACHE_KEY = "ypx_cps_funnel_cache_v2";
 
 const INITIAL_DATA = [{"date":"2025-09-07","classic":23634,"naver":712814,"toss":623287,"direct_ypx":218962},{"date":"2025-09-14","classic":23294,"naver":714251,"toss":624943,"direct_ypx":220248},{"date":"2025-09-21","classic":22959,"naver":715506,"toss":627020,"direct_ypx":220223},{"date":"2025-09-28","classic":22630,"naver":719956,"toss":632051,"direct_ypx":216266},{"date":"2025-10-05","classic":22284,"naver":724122,"toss":636506,"direct_ypx":212836},{"date":"2025-10-12","classic":21973,"naver":733048,"toss":640784,"direct_ypx":209223},{"date":"2025-10-19","classic":21660,"naver":735838,"toss":642952,"direct_ypx":204497},{"date":"2025-10-26","classic":21340,"naver":737238,"toss":643360,"direct_ypx":201110},{"date":"2025-11-02","classic":20985,"naver":747497,"toss":646358,"direct_ypx":201698},{"date":"2025-11-09","classic":20568,"naver":757558,"toss":646379,"direct_ypx":199659},{"date":"2025-11-16","classic":20229,"naver":770270,"toss":646475,"direct_ypx":198381},{"date":"2025-11-23","classic":19931,"naver":774719,"toss":647412,"direct_ypx":199911},{"date":"2025-11-30","classic":19680,"naver":776463,"toss":647784,"direct_ypx":201315},{"date":"2025-12-07","classic":19279,"naver":780039,"toss":648176,"direct_ypx":199175},{"date":"2025-12-14","classic":19007,"naver":791676,"toss":648492,"direct_ypx":203038},{"date":"2025-12-21","classic":18738,"naver":815202,"toss":647780,"direct_ypx":203460},{"date":"2025-12-28","classic":18486,"naver":836587,"toss":648151,"direct_ypx":203876},{"date":"2026-01-04","classic":18226,"naver":851352,"toss":648495,"direct_ypx":204590},{"date":"2026-01-11","classic":18006,"naver":866774,"toss":648939,"direct_ypx":205115},{"date":"2026-01-18","classic":17793,"naver":887554,"toss":649238,"direct_ypx":204200},{"date":"2026-01-25","classic":17612,"naver":902592,"toss":649559,"direct_ypx":206690},{"date":"2026-02-01","classic":17457,"naver":912592,"toss":650036,"direct_ypx":208602},{"date":"2026-02-08","classic":17235,"naver":919061,"toss":650287,"direct_ypx":208732},{"date":"2026-02-15","classic":17000,"naver":915042,"toss":650675,"direct_ypx":209871},{"date":"2026-02-22","classic":16847,"naver":915224,"toss":651058,"direct_ypx":210932},{"date":"2026-03-01","classic":16607,"naver":921116,"toss":651520,"direct_ypx":214398},{"date":"2026-03-08","classic":16413,"naver":928254,"toss":652019,"direct_ypx":220614},{"date":"2026-03-15","classic":16229,"naver":931924,"toss":652301,"direct_ypx":222761},{"date":"2026-03-22","classic":16055,"naver":936882,"toss":652582,"direct_ypx":223868},{"date":"2026-03-29","classic":15895,"naver":957460,"toss":652769,"direct_ypx":221503},{"date":"2026-04-05","classic":15668,"naver":970964,"toss":653012,"direct_ypx":218669},{"date":"2026-04-12","classic":15487,"naver":974096,"toss":653455,"direct_ypx":220846},{"date":"2026-04-19","classic":15309,"naver":975609,"toss":653885,"direct_ypx":222073},{"date":"2026-04-26","classic":15155,"naver":982393,"toss":654175,"direct_ypx":216956},{"date":"2026-05-03","classic":14975,"naver":987700,"toss":654516,"direct_ypx":213161},{"date":"2026-05-10","classic":14795,"naver":988791,"toss":654892,"direct_ypx":213440},{"date":"2026-05-17","classic":14653,"naver":990011,"toss":655103,"direct_ypx":212563},{"date":"2026-05-24","classic":14514,"naver":990061,"toss":655268,"direct_ypx":209583},{"date":"2026-05-31","classic":14422,"naver":990286,"toss":655472,"direct_ypx":212470},{"date":"2026-06-07","classic":14162,"naver":990395,"toss":655570,"direct_ypx":214984},{"date":"2026-06-14","classic":14003,"naver":993261,"toss":655667,"direct_ypx":222066},{"date":"2026-06-21","classic":13850,"naver":996941,"toss":655833,"direct_ypx":225524},{"date":"2026-06-28","classic":13696,"naver":998161,"toss":655964,"direct_ypx":232215},{"date":"2026-07-05","classic":13498,"naver":999974,"toss":656099,"direct_ypx":237654},{"date":"2026-07-12","classic":13344,"naver":1001179,"toss":656201,"direct_ypx":238924},{"date":"2026-07-19","classic":13188,"naver":1001550,"toss":656287,"direct_ypx":240909},{"date":"2026-07-26","classic":13008,"naver":1001962,"toss":656355,"direct_ypx":247044},{"date":"2026-08-02","classic":12871,"naver":1001636,"toss":655961,"direct_ypx":269777},{"date":"2026-08-09","classic":12692,"naver":1003506,"toss":656165,"direct_ypx":273548},{"date":"2026-08-16","classic":12571,"naver":1003719,"toss":656346,"direct_ypx":273126},{"date":"2026-08-23","classic":12448,"naver":1004277,"toss":656492,"direct_ypx":275539},{"date":"2026-08-30","classic":12330,"naver":1004522,"toss":656629,"direct_ypx":280490}];
 
@@ -1792,7 +1807,7 @@ export default function YPXDashboard({ onClose }) {
           })}
         </div>
 
-        {/* 글로벌 기간 선택 */}
+        {/* 글로벌 기간 선택 + 전체 갱신 */}
         <div style={{ background: "#f4f6fb", padding: "10px 16px 0", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
           {RANGES.map(r => {
             const on = globalRange === r.id;
@@ -1803,6 +1818,10 @@ export default function YPXDashboard({ onClose }) {
               </button>
             );
           })}
+          <button onClick={() => { refresh(); refreshRegion(); refreshAge(); refreshSearch(); refreshCps(); }}
+            style={{ marginLeft: "auto", padding: "5px 13px", borderRadius: 20, border: "1.5px solid #e74c3c", background: "white", color: "#e74c3c", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+            전체 갱신
+          </button>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
