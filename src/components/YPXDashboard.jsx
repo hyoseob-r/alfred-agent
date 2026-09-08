@@ -5,7 +5,7 @@ import { queryBigQuery } from "../api/proxy";
 // ─── 캐시 ─────────────────────────────────────────────────────────────────────
 const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v4";
-const REGION_CACHE_KEY = "ypx_region_cache_v2";
+const REGION_CACHE_KEY = "ypx_region_cache_v3";
 const AGE_CACHE_KEY = "ypx_age_cache_v2";
 const SEARCH_CACHE_KEY = "ypx_search_cache_v6";
 
@@ -23,22 +23,13 @@ const AGE_GROUPS = [
   {id:'60', label:'60대', color:'#1abc9c'},
 ];
 
-// 지역 구독자 (주간 — 원본이 주간)
-const REGION_SUB_SQL = (afterDate) =>
+const REGION_SQL = (afterDate) =>
   `SELECT week_last_date as date, sido_nm,
     SUM(ypx_revise_subscriber_cnt + ypxn_revise_subscriber_cnt + ypxt_revise_subscriber_cnt) as ypx_sub,
-    SUM(revise_subscriber_cnt) as total_sub
+    SUM(revise_subscriber_cnt) as total_sub,
+    SUM(ypx_order_cnt) as ord
   FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\`
   WHERE week_last_date > '${afterDate}'
-  GROUP BY 1, 2 ORDER BY 1`;
-
-// 지역 주문 (일별)
-const REGION_ORD_SQL = (afterDate) =>
-  `SELECT base_date as date, sido_nm,
-    SUM(success_order_cnt) as ord
-  FROM \`ygy-datawarehouse.report.yogiyo_hourly_region_order\`
-  WHERE base_date > '${afterDate}'
-    AND base_date < CURRENT_DATE()
   GROUP BY 1, 2 ORDER BY 1`;
 
 const AGE_SQL = (afterDate) =>
@@ -756,23 +747,21 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
   }
 
   const filteredData = filterByRange(regionData, range);
-  // 구독자: 주간 데이터만 있는 행에서 마지막/처음 찾기
-  const subRows = filteredData.filter(r => r['reg_sub_' + TOP_SIDO[0]] != null);
-  const lastSub = subRows[subRows.length - 1];
-  const prevSub = subRows[0];
+  const last = filteredData[filteredData.length - 1];
+  const prev4 = filteredData[0];
   const prevLabel = "기간시작";
 
   // KPI: 전체 YPX 구독자(top6 합산) + top 3 시도
-  const totalYpxSub = lastSub ? TOP_SIDO.reduce((s, sido) => s + (lastSub['reg_sub_' + sido] || 0), 0) : 0;
-  const totalYpxSubPrev = prevSub ? TOP_SIDO.reduce((s, sido) => s + (prevSub['reg_sub_' + sido] || 0), 0) : 0;
+  const totalYpxSub = last ? TOP_SIDO.reduce((s, sido) => s + (last['reg_sub_' + sido] || 0), 0) : 0;
+  const totalYpxSubPrev = prev4 ? TOP_SIDO.reduce((s, sido) => s + (prev4['reg_sub_' + sido] || 0), 0) : 0;
   const top3 = TOP_SIDO.slice(0, 3);
 
-  const kpis = lastSub ? [
+  const kpis = last ? [
     { label: "전체 YPX 구독", val: totalYpxSub, prev: totalYpxSubPrev, color: "#1a2742", sido: null },
     ...top3.map(sido => ({
       label: sido.replace('특별시','').replace('광역시','').replace('도',''),
-      val: lastSub['reg_sub_' + sido] || 0,
-      prev: prevSub ? (prevSub['reg_sub_' + sido] || 0) : null,
+      val: last['reg_sub_' + sido] || 0,
+      prev: prev4 ? (prev4['reg_sub_' + sido] || 0) : null,
       color: SIDO_COLORS[sido],
       sido,
     })),
@@ -814,7 +803,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
           const isOpen = drillSido === k.sido;
           return (
             <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", cursor: isDrillable ? "pointer" : "default", border: isOpen ? "1.5px solid " + k.color : "1.5px solid transparent", transition: "border 0.15s" }}
-              onClick={() => isDrillable && loadDrill(k.sido, filteredData[0]?.date, filteredData[filteredData.length-1]?.date)}>
+              onClick={() => isDrillable && loadDrill(k.sido, filteredData[0]?.date, last?.date)}>
               <div style={{ fontSize: 10, color: "#999", marginBottom: 3, display: "flex", justifyContent: "space-between" }}>
                 <span>{k.label}</span>
                 {isDrillable && <span style={{ color: isOpen ? k.color : "#ccc" }}>시군구 {isOpen ? "▲" : "▼"}</span>}
@@ -834,7 +823,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
       {drillSido && (
         <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: SIDO_COLORS[drillSido] || "#444", marginBottom: 10 }}>
-            📍 {drillSido} 시군구 상세 ({filteredData[0]?.date} ~ {filteredData[filteredData.length-1]?.date} · 주문 합산)
+            📍 {drillSido} 시군구 상세 ({filteredData[0]?.date} ~ {last?.date} · 주문 합산)
           </div>
           {drillLoading ? (
             <div style={{ color: "#aaa", fontSize: 12, padding: "20px 0", textAlign: "center" }}>⏳ 조회 중...</div>
@@ -875,8 +864,8 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
           yFormatter={v => v + "만"}
           tooltipFormatter={(v, id) => { const sido = id.replace('reg_ord_',''); return [v + "만건", sido]; }} />
       )}
-      {regionData.length > 0 && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
-        기준: {lastSub?.date || filteredData[filteredData.length-1]?.date} · 캐시 {regionData.length}일
+      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+        기준: {last.date} · 캐시 {regionData.length}주
       </div>}
     </>
   );
@@ -1797,20 +1786,14 @@ export default function YPXDashboard({ onClose }) {
     try {
       const cached = loadCache(REGION_CACHE_KEY);
       const after = cached.length ? cached[cached.length - 1].date : "2025-09-01";
-      // 구독자(주간) + 주문(일별) 병렬 조회
-      const [subResult, ordResult] = await Promise.all([
-        queryBigQuery(REGION_SUB_SQL(after)),
-        queryBigQuery(REGION_ORD_SQL(after)),
-      ]);
-      // 주문 일별 데이터를 pivotRegion으로 변환
-      const allRows = [...(subResult.rows || []).map(r => ({ ...r, ord: null })), ...(ordResult.rows || []).map(r => ({ ...r, ypx_sub: null, total_sub: null }))];
-      if (allRows.length) {
-        const pivoted = pivotRegion(allRows);
+      const result = await queryBigQuery(REGION_SQL(after));
+      if (result.rows?.length) {
+        const pivoted = pivotRegion(result.rows);
         const merged = mergeData(cached, pivoted);
         saveCache(REGION_CACHE_KEY, merged);
         setRegionData(merged);
         setRegionLoaded(true);
-        setRegionRefreshStatus("+" + pivoted.length + "일");
+        setRegionRefreshStatus("+" + pivoted.length + "주");
       } else {
         setRegionRefreshStatus("최신");
       }
