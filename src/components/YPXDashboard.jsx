@@ -7,7 +7,7 @@ const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v3";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
 const AGE_CACHE_KEY = "ypx_age_cache_v1";
-const SEARCH_CACHE_KEY = "ypx_search_cache_v4";
+const SEARCH_CACHE_KEY = "ypx_search_cache_v5";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
@@ -1077,7 +1077,7 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
           }
         }
         setSearchData(newData);
-        setSearchKeywords(prev => [...prev, normalized]);
+        setSearchKeywords(prev => prev.includes(normalized) ? prev : [...prev, normalized]);
         setVisibleKw(prev => { const n = new Set(prev); n.add(normalized); return n; });
         saveCache(SEARCH_CACHE_KEY, newData);
       }
@@ -1773,7 +1773,7 @@ export default function YPXDashboard({ onClose }) {
         const merged = cached.length ? mergeData(cached, freshData) : freshData;
         // 기존 캐시에 없는 키워드 컬럼 보완
         const allKws = [...new Set([
-          ...Object.keys(merged[0] || {}).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search','')),
+          ...Object.keys(merged[0] || {}).filter(k => k.startsWith('kw_') && k.endsWith('_search')).map(k => k.replace('kw_','').replace('_search','').normalize('NFC')),
           ...freshKws,
         ])];
         saveCache(SEARCH_CACHE_KEY, merged);
