@@ -875,7 +875,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
           yFormatter={v => v + "만"}
           tooltipFormatter={(v, id) => { const sido = id.replace('reg_ord_',''); return [v + "만건", sido]; }} />
       )}
-      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+      {regionData.length > 0 && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
         기준: {lastSub?.date || filteredData[filteredData.length-1]?.date} · 캐시 {regionData.length}일
       </div>}
     </>
