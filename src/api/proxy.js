@@ -197,7 +197,7 @@ export async function queryBigQuery(sql, dryRun = false) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sql, dryRun }),
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(180000),
   });
   if (resp.status === 401) {
     triggerGcloudAuth();

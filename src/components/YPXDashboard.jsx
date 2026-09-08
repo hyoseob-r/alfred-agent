@@ -1742,8 +1742,8 @@ export default function YPXDashboard({ onClose }) {
   const refreshCps = useCallback(async () => {
     setCpsRefreshStatus("loading");
     try {
-      const afterDate = "2025-09-01";
-      // CVR 비교 먼저 (가장 중요)
+      const afterDate = "2026-03-01";
+      // CVR 비교 먼저 (가장 중요) — edw.lst_ilog_event가 무거워서 6개월로 제한
       const cvrResult = await queryBigQuery(CPS_CVR_SQL(afterDate));
       if (cvrResult.rows?.length) {
         const map = {};
