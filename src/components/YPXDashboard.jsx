@@ -6,7 +6,7 @@ import { queryBigQuery } from "../api/proxy";
 const CACHE_KEY = "ypx_dashboard_cache_v2";
 const ORDER_CACHE_KEY = "ypx_order_cache_v4";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
-const AGE_CACHE_KEY = "ypx_age_cache_v1";
+const AGE_CACHE_KEY = "ypx_age_cache_v2";
 const SEARCH_CACHE_KEY = "ypx_search_cache_v6";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
@@ -33,13 +33,13 @@ const REGION_SQL = (afterDate) =>
   GROUP BY 1, 2 ORDER BY 1`;
 
 const AGE_SQL = (afterDate) =>
-  `SELECT DATE_ADD(DATE_TRUNC(order_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+  `SELECT order_date as date,
     order_age_group_cd as age,
     SUM(\`ORDER\`.success_order_cnt) as ord,
     SAFE_DIVIDE(SUM(gmv_amt), SUM(\`ORDER\`.success_order_cnt)) as aov
   FROM \`ygy-datawarehouse.mart.fact_daily_order_customer\`
   WHERE order_date > '${afterDate}'
-    AND order_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
+    AND order_date < CURRENT_DATE()
     AND order_age_group_cd IN ('10','20','30','40','50','60')
   GROUP BY 1, 2 ORDER BY 1, 2`;
 
