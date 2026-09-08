@@ -397,7 +397,7 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
   function delta(cur, prv) {
     if (!prv) return null;
     const d = cur - prv;
-    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
+    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d)).toLocaleString("ko-KR")}만</span>;
   }
 
   const kpis = last ? [
@@ -433,7 +433,7 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
         {kpis.map(k => (
           <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val).toLocaleString("ko-KR")}만</div>
             <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>{prevLabel}</span></div>
           </div>
         ))}
@@ -542,7 +542,7 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
   function deltaOrd(cur, prv) {
     if (!prv) return null;
     const d = cur - prv;
-    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
+    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d)).toLocaleString("ko-KR")}만</span>;
   }
 
   const TYPES = [
@@ -587,7 +587,7 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
         {kpis.map(k => (
           <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만건</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val).toLocaleString("ko-KR")}만건</div>
             <div style={{ marginTop: 2 }}>{deltaOrd(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>{prevLabel}</span></div>
           </div>
         ))}
@@ -781,7 +781,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
   function delta(cur, prv) {
     if (!prv) return null;
     const d = cur - prv;
-    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
+    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d)).toLocaleString("ko-KR")}만</span>;
   }
 
   return (
@@ -801,7 +801,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
                 <span>{k.label}</span>
                 {isDrillable && <span style={{ color: isOpen ? k.color : "#ccc" }}>시군구 {isOpen ? "▲" : "▼"}</span>}
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val)}만</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val).toLocaleString("ko-KR")}만</div>
               <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>{prevLabel}</span></div>
             </div>
           );
@@ -836,8 +836,8 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
                       <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 12, overflow: "hidden" }}>
                         <div style={{ width: pct + "%", height: "100%", background: color + "aa", borderRadius: 4, transition: "width 0.3s" }} />
                       </div>
-                      <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{toMan(+r.ypx_sub)}만명</div>
-                      <div style={{ width: 54, fontSize: 10, color: "#aaa", textAlign: "right", flexShrink: 0 }}>{toMan(+r.ord)}만건</div>
+                      <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{toMan(+r.ypx_sub).toLocaleString("ko-KR")}만명</div>
+                      <div style={{ width: 54, fontSize: 10, color: "#aaa", textAlign: "right", flexShrink: 0 }}>{toMan(+r.ord).toLocaleString("ko-KR")}만건</div>
                     </div>
                   );
                 });
@@ -957,7 +957,7 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
   function delta(cur, prv) {
     if (!prv) return null;
     const d = cur - prv;
-    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d))}만</span>;
+    return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d)).toLocaleString("ko-KR")}만</span>;
   }
 
   return (
@@ -970,7 +970,7 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
         {ageByOrd.map(ag => (
           <div key={ag.id} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{ag.label} 주문</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: ag.color }}>{toMan(ag.val)}만건</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: ag.color }}>{toMan(ag.val).toLocaleString("ko-KR")}만건</div>
             <div style={{ marginTop: 2 }}>{delta(ag.val, ag.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>4주전</span></div>
           </div>
         ))}
@@ -1243,8 +1243,8 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
                         <div style={{ width: cvrPct + "%", height: "100%", background: r.cvr >= 10 ? "#22aa55" : r.cvr >= 7 ? "#f39c12" : "#e74c3c", borderRadius: 3, transition: "width 0.3s" }} />
                       </div>
                     </div>
-                    <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(r.search / 10000).toFixed(1)}만</div>
-                    <div style={{ width: 44, fontSize: 10, color: "#22aa55", textAlign: "right", flexShrink: 0 }}>{(r.order / 10000).toFixed(1)}만</div>
+                    <div style={{ width: 56, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(+(r.search / 10000).toFixed(1)).toLocaleString("ko-KR")}만</div>
+                    <div style={{ width: 44, fontSize: 10, color: "#22aa55", textAlign: "right", flexShrink: 0 }}>{(+(r.order / 10000).toFixed(1)).toLocaleString("ko-KR")}만</div>
                     <div style={{ width: 36, fontSize: 10, color: r.cvr >= 10 ? "#22aa55" : r.cvr >= 7 ? "#f39c12" : "#e74c3c", textAlign: "right", flexShrink: 0, fontWeight: 700 }}>{r.cvr}%</div>
                   </div>
                 </div>
@@ -1311,7 +1311,7 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
             <LineChart data={dualChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(dualChartData.length)} />
-              <YAxis yAxisId="left" tickFormatter={v => (v / 10000).toFixed(0) + "만"} tick={{ fontSize: 9 }} width={44} />
+              <YAxis yAxisId="left" tickFormatter={v => (+((v / 10000).toFixed(0))).toLocaleString("ko-KR") + "만"} tick={{ fontSize: 9 }} width={44} />
               <YAxis yAxisId="right" orientation="right" tickFormatter={v => v + "%"} tick={{ fontSize: 9 }} width={36} />
               <Tooltip formatter={(v, id) => {
                 const kw = id.replace(/^kw_/, '').replace(/_search$|_cvr$/, '');
@@ -1474,8 +1474,11 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(cvrChartData.length)} />
             <YAxis yAxisId="left" tickFormatter={v => v + "%"} tick={{ fontSize: 9 }} width={40} />
-            <YAxis yAxisId="right" orientation="right" tickFormatter={v => (v / 10000).toFixed(0) + "만"} tick={{ fontSize: 9 }} width={40} />
-            <Tooltip />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={v => (+((v / 10000).toFixed(0))).toLocaleString("ko-KR") + "만"} tick={{ fontSize: 9 }} width={40} />
+            <Tooltip formatter={(v, name) => {
+              const isCvr = name.includes("CVR");
+              return isCvr ? [v + "%", name] : [(+v).toLocaleString("ko-KR") + "건", name];
+            }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
             <Line yAxisId="left" type="monotone" dataKey="gen_cvr" name="일반 CPS CVR" stroke="#3498db" strokeWidth={2.5} dot={false} />
             <Line yAxisId="left" type="monotone" dataKey="yogi_cvr" name="yogithe CVR" stroke="#e74c3c" strokeWidth={2.5} dot={false} />
@@ -1492,7 +1495,7 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
           <LineChart data={funnelChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(funnelChartData.length)} />
-            <YAxis tickFormatter={v => (v / 10000).toFixed(0) + "만"} tick={{ fontSize: 9 }} width={40} />
+            <YAxis tickFormatter={v => (+((v / 10000).toFixed(0))).toLocaleString("ko-KR") + "만"} tick={{ fontSize: 9 }} width={40} />
             <Tooltip formatter={(v) => [(+v).toLocaleString("ko-KR") + "건"]} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
             <Line type="monotone" dataKey="enter" name="페이지 진입" stroke="#3498db" strokeWidth={2} dot={false} />
@@ -1524,10 +1527,10 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
                 <div style={{ width: 70, fontSize: 11, color: "#555", flexShrink: 0 }}>{s.label}</div>
                 <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 16, overflow: "hidden" }}>
                   <div style={{ width: (s.val / maxVal * 100).toFixed(0) + "%", height: "100%", background: s.color + "cc", borderRadius: 4, transition: "width 0.3s", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4 }}>
-                    {s.val / maxVal > 0.15 && <span style={{ fontSize: 9, color: "#fff", fontWeight: 600 }}>{(s.val / 10000).toFixed(1)}만</span>}
+                    {s.val / maxVal > 0.15 && <span style={{ fontSize: 9, color: "#fff", fontWeight: 600 }}>{(+(s.val / 10000).toFixed(1)).toLocaleString("ko-KR")}만</span>}
                   </div>
                 </div>
-                <div style={{ width: 50, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(s.val / 10000).toFixed(1)}만</div>
+                <div style={{ width: 50, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(+(s.val / 10000).toFixed(1)).toLocaleString("ko-KR")}만</div>
                 <div style={{ width: 36, fontSize: 10, color: "#aaa", textAlign: "right", flexShrink: 0 }}>
                   {i > 0 ? Math.round(s.val / (steps[0].val || 1) * 100) + "%" : "100%"}
                 </div>
