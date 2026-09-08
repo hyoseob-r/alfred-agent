@@ -620,7 +620,7 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
       )}
 
       {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
-        주문 기준: {last.date} · 캐시 {ordRows.length}주
+        주문 기준: {last?.date} · 캐시 {filteredOrd.length}일
       </div>}
     </>
   );
