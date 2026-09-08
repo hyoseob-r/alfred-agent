@@ -1574,7 +1574,7 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
       {/* 최신 주 퍼널 요약 */}
       {lastFunnel && (
         <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 10 }}>요기더적립 관 퍼널 ({last?.date})</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 10 }}>요기더적립 관 퍼널 ({filteredCps[filteredCps.length - 1]?.date})</div>
           {(() => {
             const steps = [
               { label: "페이지 진입", val: lastFunnel.page_enter, color: "#3498db" },
@@ -1603,8 +1603,8 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
         </div>
       )}
 
-      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
-        기준: {last.date} · 캐시 {cpsData.length}주
+      {cpsData.length > 0 && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+        기준: {cpsData[cpsData.length - 1]?.date} · 캐시 {cpsData.length}일
       </div>}
     </>
   );
