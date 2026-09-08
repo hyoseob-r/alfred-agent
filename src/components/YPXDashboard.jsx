@@ -189,6 +189,8 @@ function mergeData(a, b) {
   return Object.values(map).sort((x, y) => x.date.localeCompare(y.date));
 }
 function toMan(n) { return +(n / 10000).toFixed(1); }
+const DOW = ['일','월','화','수','목','금','토'];
+function dateLabel(d) { const dt = new Date(d); return d.slice(5) + '(' + DOW[dt.getDay()] + ')'; }
 
 function pivotRegion(rows) {
   const map = {};
@@ -381,7 +383,7 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
 
   // 각 그룹별 chart data (null 값 그대로 전달 → connectNulls=false로 끊김 표시)
   const qtyData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     activeSeries.forEach(s => { row[s.id] = s.getValue(r); });
     return row;
   });
@@ -389,7 +391,7 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
   // 비중 차트 (sub 그룹만)
   const pctData = subSeries.length >= 2 ? filteredSubData.map(r => {
     const total = r.naver + r.toss + r.direct_ypx + r.classic;
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     subSeries.forEach(s => {
       const raw = s.id === "sub_naver" ? r.naver : s.id === "sub_toss" ? r.toss : s.id === "sub_direct" ? r.direct_ypx : r.classic;
       row[s.id] = +(raw / total * 100).toFixed(1);
@@ -532,12 +534,12 @@ function OrderContent({ chartData, ordChecked, onToggle, orderLoaded, refreshSta
   const filteredData = filterByRange(chartData, range);
 
   const ordQtyData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     ORD_SERIES.forEach(s => { row[s.id] = s.getValue(r); });
     return row;
   });
   const aovData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     AOV_SERIES.forEach(s => { row[s.id] = s.getValue(r); });
     return row;
   });
@@ -771,12 +773,12 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
   }));
 
   const subChartData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     TOP_SIDO.forEach(sido => { row['reg_sub_' + sido] = r['reg_sub_' + sido] != null ? toMan(r['reg_sub_' + sido]) : null; });
     return row;
   });
   const ordChartData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     TOP_SIDO.forEach(sido => { row['reg_ord_' + sido] = r['reg_ord_' + sido] != null ? toMan(r['reg_ord_' + sido]) : null; });
     return row;
   });
@@ -947,12 +949,12 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
   }));
 
   const ordChartData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     AGE_GROUPS.forEach(ag => { row['age_ord_' + ag.id] = r['age_ord_' + ag.id] != null ? toMan(r['age_ord_' + ag.id]) : null; });
     return row;
   });
   const aovChartData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     AGE_GROUPS.forEach(ag => { row['age_aov_' + ag.id] = r['age_aov_' + ag.id] != null ? Math.round(r['age_aov_' + ag.id]) : null; });
     return row;
   });
@@ -1106,7 +1108,7 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
 
   // 듀얼 차트 데이터 (검색량 + 전환율)
   const dualChartData = filteredData.map(r => {
-    const row = { date: r.date.slice(5) };
+    const row = { date: dateLabel(r.date) };
     searchKeywords.forEach(kw => {
       if (visibleKw.has(kw)) {
         row['kw_' + kw + '_search'] = r['kw_' + kw + '_search'] || 0;
@@ -1416,13 +1418,6 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
 
   const filteredCps = filterByRange(cpsData, range);
   const filteredFunnel = filterByRange(funnelData, range);
-
-  // X축 날짜+요일 포맷
-  const DOW = ['일','월','화','수','목','금','토'];
-  function dateLabel(dateStr) {
-    const d = new Date(dateStr);
-    return dateStr.slice(5) + '(' + DOW[d.getDay()] + ')';
-  }
 
   // CVR 차트 데이터
   const cvrChartData = filteredCps.map(r => ({
