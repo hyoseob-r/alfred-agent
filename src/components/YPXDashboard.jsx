@@ -98,6 +98,51 @@ const SEARCH_DRILL_SQL = (keyword, startDate, endDate) =>
   LEFT JOIN \`ygy-datawarehouse.mart.fact_vendor_id\` v ON c.vendor_id = v.vendor_id
   GROUP BY 1 ORDER BY 2 DESC LIMIT 15`;
 
+// CPS SQL — 주간별 yogithe vs 일반 CPS 전환율
+const CPS_CVR_SQL = (afterDate) =>
+  `WITH clicks AS (
+    SELECT event_date,
+      CASE WHEN page_id = '/yogithe_home' THEN 'yogithe' ELSE 'general' END as channel,
+      gauser_session_id, vendor_id
+    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+    WHERE event_date > '${afterDate}'
+      AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
+      AND page_action = 'click.list.vendor'
+      AND vendor_ad_id IS NOT NULL AND vendor_ad_id > 0
+  ), orders AS (
+    SELECT DISTINCT gauser_session_id, vendor_id
+    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+    WHERE event_date > '${afterDate}'
+      AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
+      AND order_no IS NOT NULL AND order_no != ''
+  )
+  SELECT DATE_ADD(DATE_TRUNC(c.event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+    c.channel,
+    COUNT(*) as clicks,
+    COUNTIF(o.vendor_id IS NOT NULL) as orders,
+    ROUND(SAFE_DIVIDE(COUNTIF(o.vendor_id IS NOT NULL), COUNT(*))*100, 2) as cvr
+  FROM clicks c
+  LEFT JOIN orders o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
+  GROUP BY 1, 2 ORDER BY 1, 2`;
+
+// 요기더적립 관 퍼널 SQL — 일별 진입→가게클릭→주문
+const CPS_FUNNEL_SQL = (afterDate) =>
+  `SELECT DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+    COUNTIF(page_action = 'page_show') as page_enter,
+    COUNTIF(page_action = 'click.list.vendor') as vendor_click,
+    COUNTIF(page_action = 'click.navi.category') as category_click,
+    COUNTIF(page_action = 'click.navi.filter') as filter_click,
+    COUNTIF(page_action = 'click.search.yogithe') as search_click,
+    COUNTIF(order_no IS NOT NULL AND order_no != '') as order_cnt
+  FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+  WHERE event_date > '${afterDate}'
+    AND event_date < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
+    AND page_id = '/yogithe_home'
+  GROUP BY 1 ORDER BY 1`;
+
+const CPS_CACHE_KEY = "ypx_cps_cache_v1";
+const CPS_FUNNEL_CACHE_KEY = "ypx_cps_funnel_cache_v1";
+
 const INITIAL_DATA = [{"date":"2025-09-07","classic":23634,"naver":712814,"toss":623287,"direct_ypx":218962},{"date":"2025-09-14","classic":23294,"naver":714251,"toss":624943,"direct_ypx":220248},{"date":"2025-09-21","classic":22959,"naver":715506,"toss":627020,"direct_ypx":220223},{"date":"2025-09-28","classic":22630,"naver":719956,"toss":632051,"direct_ypx":216266},{"date":"2025-10-05","classic":22284,"naver":724122,"toss":636506,"direct_ypx":212836},{"date":"2025-10-12","classic":21973,"naver":733048,"toss":640784,"direct_ypx":209223},{"date":"2025-10-19","classic":21660,"naver":735838,"toss":642952,"direct_ypx":204497},{"date":"2025-10-26","classic":21340,"naver":737238,"toss":643360,"direct_ypx":201110},{"date":"2025-11-02","classic":20985,"naver":747497,"toss":646358,"direct_ypx":201698},{"date":"2025-11-09","classic":20568,"naver":757558,"toss":646379,"direct_ypx":199659},{"date":"2025-11-16","classic":20229,"naver":770270,"toss":646475,"direct_ypx":198381},{"date":"2025-11-23","classic":19931,"naver":774719,"toss":647412,"direct_ypx":199911},{"date":"2025-11-30","classic":19680,"naver":776463,"toss":647784,"direct_ypx":201315},{"date":"2025-12-07","classic":19279,"naver":780039,"toss":648176,"direct_ypx":199175},{"date":"2025-12-14","classic":19007,"naver":791676,"toss":648492,"direct_ypx":203038},{"date":"2025-12-21","classic":18738,"naver":815202,"toss":647780,"direct_ypx":203460},{"date":"2025-12-28","classic":18486,"naver":836587,"toss":648151,"direct_ypx":203876},{"date":"2026-01-04","classic":18226,"naver":851352,"toss":648495,"direct_ypx":204590},{"date":"2026-01-11","classic":18006,"naver":866774,"toss":648939,"direct_ypx":205115},{"date":"2026-01-18","classic":17793,"naver":887554,"toss":649238,"direct_ypx":204200},{"date":"2026-01-25","classic":17612,"naver":902592,"toss":649559,"direct_ypx":206690},{"date":"2026-02-01","classic":17457,"naver":912592,"toss":650036,"direct_ypx":208602},{"date":"2026-02-08","classic":17235,"naver":919061,"toss":650287,"direct_ypx":208732},{"date":"2026-02-15","classic":17000,"naver":915042,"toss":650675,"direct_ypx":209871},{"date":"2026-02-22","classic":16847,"naver":915224,"toss":651058,"direct_ypx":210932},{"date":"2026-03-01","classic":16607,"naver":921116,"toss":651520,"direct_ypx":214398},{"date":"2026-03-08","classic":16413,"naver":928254,"toss":652019,"direct_ypx":220614},{"date":"2026-03-15","classic":16229,"naver":931924,"toss":652301,"direct_ypx":222761},{"date":"2026-03-22","classic":16055,"naver":936882,"toss":652582,"direct_ypx":223868},{"date":"2026-03-29","classic":15895,"naver":957460,"toss":652769,"direct_ypx":221503},{"date":"2026-04-05","classic":15668,"naver":970964,"toss":653012,"direct_ypx":218669},{"date":"2026-04-12","classic":15487,"naver":974096,"toss":653455,"direct_ypx":220846},{"date":"2026-04-19","classic":15309,"naver":975609,"toss":653885,"direct_ypx":222073},{"date":"2026-04-26","classic":15155,"naver":982393,"toss":654175,"direct_ypx":216956},{"date":"2026-05-03","classic":14975,"naver":987700,"toss":654516,"direct_ypx":213161},{"date":"2026-05-10","classic":14795,"naver":988791,"toss":654892,"direct_ypx":213440},{"date":"2026-05-17","classic":14653,"naver":990011,"toss":655103,"direct_ypx":212563},{"date":"2026-05-24","classic":14514,"naver":990061,"toss":655268,"direct_ypx":209583},{"date":"2026-05-31","classic":14422,"naver":990286,"toss":655472,"direct_ypx":212470},{"date":"2026-06-07","classic":14162,"naver":990395,"toss":655570,"direct_ypx":214984},{"date":"2026-06-14","classic":14003,"naver":993261,"toss":655667,"direct_ypx":222066},{"date":"2026-06-21","classic":13850,"naver":996941,"toss":655833,"direct_ypx":225524},{"date":"2026-06-28","classic":13696,"naver":998161,"toss":655964,"direct_ypx":232215},{"date":"2026-07-05","classic":13498,"naver":999974,"toss":656099,"direct_ypx":237654},{"date":"2026-07-12","classic":13344,"naver":1001179,"toss":656201,"direct_ypx":238924},{"date":"2026-07-19","classic":13188,"naver":1001550,"toss":656287,"direct_ypx":240909},{"date":"2026-07-26","classic":13008,"naver":1001962,"toss":656355,"direct_ypx":247044},{"date":"2026-08-02","classic":12871,"naver":1001636,"toss":655961,"direct_ypx":269777},{"date":"2026-08-09","classic":12692,"naver":1003506,"toss":656165,"direct_ypx":273548},{"date":"2026-08-16","classic":12571,"naver":1003719,"toss":656346,"direct_ypx":273126},{"date":"2026-08-23","classic":12448,"naver":1004277,"toss":656492,"direct_ypx":275539},{"date":"2026-08-30","classic":12330,"naver":1004522,"toss":656629,"direct_ypx":280490}];
 
 // 구독자 수 조회 SQL
@@ -232,6 +277,7 @@ const TABS = [
   { id: "region",     label: "지역",        icon: "📍" },
   { id: "age",        label: "연령",        icon: "👥" },
   { id: "search",     label: "검색어",      icon: "🔍" },
+  { id: "cps",        label: "CPS",        icon: "💰" },
 ];
 
 // ─── 차트 선택 컨테이너 ───────────────────────────────────────────────────────
@@ -1335,6 +1381,160 @@ function OtpDisplay() {
   );
 }
 
+// ─── CPS 탭 ─────────────────────────────────────────────────────────────────
+function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, range }) {
+  const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
+
+  if (!cpsLoaded) {
+    return (
+      <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>💰</div>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>CPS 데이터를 먼저 불러오세요</div>
+        <div style={{ fontSize: 11, color: "#bbb", marginBottom: 16 }}>edw.lst_ilog_event 기반 (CPS 클릭→주문 전환)</div>
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {refreshStatus === "loading" ? "⏳ 불러오는 중... (오래 걸림)" : "🔄 데이터 새로고침"}
+        </button>
+      </div>
+    );
+  }
+
+  const filteredCps = filterByRange(cpsData, range);
+  const filteredFunnel = filterByRange(funnelData, range);
+  const last = cpsData[cpsData.length - 1];
+
+  // CVR 차트 데이터
+  const cvrChartData = filteredCps.map(r => ({
+    date: r.date.slice(5),
+    gen_cvr: r.gen_cvr || 0,
+    yogi_cvr: r.yogi_cvr || 0,
+    gen_clicks: r.gen_clicks || 0,
+    yogi_clicks: r.yogi_clicks || 0,
+  }));
+
+  // 퍼널 차트 데이터
+  const funnelChartData = filteredFunnel.map(r => ({
+    date: r.date.slice(5),
+    enter: r.page_enter || 0,
+    vendor_click: r.vendor_click || 0,
+    category: r.category_click || 0,
+    filter: r.filter_click || 0,
+    search: r.search_click || 0,
+    order: r.order_cnt || 0,
+  }));
+
+  // KPI — 최신 주 기준
+  const genCvr = last?.gen_cvr || 0;
+  const yogiCvr = last?.yogi_cvr || 0;
+  const lastFunnel = funnelData[funnelData.length - 1];
+  const enterToClick = lastFunnel ? Math.round(lastFunnel.vendor_click / (lastFunnel.page_enter || 1) * 1000) / 10 : 0;
+  const clickToOrder = lastFunnel ? Math.round(lastFunnel.order_cnt / (lastFunnel.vendor_click || 1) * 1000) / 10 : 0;
+
+  return (
+    <>
+      <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
+        {filteredCps.length}주
+      </div>
+
+      {/* KPI 카드 */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        {[
+          { label: "CPS 일반 CVR", val: genCvr + "%", color: "#3498db" },
+          { label: "CPS yogithe CVR", val: yogiCvr + "%", color: "#e74c3c" },
+          { label: "차이", val: (yogiCvr - genCvr >= 0 ? "+" : "") + (yogiCvr - genCvr).toFixed(1) + "%p", color: yogiCvr >= genCvr ? "#22aa55" : "#cc3333" },
+          { label: "yogithe 진입→클릭", val: enterToClick + "%", color: "#f39c12" },
+          { label: "yogithe 클릭→주문", val: clickToOrder + "%", color: "#9b59b6" },
+        ].map(k => (
+          <div key={k.label} style={{ flex: "1 1 100px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: k.color }}>{k.val}</div>
+          </div>
+        ))}
+        <button onClick={onRefresh} disabled={refreshStatus === "loading"}
+          style={{ alignSelf: "flex-end", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {btnLabel}
+        </button>
+      </div>
+
+      {/* CVR 비교 차트 */}
+      <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>CPS 전환율 비교</div>
+        <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>실선 = 전환율(%) · 점선 = 클릭수</div>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={cvrChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(cvrChartData.length)} />
+            <YAxis yAxisId="left" tickFormatter={v => v + "%"} tick={{ fontSize: 9 }} width={40} />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={v => (v / 10000).toFixed(0) + "만"} tick={{ fontSize: 9 }} width={40} />
+            <Tooltip />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Line yAxisId="left" type="monotone" dataKey="gen_cvr" name="일반 CPS CVR" stroke="#3498db" strokeWidth={2.5} dot={false} />
+            <Line yAxisId="left" type="monotone" dataKey="yogi_cvr" name="yogithe CVR" stroke="#e74c3c" strokeWidth={2.5} dot={false} />
+            <Line yAxisId="right" type="monotone" dataKey="gen_clicks" name="일반 클릭수" stroke="#3498db" strokeWidth={1} strokeDasharray="4 3" dot={false} />
+            <Line yAxisId="right" type="monotone" dataKey="yogi_clicks" name="yogithe 클릭수" stroke="#e74c3c" strokeWidth={1} strokeDasharray="4 3" dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 요기더적립 퍼널 차트 */}
+      <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 12 }}>요기더적립 관 행동 추이</div>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={funnelChartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(funnelChartData.length)} />
+            <YAxis tickFormatter={v => (v / 10000).toFixed(0) + "만"} tick={{ fontSize: 9 }} width={40} />
+            <Tooltip formatter={(v) => [(+v).toLocaleString("ko-KR") + "건"]} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Line type="monotone" dataKey="enter" name="페이지 진입" stroke="#3498db" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="vendor_click" name="가게 클릭" stroke="#e74c3c" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="category" name="카테고리" stroke="#f39c12" strokeWidth={1.5} dot={false} />
+            <Line type="monotone" dataKey="filter" name="필터" stroke="#9b59b6" strokeWidth={1.5} dot={false} />
+            <Line type="monotone" dataKey="search" name="검색" stroke="#2ecc71" strokeWidth={1.5} dot={false} />
+            <Line type="monotone" dataKey="order" name="주문" stroke="#1abc9c" strokeWidth={2.5} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 최신 주 퍼널 요약 */}
+      {lastFunnel && (
+        <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 10 }}>요기더적립 관 퍼널 ({last?.date})</div>
+          {(() => {
+            const steps = [
+              { label: "페이지 진입", val: lastFunnel.page_enter, color: "#3498db" },
+              { label: "가게 클릭", val: lastFunnel.vendor_click, color: "#e74c3c" },
+              { label: "카테고리", val: lastFunnel.category_click, color: "#f39c12" },
+              { label: "필터", val: lastFunnel.filter_click, color: "#9b59b6" },
+              { label: "검색", val: lastFunnel.search_click, color: "#2ecc71" },
+              { label: "주문", val: lastFunnel.order_cnt, color: "#1abc9c" },
+            ];
+            const maxVal = steps[0]?.val || 1;
+            return steps.map((s, i) => (
+              <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <div style={{ width: 70, fontSize: 11, color: "#555", flexShrink: 0 }}>{s.label}</div>
+                <div style={{ flex: 1, background: "#f0f0f0", borderRadius: 4, height: 16, overflow: "hidden" }}>
+                  <div style={{ width: (s.val / maxVal * 100).toFixed(0) + "%", height: "100%", background: s.color + "cc", borderRadius: 4, transition: "width 0.3s", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4 }}>
+                    {s.val / maxVal > 0.15 && <span style={{ fontSize: 9, color: "#fff", fontWeight: 600 }}>{(s.val / 10000).toFixed(1)}만</span>}
+                  </div>
+                </div>
+                <div style={{ width: 50, fontSize: 10, color: "#666", textAlign: "right", flexShrink: 0 }}>{(s.val / 10000).toFixed(1)}만</div>
+                <div style={{ width: 36, fontSize: 10, color: "#aaa", textAlign: "right", flexShrink: 0 }}>
+                  {i > 0 ? Math.round(s.val / (steps[0].val || 1) * 100) + "%" : "100%"}
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      )}
+
+      {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
+        기준: {last.date} · 캐시 {cpsData.length}주
+      </div>}
+    </>
+  );
+}
+
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_classic"]);
 
@@ -1356,6 +1556,10 @@ export default function YPXDashboard({ onClose }) {
   const [regionRefreshStatus, setRegionRefreshStatus] = useState("idle");
   const [ageRefreshStatus, setAgeRefreshStatus] = useState("idle");
   const [searchRefreshStatus, setSearchRefreshStatus] = useState("idle");
+  const [cpsData, setCpsData] = useState([]);
+  const [cpsFunnelData, setCpsFunnelData] = useState([]);
+  const [cpsLoaded, setCpsLoaded] = useState(false);
+  const [cpsRefreshStatus, setCpsRefreshStatus] = useState("idle");
   const [globalRange, setGlobalRange] = useState("1y");
 
   // 구독자 + 주문 데이터 병합 (날짜 키 기준)
@@ -1388,6 +1592,11 @@ export default function YPXDashboard({ onClose }) {
       setSearchKeywords(kws);
       setSearchLoaded(true);
     }
+    // CPS 데이터
+    const cachedCps = loadCache(CPS_CACHE_KEY);
+    const cachedFunnel = loadCache(CPS_FUNNEL_CACHE_KEY);
+    if (cachedCps.length && cachedCps[0]?.date) { setCpsData(cachedCps); setCpsLoaded(true); }
+    if (cachedFunnel.length) setCpsFunnelData(cachedFunnel);
   }, []);
 
   const toggleSeries = useCallback((id) => {
@@ -1520,6 +1729,41 @@ export default function YPXDashboard({ onClose }) {
     setTimeout(() => setSearchRefreshStatus("idle"), 3000);
   }, []);
 
+  const refreshCps = useCallback(async () => {
+    setCpsRefreshStatus("loading");
+    try {
+      const afterDate = "2025-09-01";
+      const [cvrResult, funnelResult] = await Promise.all([
+        queryBigQuery(CPS_CVR_SQL(afterDate)),
+        queryBigQuery(CPS_FUNNEL_SQL(afterDate)),
+      ]);
+      if (cvrResult.rows?.length) {
+        // pivot: {date, gen_cvr, gen_clicks, yogi_cvr, yogi_clicks}
+        const map = {};
+        for (const r of cvrResult.rows) {
+          if (!map[r.date]) map[r.date] = { date: r.date };
+          if (r.channel === 'general') { map[r.date].gen_cvr = +r.cvr; map[r.date].gen_clicks = +r.clicks; map[r.date].gen_orders = +r.orders; }
+          else { map[r.date].yogi_cvr = +r.cvr; map[r.date].yogi_clicks = +r.clicks; map[r.date].yogi_orders = +r.orders; }
+        }
+        const data = Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+        saveCache(CPS_CACHE_KEY, data);
+        setCpsData(data);
+        setCpsLoaded(true);
+      }
+      if (funnelResult.rows?.length) {
+        const data = funnelResult.rows.map(r => ({
+          date: r.date, page_enter: +r.page_enter, vendor_click: +r.vendor_click,
+          category_click: +r.category_click, filter_click: +r.filter_click,
+          search_click: +r.search_click, order_cnt: +r.order_cnt,
+        }));
+        saveCache(CPS_FUNNEL_CACHE_KEY, data);
+        setCpsFunnelData(data);
+      }
+      setCpsRefreshStatus("+OK");
+    } catch (e) { console.error(e); setCpsRefreshStatus("error"); }
+    setTimeout(() => setCpsRefreshStatus("idle"), 3000);
+  }, []);
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -1583,7 +1827,10 @@ export default function YPXDashboard({ onClose }) {
           {activeTab === "search" && (
             <SearchContent searchData={searchData} setSearchData={setSearchData} searchKeywords={searchKeywords} setSearchKeywords={setSearchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} range={globalRange} />
           )}
-          {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && <ComingSoon tabId={activeTab} />}
+          {activeTab === "cps" && (
+            <CpsContent cpsData={cpsData} funnelData={cpsFunnelData} cpsLoaded={cpsLoaded} refreshStatus={cpsRefreshStatus} onRefresh={refreshCps} range={globalRange} />
+          )}
+          {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && activeTab !== "cps" && <ComingSoon tabId={activeTab} />}
         </div>
       </div>
     </div>
