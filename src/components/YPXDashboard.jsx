@@ -4,7 +4,7 @@ import { queryBigQuery } from "../api/proxy";
 
 // ─── 캐시 ─────────────────────────────────────────────────────────────────────
 const CACHE_KEY = "ypx_dashboard_cache_v2";
-const ORDER_CACHE_KEY = "ypx_order_cache_v3";
+const ORDER_CACHE_KEY = "ypx_order_cache_v4";
 const REGION_CACHE_KEY = "ypx_region_cache_v1";
 const AGE_CACHE_KEY = "ypx_age_cache_v1";
 const SEARCH_CACHE_KEY = "ypx_search_cache_v5";
@@ -162,10 +162,9 @@ const INITIAL_DATA = [{"date":"2025-09-07","classic":23634,"naver":712814,"toss"
 const MEMBERSHIP_SQL = (afterDate) =>
   `SELECT week_last_date as date, SUM(yps_revise_subscriber_cnt) as classic, SUM(ypxn_revise_subscriber_cnt) as naver, SUM(ypxt_revise_subscriber_cnt) as toss, SUM(ypx_revise_subscriber_cnt) as direct_ypx FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\` WHERE week_last_date > '${afterDate}' GROUP BY week_last_date ORDER BY week_last_date`;
 
-// 주문수 / 평균 주문금액 조회 SQL
-// DATE_ADD(...WEEK(MONDAY)..., INTERVAL 6 DAY) → 주의 마지막날(일요일)로 맞춤 (구독자 데이터와 날짜 정렬)
+// 주문수 / 평균 주문금액 조회 SQL — 일별
 const ORDER_SQL = (afterDate) =>
-  `SELECT DATE_ADD(DATE_TRUNC(order_date, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+  `SELECT order_date as date,
     SUM(CASE WHEN subscriber_product_cd = 'yogipassxn' THEN \`ORDER\`.success_order_cnt ELSE 0 END) as ord_naver,
     SUM(CASE WHEN subscriber_product_cd = 'yogipassxt' THEN \`ORDER\`.success_order_cnt ELSE 0 END) as ord_toss,
     SUM(CASE WHEN subscriber_product_cd = 'yogipassx'  THEN \`ORDER\`.success_order_cnt ELSE 0 END) as ord_direct,
@@ -178,7 +177,7 @@ const ORDER_SQL = (afterDate) =>
     SAFE_DIVIDE(SUM(CASE WHEN subscriber_product_cd = '*NULL*' THEN gmv_amt ELSE 0 END), NULLIF(SUM(CASE WHEN subscriber_product_cd = '*NULL*' THEN \`ORDER\`.success_order_cnt ELSE 0 END),0)) as aov_nonmem
   FROM \`ygy-datawarehouse.mart.fact_daily_order_customer\`
   WHERE order_date > '${afterDate}'
-    AND order_date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
+    AND order_date < CURRENT_DATE()
     AND subscriber_product_cd IN ('yogipassxn','yogipassxt','yogipassx','yogipass','*NULL*')
   GROUP BY 1 ORDER BY 1`;
 
