@@ -139,15 +139,14 @@ const CPS_FUNNEL_SQL = (afterDate) =>
     AND page_id IN ('/yogithe_home', '/yogithe_home/search')
   GROUP BY 1 ORDER BY 1`;
 
-// 요기더적립 주문수 — lst_order_property_etc 기반
+// 요기더적립 주문수 — lst_order_property_etc 기반 (order_dt 파티션 필터 필수)
 const CPS_YOGITHE_ORDER_SQL = (afterDate) =>
-  `SELECT DATE_ADD(DATE_TRUNC(o.order_dt, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
+  `SELECT DATE_ADD(DATE_TRUNC(p.order_dt, WEEK(MONDAY)), INTERVAL 6 DAY) as date,
     COUNT(*) as order_cnt
   FROM \`ygy-datawarehouse.edw.lst_order_property_etc\` p
-  JOIN \`ygy-datawarehouse.edw.lst_order\` o ON p.order_no = o.order_no
   WHERE p.yogithe_promotion_inflow_order_yn = TRUE
-    AND o.order_dt > '${afterDate}'
-    AND o.order_dt < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
+    AND p.order_dt > '${afterDate}'
+    AND p.order_dt < DATE_TRUNC(CURRENT_DATE('+09:00'), WEEK(MONDAY))
   GROUP BY 1 ORDER BY 1`;
 
 const CPS_CACHE_KEY = "ypx_cps_cache_v1";
@@ -1545,6 +1544,53 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
   );
 }
 
+// ─── 데이터 다운로드 프로그레스 ──────────────────────────────────────────────
+function DownloadProgress({ steps }) {
+  if (!steps || !steps.length) return null;
+  const done = steps.filter(s => s.status === "done").length;
+  const total = steps.length;
+  const pct = Math.round(done / total * 100);
+  const current = steps.find(s => s.status === "loading");
+  const hasError = steps.some(s => s.status === "error");
+
+  return (
+    <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#444" }}>
+          {done === total ? (hasError ? "완료 (일부 오류)" : "다운로드 완료") : "데이터 다운로드 중..."}
+        </div>
+        <div style={{ marginLeft: "auto", fontSize: 11, color: "#888", fontWeight: 600 }}>{pct}%</div>
+      </div>
+      {/* 프로그레스 바 */}
+      <div style={{ background: "#f0f0f0", borderRadius: 6, height: 8, overflow: "hidden", marginBottom: 10 }}>
+        <div style={{ width: pct + "%", height: "100%", background: hasError ? "#f39c12" : done === total ? "#22aa55" : "#3a6fd8", borderRadius: 6, transition: "width 0.5s ease" }} />
+      </div>
+      {/* 스텝별 상태 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+            <span style={{ width: 16, textAlign: "center" }}>
+              {s.status === "done" ? "✅" : s.status === "error" ? "❌" : s.status === "loading" ? "⏳" : "⬜"}
+            </span>
+            <span style={{ color: s.status === "loading" ? "#3a6fd8" : s.status === "error" ? "#e74c3c" : s.status === "done" ? "#22aa55" : "#bbb", fontWeight: s.status === "loading" ? 600 : 400 }}>
+              {s.name}
+            </span>
+            {s.status === "loading" && s.elapsed != null && (
+              <span style={{ marginLeft: "auto", fontSize: 10, color: "#aaa" }}>{s.elapsed}s</span>
+            )}
+            {s.status === "error" && s.error && (
+              <span style={{ marginLeft: "auto", fontSize: 10, color: "#e74c3c", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.error}</span>
+            )}
+            {s.status === "done" && s.result && (
+              <span style={{ marginLeft: "auto", fontSize: 10, color: "#22aa55" }}>{s.result}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_classic"]);
 
@@ -1571,6 +1617,7 @@ export default function YPXDashboard({ onClose }) {
   const [cpsLoaded, setCpsLoaded] = useState(false);
   const [cpsRefreshStatus, setCpsRefreshStatus] = useState("idle");
   const [globalRange, setGlobalRange] = useState("1y");
+  const [downloadSteps, setDownloadSteps] = useState([]);
 
   // 구독자 + 주문 데이터 병합 (날짜 키 기준)
   const chartData = (() => {
@@ -1775,8 +1822,9 @@ export default function YPXDashboard({ onClose }) {
         }
         if (orderResult.rows?.length) {
           for (const r of orderResult.rows) {
-            if (funnelMap[r.date]) funnelMap[r.date].order_cnt = +r.order_cnt;
-            else funnelMap[r.date] = { date: r.date, page_enter: 0, vendor_click: 0, category_click: 0, filter_click: 0, search_click: 0, order_cnt: +r.order_cnt };
+            const d = (r.date || '').slice(0, 10); // "2026-08-02T00:00:00" → "2026-08-02"
+            if (funnelMap[d]) funnelMap[d].order_cnt = +r.order_cnt;
+            else funnelMap[d] = { date: d, page_enter: 0, vendor_click: 0, category_click: 0, filter_click: 0, search_click: 0, order_cnt: +r.order_cnt };
           }
         }
         const funnelData = Object.values(funnelMap).sort((a, b) => a.date.localeCompare(b.date));
@@ -1826,13 +1874,41 @@ export default function YPXDashboard({ onClose }) {
               </button>
             );
           })}
-          <button onClick={() => { refresh(); refreshRegion(); refreshAge(); refreshSearch(); refreshCps(); }}
-            style={{ marginLeft: "auto", padding: "5px 13px", borderRadius: 20, border: "1.5px solid #e74c3c", background: "white", color: "#e74c3c", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-            전체 갱신
+          <button onClick={async () => {
+              const steps = [
+                { name: "멤버십+주문", fn: refresh },
+                { name: "지역", fn: refreshRegion },
+                { name: "연령", fn: refreshAge },
+                { name: "검색어", fn: refreshSearch },
+                { name: "CPS", fn: refreshCps },
+              ].map(s => ({ ...s, status: "pending", error: null, result: null, elapsed: null }));
+              setDownloadSteps([...steps]);
+              for (let i = 0; i < steps.length; i++) {
+                steps[i].status = "loading";
+                const t0 = Date.now();
+                const timer = setInterval(() => { steps[i].elapsed = Math.round((Date.now() - t0) / 1000); setDownloadSteps([...steps]); }, 1000);
+                setDownloadSteps([...steps]);
+                try {
+                  await steps[i].fn();
+                  steps[i].status = "done";
+                  steps[i].result = Math.round((Date.now() - t0) / 1000) + "초";
+                } catch (e) {
+                  steps[i].status = "error";
+                  steps[i].error = e.message?.slice(0, 80) || "오류";
+                }
+                clearInterval(timer);
+                setDownloadSteps([...steps]);
+              }
+              setTimeout(() => setDownloadSteps([]), 5000);
+            }}
+            disabled={downloadSteps.some(s => s.status === "loading")}
+            style={{ marginLeft: "auto", padding: "5px 13px", borderRadius: 20, border: "1.5px solid #e74c3c", background: "white", color: "#e74c3c", fontSize: 11, fontWeight: 600, cursor: "pointer", opacity: downloadSteps.some(s => s.status === "loading") ? 0.5 : 1 }}>
+            {downloadSteps.some(s => s.status === "loading") ? "갱신 중..." : "전체 갱신"}
           </button>
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+          {downloadSteps.length > 0 && <DownloadProgress steps={downloadSteps} />}
           {activeTab === "membership" && (
             <>
               <ChartSelector checked={checked} onToggle={toggleSeries} orderLoaded={orderLoaded} />
