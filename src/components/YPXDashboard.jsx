@@ -1405,9 +1405,12 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
         <div style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>CPS 데이터를 먼저 불러오세요</div>
         <div style={{ fontSize: 11, color: "#bbb", marginBottom: 16 }}>edw.lst_ilog_event 기반 (CPS 클릭→주문 전환)</div>
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
-          style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
-          {refreshStatus === "loading" ? "⏳ 불러오는 중... (오래 걸림)" : "🔄 데이터 새로고침"}
+          style={{ padding: "10px 20px", background: refreshStatus.startsWith("❌") ? "#e74c3c" : "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
+          {refreshStatus === "loading" ? "⏳ 불러오는 중... (최대 30초)" : refreshStatus.startsWith("❌") ? refreshStatus : "🔄 데이터 새로고침"}
         </button>
+        {refreshStatus.startsWith("❌") && (
+          <div style={{ fontSize: 11, color: "#e74c3c", marginTop: 8 }}>{refreshStatus}</div>
+        )}
       </div>
     );
   }
@@ -1837,10 +1840,13 @@ export default function YPXDashboard({ onClose }) {
 
   const refreshCps = useCallback(async () => {
     setCpsRefreshStatus("loading");
+    console.log("[CPS] refresh start");
     try {
       const afterDate = "2025-09-01";
-      const daily = false; // 주간 집계 (일별은 6개월 이상 시 타임아웃)
+      const daily = false;
+      console.log("[CPS] querying CVR...");
       const cvrResult = await queryBigQuery(CPS_CVR_SQL(afterDate, daily));
+      console.log("[CPS] CVR result:", cvrResult.rowCount || cvrResult.rows?.length, "rows");
       if (cvrResult.rows?.length) {
         const map = {};
         for (const r of cvrResult.rows) {
@@ -1879,9 +1885,13 @@ export default function YPXDashboard({ onClose }) {
         const funnelData = Object.values(funnelMap).sort((a, b) => a.date.localeCompare(b.date));
         if (funnelData.length) { saveCache(CPS_FUNNEL_CACHE_KEY, funnelData); setCpsFunnelData(funnelData); }
       } catch (e) { console.warn("funnel query failed:", e.message); }
+      console.log("[CPS] refresh done");
       setCpsRefreshStatus("+OK");
-    } catch (e) { console.error(e); setCpsRefreshStatus("error"); }
-    setTimeout(() => setCpsRefreshStatus("idle"), 3000);
+    } catch (e) {
+      console.error("[CPS] error:", e);
+      setCpsRefreshStatus("❌ " + (e.message || "오류").slice(0, 50));
+    }
+    setTimeout(() => setCpsRefreshStatus("idle"), 5000);
   }, []);
 
   return (
