@@ -753,21 +753,23 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
   }
 
   const filteredData = filterByRange(regionData, range);
-  const last = filteredData[filteredData.length - 1];
-  const prev4 = filteredData[0];
+  // 구독자: 주간 데이터만 있는 행에서 마지막/처음 찾기
+  const subRows = filteredData.filter(r => r['reg_sub_' + TOP_SIDO[0]] != null);
+  const lastSub = subRows[subRows.length - 1];
+  const prevSub = subRows[0];
   const prevLabel = "기간시작";
 
   // KPI: 전체 YPX 구독자(top6 합산) + top 3 시도
-  const totalYpxSub = last ? TOP_SIDO.reduce((s, sido) => s + (last['reg_sub_' + sido] || 0), 0) : 0;
-  const totalYpxSubPrev = prev4 ? TOP_SIDO.reduce((s, sido) => s + (prev4['reg_sub_' + sido] || 0), 0) : 0;
+  const totalYpxSub = lastSub ? TOP_SIDO.reduce((s, sido) => s + (lastSub['reg_sub_' + sido] || 0), 0) : 0;
+  const totalYpxSubPrev = prevSub ? TOP_SIDO.reduce((s, sido) => s + (prevSub['reg_sub_' + sido] || 0), 0) : 0;
   const top3 = TOP_SIDO.slice(0, 3);
 
-  const kpis = last ? [
+  const kpis = lastSub ? [
     { label: "전체 YPX 구독", val: totalYpxSub, prev: totalYpxSubPrev, color: "#1a2742", sido: null },
     ...top3.map(sido => ({
       label: sido.replace('특별시','').replace('광역시','').replace('도',''),
-      val: last['reg_sub_' + sido] || 0,
-      prev: prev4 ? (prev4['reg_sub_' + sido] || 0) : null,
+      val: lastSub['reg_sub_' + sido] || 0,
+      prev: prevSub ? (prevSub['reg_sub_' + sido] || 0) : null,
       color: SIDO_COLORS[sido],
       sido,
     })),
@@ -809,7 +811,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
           const isOpen = drillSido === k.sido;
           return (
             <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", cursor: isDrillable ? "pointer" : "default", border: isOpen ? "1.5px solid " + k.color : "1.5px solid transparent", transition: "border 0.15s" }}
-              onClick={() => isDrillable && loadDrill(k.sido, filteredData[0]?.date, last.date)}>
+              onClick={() => isDrillable && loadDrill(k.sido, filteredData[0]?.date, filteredData[filteredData.length-1]?.date)}>
               <div style={{ fontSize: 10, color: "#999", marginBottom: 3, display: "flex", justifyContent: "space-between" }}>
                 <span>{k.label}</span>
                 {isDrillable && <span style={{ color: isOpen ? k.color : "#ccc" }}>시군구 {isOpen ? "▲" : "▼"}</span>}
@@ -829,7 +831,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
       {drillSido && (
         <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: SIDO_COLORS[drillSido] || "#444", marginBottom: 10 }}>
-            📍 {drillSido} 시군구 상세 ({filteredData[0]?.date} ~ {last?.date} · 주문 합산)
+            📍 {drillSido} 시군구 상세 ({filteredData[0]?.date} ~ {filteredData[filteredData.length-1]?.date} · 주문 합산)
           </div>
           {drillLoading ? (
             <div style={{ color: "#aaa", fontSize: 12, padding: "20px 0", textAlign: "center" }}>⏳ 조회 중...</div>
@@ -871,7 +873,7 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
           tooltipFormatter={(v, id) => { const sido = id.replace('reg_ord_',''); return [v + "만건", sido]; }} />
       )}
       {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
-        기준: {last.date} · 캐시 {regionData.length}주
+        기준: {lastSub?.date || filteredData[filteredData.length-1]?.date} · 캐시 {regionData.length}일
       </div>}
     </>
   );
