@@ -121,12 +121,9 @@ const CPS_CVR_SQL = (afterDate, daily = false) =>
   )
   SELECT ${daily ? 'c.event_date' : 'DATE_ADD(DATE_TRUNC(c.event_date, WEEK(MONDAY)), INTERVAL 6 DAY)'} as date,
     c.channel,
-    COUNT(DISTINCT CONCAT(c.gauser_session_id, '_', CAST(c.vendor_id AS STRING))) as clicks,
-    COUNT(DISTINCT CASE WHEN o.vendor_id IS NOT NULL THEN CONCAT(c.gauser_session_id, '_', CAST(c.vendor_id AS STRING)) END) as orders,
-    ROUND(SAFE_DIVIDE(
-      COUNT(DISTINCT CASE WHEN o.vendor_id IS NOT NULL THEN CONCAT(c.gauser_session_id, '_', CAST(c.vendor_id AS STRING)) END),
-      COUNT(DISTINCT CONCAT(c.gauser_session_id, '_', CAST(c.vendor_id AS STRING)))
-    )*100, 2) as cvr,
+    COUNT(*) as clicks,
+    COUNTIF(o.vendor_id IS NOT NULL) as orders,
+    ROUND(SAFE_DIVIDE(COUNTIF(o.vendor_id IS NOT NULL), COUNT(*))*100, 2) as cvr,
     ROUND(SAFE_DIVIDE(SUM(o.order_amt), COUNTIF(o.vendor_id IS NOT NULL))) as aov
   FROM clicks c
   LEFT JOIN orders o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
@@ -756,15 +753,16 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
   const totalYpxSubPrev = prev4 ? TOP_SIDO.reduce((s, sido) => s + (prev4['reg_sub_' + sido] || 0), 0) : 0;
   const top3 = TOP_SIDO.slice(0, 3);
 
+  // 주문 기간 합산
+  const totalOrdSum = filteredData.reduce((s, r) => s + TOP_SIDO.reduce((ss, sido) => ss + (r['reg_ord_' + sido] || 0), 0), 0);
   const kpis = last ? [
-    { label: "전체 YPX 구독", val: totalYpxSub, prev: totalYpxSubPrev, color: "#1a2742", sido: null },
-    ...top3.map(sido => ({
-      label: sido.replace('특별시','').replace('광역시','').replace('도',''),
-      val: last['reg_sub_' + sido] || 0,
-      prev: prev4 ? (prev4['reg_sub_' + sido] || 0) : null,
-      color: SIDO_COLORS[sido],
-      sido,
-    })),
+    { label: "전체 YPX 구독", val: totalYpxSub, change: totalYpxSub - totalYpxSubPrev, color: "#1a2742", sido: null },
+    ...top3.map(sido => {
+      const cur = last['reg_sub_' + sido] || 0;
+      const prv = prev4 ? (prev4['reg_sub_' + sido] || 0) : 0;
+      const ordSum = filteredData.reduce((s, r) => s + (r['reg_ord_' + sido] || 0), 0);
+      return { label: sido.replace('특별시','').replace('광역시','').replace('도',''), val: cur, change: cur - prv, ordSum, color: SIDO_COLORS[sido], sido };
+    }),
   ] : [];
 
   const activeSubSeries = TOP_SIDO.filter(s => subChecked.has('reg_sub_' + s)).map(sido => ({
@@ -809,7 +807,11 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
                 {isDrillable && <span style={{ color: isOpen ? k.color : "#ccc" }}>시군구 {isOpen ? "▲" : "▼"}</span>}
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val).toLocaleString("ko-KR")}만</div>
-              <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>{prevLabel}</span></div>
+              <div style={{ marginTop: 2 }}>
+                <span style={{ fontSize: 11, color: k.change >= 0 ? "#22aa55" : "#cc3333", fontWeight: 600 }}>{k.change >= 0 ? "▲" : "▼"} {Math.abs(toMan(k.change)).toLocaleString("ko-KR")}만</span>
+                <span style={{ fontSize: 10, color: "#bbb" }}> 기간변화</span>
+              </div>
+              {k.ordSum != null && <div style={{ fontSize: 10, color: "#888", marginTop: 1 }}>주문 {toMan(k.ordSum).toLocaleString("ko-KR")}만건</div>}
             </div>
           );
         })}
