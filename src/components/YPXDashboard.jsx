@@ -405,12 +405,12 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
     return <span style={{ fontSize: 11, color: d >= 0 ? "#22aa55" : "#cc3333" }}>{d >= 0 ? "▲" : "▼"} {Math.abs(toMan(d)).toLocaleString("ko-KR")}만</span>;
   }
 
-  const kpis = last ? [
-    { label: "전체 구독", val: last.naver + last.toss + last.direct_ypx + last.classic, prev: prev4 ? prev4.naver + prev4.toss + prev4.direct_ypx + prev4.classic : null, color: "#1a2742" },
-    { label: "네이버",   val: last.naver,      prev: prev4?.naver,      color: "#03C75A" },
-    { label: "토스",     val: last.toss,       prev: prev4?.toss,       color: "#0064FF" },
-    { label: "직접YPX",  val: last.direct_ypx, prev: prev4?.direct_ypx, color: "#f07030" },
-    { label: "클래식",   val: last.classic,    prev: prev4?.classic,    color: "#aaaaaa" },
+  const kpiItems = last ? [
+    { label: "전체 구독", cur: last.naver + last.toss + last.direct_ypx + last.classic, start: prev4 ? prev4.naver + prev4.toss + prev4.direct_ypx + prev4.classic : 0, color: "#1a2742" },
+    { label: "네이버",   cur: last.naver,      start: prev4?.naver || 0,      color: "#03C75A" },
+    { label: "토스",     cur: last.toss,       start: prev4?.toss || 0,       color: "#0064FF" },
+    { label: "직접YPX",  cur: last.direct_ypx, start: prev4?.direct_ypx || 0, color: "#f07030" },
+    { label: "클래식",   cur: last.classic,    start: prev4?.classic || 0,    color: "#aaaaaa" },
   ] : [];
 
   const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
@@ -435,13 +435,19 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
 
       {/* KPI + 새로고침 */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-        {kpis.map(k => (
-          <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.val).toLocaleString("ko-KR")}만</div>
-            <div style={{ marginTop: 2 }}>{delta(k.val, k.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>{prevLabel}</span></div>
-          </div>
-        ))}
+        {kpiItems.map(k => {
+          const change = k.cur - k.start;
+          return (
+            <div key={k.label} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+              <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{k.label}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: k.color }}>{toMan(k.cur).toLocaleString("ko-KR")}만</div>
+              <div style={{ marginTop: 2 }}>
+                <span style={{ fontSize: 11, color: change >= 0 ? "#22aa55" : "#cc3333", fontWeight: 600 }}>{change >= 0 ? "▲" : "▼"} {Math.abs(toMan(change)).toLocaleString("ko-KR")}만</span>
+                <span style={{ fontSize: 10, color: "#bbb" }}> 기간증감</span>
+              </div>
+            </div>
+          );
+        })}
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
           style={{ alignSelf: "flex-end", marginLeft: "auto", padding: "8px 14px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", opacity: refreshStatus === "loading" ? 0.7 : 1 }}>
           {btnLabel}
