@@ -939,11 +939,12 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
   const last = filteredData[filteredData.length - 1];
   const prev4 = filteredData[0];
 
-  // KPI: 최신 주 연령대별 주문수 top3
-  const ageByOrd = last
-    ? AGE_GROUPS.map(ag => ({ ...ag, val: last['age_ord_' + ag.id] || 0, prev: prev4 ? (prev4['age_ord_' + ag.id] || 0) : null }))
-        .sort((a, b) => b.val - a.val).slice(0, 3)
-    : [];
+  // KPI: 기간 합산 연령대별 주문수 top3
+  const days = filteredData.length || 1;
+  const ageByOrd = AGE_GROUPS.map(ag => {
+    const sum = filteredData.reduce((s, r) => s + (r['age_ord_' + ag.id] || 0), 0);
+    return { ...ag, val: sum, avg: sum / days };
+  }).sort((a, b) => b.val - a.val).slice(0, 3);
 
   const activeOrdSeries = AGE_GROUPS.filter(ag => ordChecked.has('age_ord_' + ag.id)).map(ag => ({
     id: 'age_ord_' + ag.id, label: ag.label, color: ag.color,
@@ -978,9 +979,9 @@ function AgeContent({ ageData, ageLoaded, refreshStatus, onRefresh, range }) {
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {ageByOrd.map(ag => (
           <div key={ag.id} style={{ flex: "1 1 80px", background: "white", borderRadius: 10, padding: "10px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{ag.label} 주문</div>
+            <div style={{ fontSize: 10, color: "#999", marginBottom: 3 }}>{ag.label} 기간합산</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: ag.color }}>{toMan(ag.val).toLocaleString("ko-KR")}만건</div>
-            <div style={{ marginTop: 2 }}>{delta(ag.val, ag.prev)} <span style={{ fontSize: 10, color: "#bbb" }}>기간시작</span></div>
+            <div style={{ marginTop: 2, fontSize: 10, color: "#aaa" }}>일평균 {toMan(ag.avg).toLocaleString("ko-KR")}만건</div>
           </div>
         ))}
         <button onClick={onRefresh} disabled={refreshStatus === "loading"}
