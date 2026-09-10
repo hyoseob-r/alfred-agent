@@ -497,16 +497,16 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
               subSeries.forEach(s => {
                 const cur = s.id === "sub_naver" ? r.naver : s.id === "sub_toss" ? r.toss : s.id === "sub_direct" ? r.direct_ypx : r.classic;
                 const prv = prev ? (s.id === "sub_naver" ? prev.naver : s.id === "sub_toss" ? prev.toss : s.id === "sub_direct" ? prev.direct_ypx : prev.classic) : null;
-                row[s.id] = prv != null ? toMan(cur - prv) : null;
+                row[s.id] = prv != null ? cur - prv : null;
               });
               return row;
             }).slice(1);
             return newSubData.length > 0 ? (
               <ChartCard
-                title="신규 구독자 추이 (만명, 전주 대비 증감)"
+                title="신규 구독자 추이 (명, 전주 대비 증감)"
                 data={newSubData} activeSeries={subSeries}
-                yFormatter={v => v + "만"}
-                tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [(+v >= 0 ? "+" : "") + v + "만명", (s?.label || "") + " 신규"]; }}
+                yFormatter={v => (+v).toLocaleString("ko-KR")}
+                tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [(+v >= 0 ? "+" : "") + (+v).toLocaleString("ko-KR") + "명", (s?.label || "") + " 신규"]; }}
                 height={240}
               />
             ) : null;
