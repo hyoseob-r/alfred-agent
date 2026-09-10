@@ -485,13 +485,7 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
         </div>
       ) : (
         <>
-          {/* 그룹별 수량/금액 차트 */}
-          {mixedGroups.map(g => (
-            <ChartCard key={g.title} title={g.title} data={g.data} activeSeries={g.series}
-              yFormatter={g.yF} tooltipFormatter={g.tipF} />
-          ))}
-
-          {/* 신규 구독자 추이 — 전주 대비 증감 */}
+          {/* 1. 신규 구독자 추이 — 전주 대비 증감 (맨 위) */}
           {subSeries.length > 0 && (() => {
             const newSubData = filteredSubData.map((r, i) => {
               const prev = i > 0 ? filteredSubData[i - 1] : null;
@@ -514,7 +508,13 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
             ) : null;
           })()}
 
-          {/* 비중 차트 — sub 계열이 2개 이상 선택됐을 때만 */}
+          {/* 2. 주문/AOV 차트 */}
+          {mixedGroups.filter(g => g.title !== subTitle).map(g => (
+            <ChartCard key={g.title} title={g.title} data={g.data} activeSeries={g.series}
+              yFormatter={g.yF} tooltipFormatter={g.tipF} />
+          ))}
+
+          {/* 3. 비중 차트 — sub 계열이 2개 이상 선택됐을 때만 */}
           {subSeries.length >= 2 && (
             <ChartCard
               title="구독자 비중 추이 (%)"
@@ -524,6 +524,12 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
               height={220}
             />
           )}
+
+          {/* 4. 전체 구독자 수 추이 (맨 아래) */}
+          {mixedGroups.filter(g => g.title === subTitle).map(g => (
+            <ChartCard key={g.title} title={g.title} data={g.data} activeSeries={g.series}
+              yFormatter={g.yF} tooltipFormatter={g.tipF} />
+          ))}
         </>
       )}
 
@@ -2038,8 +2044,8 @@ export default function YPXDashboard({ onClose }) {
           {downloadSteps.length > 0 && <DownloadProgress steps={downloadSteps} />}
           {activeTab === "membership" && (
             <>
-              <MembershipContent chartData={chartData} checked={checked} refreshStatus={refreshStatus} onRefresh={refresh} range={globalRange} />
               <ChartSelector checked={checked} onToggle={toggleSeries} orderLoaded={orderLoaded} />
+              <MembershipContent chartData={chartData} checked={checked} refreshStatus={refreshStatus} onRefresh={refresh} range={globalRange} />
             </>
           )}
           {activeTab === "orders" && (
