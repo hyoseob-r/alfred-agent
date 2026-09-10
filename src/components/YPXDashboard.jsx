@@ -2038,8 +2038,8 @@ export default function YPXDashboard({ onClose }) {
           {downloadSteps.length > 0 && <DownloadProgress steps={downloadSteps} />}
           {activeTab === "membership" && (
             <>
-              <ChartSelector checked={checked} onToggle={toggleSeries} orderLoaded={orderLoaded} />
               <MembershipContent chartData={chartData} checked={checked} refreshStatus={refreshStatus} onRefresh={refresh} range={globalRange} />
+              <ChartSelector checked={checked} onToggle={toggleSeries} orderLoaded={orderLoaded} />
             </>
           )}
           {activeTab === "orders" && (
