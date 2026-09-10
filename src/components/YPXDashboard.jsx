@@ -386,10 +386,16 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
   // 기간 필터 적용
   const filteredData = chartData.filter(r => r.date >= startDate && r.date <= endDate);
 
-  // 각 그룹별 chart data (null 값 그대로 전달 → connectNulls=false로 끊김 표시)
-  const qtyData = filteredData.map(r => {
+  // 구독자: 주간 데이터만 있는 행 사용 (일별 행에서 NaN 방지)
+  const subQtyData = filteredSubData.map(r => {
     const row = { date: dateLabel(r.date) };
-    activeSeries.forEach(s => { row[s.id] = s.getValue(r); });
+    subSeries.forEach(s => { row[s.id] = s.getValue(r); });
+    return row;
+  });
+  // 주문/AOV: 전체 필터 데이터 사용 (일별)
+  const ordAovData = filteredData.filter(r => r.ord_naver != null).map(r => {
+    const row = { date: dateLabel(r.date) };
+    [...ordSeries, ...aovSeries].forEach(s => { row[s.id] = s.getValue(r); });
     return row;
   });
 
@@ -427,9 +433,9 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
 
   // 혼합 차트 (sub+ord 같이 체크됐을 때): 단위 다르면 별도 차트로
   const mixedGroups = [
-    { series: subSeries, title: subTitle, yF: v => v + "만", tipF: (v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v + "만명", (s?.groupLabel || "") + " · " + (s?.label || "")]; } },
-    { series: ordSeries, title: ordTitle, yF: v => v + "만", tipF: (v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v + "만건", (s?.groupLabel || "") + " · " + (s?.label || "")]; } },
-    { series: aovSeries, title: aovTitle, yF: v => v.toLocaleString("ko-KR"), tipF: (v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v.toLocaleString("ko-KR") + "원", (s?.groupLabel || "") + " · " + (s?.label || "")]; } },
+    { series: subSeries, title: subTitle, data: subQtyData, yF: v => v + "만", tipF: (v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v + "만명", (s?.groupLabel || "") + " · " + (s?.label || "")]; } },
+    { series: ordSeries, title: ordTitle, data: ordAovData, yF: v => v + "만", tipF: (v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v + "만건", (s?.groupLabel || "") + " · " + (s?.label || "")]; } },
+    { series: aovSeries, title: aovTitle, data: ordAovData, yF: v => v.toLocaleString("ko-KR"), tipF: (v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [v.toLocaleString("ko-KR") + "원", (s?.groupLabel || "") + " · " + (s?.label || "")]; } },
   ].filter(g => g.series.length > 0);
 
   return (
@@ -479,7 +485,7 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
         <>
           {/* 그룹별 수량/금액 차트 */}
           {mixedGroups.map(g => (
-            <ChartCard key={g.title} title={g.title} data={qtyData} activeSeries={g.series}
+            <ChartCard key={g.title} title={g.title} data={g.data} activeSeries={g.series}
               yFormatter={g.yF} tooltipFormatter={g.tipF} />
           ))}
 
