@@ -466,6 +466,29 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
               yFormatter={g.yF} tooltipFormatter={g.tipF} />
           ))}
 
+          {/* 신규 구독자 추이 — 전주 대비 증감 */}
+          {subSeries.length > 0 && (() => {
+            const newSubData = filteredSubData.map((r, i) => {
+              const prev = i > 0 ? filteredSubData[i - 1] : null;
+              const row = { date: dateLabel(r.date) };
+              subSeries.forEach(s => {
+                const cur = s.id === "sub_naver" ? r.naver : s.id === "sub_toss" ? r.toss : s.id === "sub_direct" ? r.direct_ypx : r.classic;
+                const prv = prev ? (s.id === "sub_naver" ? prev.naver : s.id === "sub_toss" ? prev.toss : s.id === "sub_direct" ? prev.direct_ypx : prev.classic) : null;
+                row[s.id] = prv != null ? toMan(cur - prv) : null;
+              });
+              return row;
+            }).slice(1);
+            return newSubData.length > 0 ? (
+              <ChartCard
+                title="신규 구독자 추이 (만명, 전주 대비 증감)"
+                data={newSubData} activeSeries={subSeries}
+                yFormatter={v => v + "만"}
+                tooltipFormatter={(v, id) => { const s = ALL_SERIES.find(x => x.id === id); return [(+v >= 0 ? "+" : "") + v + "만명", (s?.label || "") + " 신규"]; }}
+                height={240}
+              />
+            ) : null;
+          })()}
+
           {/* 비중 차트 — sub 계열이 2개 이상 선택됐을 때만 */}
           {subSeries.length >= 2 && (
             <ChartCard
