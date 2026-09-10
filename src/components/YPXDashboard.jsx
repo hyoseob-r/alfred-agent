@@ -239,13 +239,13 @@ function xInterval(count) {
   if (count <= 40) return 3;
   return 7;
 }
-// Y축 domain: 최솟값~최댓값 + 5% 여백
+// Y축 domain: 최솟값~최댓값 + 3% 여백 (음수 방지)
 function yDomain(data, seriesIds) {
   const vals = data.flatMap(r => seriesIds.map(id => r[id]).filter(v => v != null && isFinite(v)));
   if (!vals.length) return ["auto", "auto"];
   const mn = Math.min(...vals), mx = Math.max(...vals);
-  const pad = (mx - mn) * 0.08 || mx * 0.05;
-  return [mn - pad, mx + pad];
+  const pad = (mx - mn) * 0.03 || mx * 0.02;
+  return [Math.max(0, mn - pad), mx + pad];
 }
 
 // ─── 차트 선택 정의 (그룹 × 시리즈) ─────────────────────────────────────────
