@@ -1982,9 +1982,9 @@ export default function YPXDashboard({ onClose }) {
           })}
         </div>
 
-        {/* 글로벌 기간 선택 + 전체 갱신 */}
+        {/* 글로벌 기간 선택 + 전체 갱신 — 멤버십 탭은 자체 기간 사용 */}
         <div style={{ background: "#f4f6fb", padding: "10px 16px 0", display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-          {RANGES.map(r => {
+          {activeTab !== "membership" && RANGES.map(r => {
             const on = globalRange === r.id;
             return (
               <button key={r.id} onClick={() => setGlobalRange(r.id)}
