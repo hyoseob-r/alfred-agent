@@ -366,12 +366,17 @@ function ChartCard({ title, data, activeSeries, yFormatter, tooltipFormatter, he
 
 // ─── 멤버십 탭 ───────────────────────────────────────────────────────────────
 function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range }) {
-
+  // 멤버십은 직접 기간 설정
   const subData = chartData.filter(r => r.naver != null);
-  const filteredSubData = filterByRange(subData, range);
+  const defaultEnd = subData.length ? subData[subData.length - 1].date : "";
+  const defaultStart = subData.length > 30 ? subData[subData.length - 31].date : subData[0]?.date || "";
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [endDate, setEndDate] = useState(defaultEnd);
+
+  // 직접 기간으로 필터
+  const filteredSubData = subData.filter(r => r.date >= startDate && r.date <= endDate);
   const last = filteredSubData[filteredSubData.length - 1];
   const prev4 = filteredSubData[0];
-  const prevLabel = "기간시작";
 
   const activeSeries = ALL_SERIES.filter(s => checked.has(s.id) && s.ready);
   const subSeries = activeSeries.filter(s => s.groupId === "sub");
@@ -379,7 +384,7 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
   const aovSeries = activeSeries.filter(s => s.groupId === "aov");
 
   // 기간 필터 적용
-  const filteredData = filterByRange(chartData, range);
+  const filteredData = chartData.filter(r => r.date >= startDate && r.date <= endDate);
 
   // 각 그룹별 chart data (null 값 그대로 전달 → connectNulls=false로 끊김 표시)
   const qtyData = filteredData.map(r => {
@@ -429,8 +434,20 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
 
   return (
     <>
-      <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
-        {filteredData.length}주 · {filteredData[0]?.date?.slice(2)} ~ {filteredData[filteredData.length - 1]?.date?.slice(2)}
+      {/* 기간 직접 설정 */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+          style={{ padding: "5px 10px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12 }} />
+        <span style={{ color: "#bbb" }}>~</span>
+        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+          style={{ padding: "5px 10px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12 }} />
+        <span style={{ fontSize: 10, color: "#bbb" }}>{filteredData.length}주</span>
+        {[{d:7,l:"1주"},{d:30,l:"1달"},{d:90,l:"3개월"},{d:180,l:"6개월"},{d:365,l:"1년"}].map(p => (
+          <button key={p.d} onClick={() => { const e = subData[subData.length-1]?.date || ""; setEndDate(e); const s = new Date(e); s.setDate(s.getDate()-p.d); setStartDate(s.toISOString().slice(0,10)); }}
+            style={{ padding: "4px 10px", borderRadius: 16, border: "1px solid #ddd", background: "white", color: "#888", fontSize: 10, cursor: "pointer" }}>
+            {p.l}
+          </button>
+        ))}
       </div>
 
       {/* KPI + 새로고침 */}
