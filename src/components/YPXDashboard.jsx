@@ -239,13 +239,13 @@ function xInterval(count) {
   if (count <= 40) return 3;
   return 7;
 }
-// Y축 domain: 최솟값~최댓값 + 3% 여백 (음수 방지)
+// Y축 domain: 최솟값~최댓값 + 5% 여백
 function yDomain(data, seriesIds) {
   const vals = data.flatMap(r => seriesIds.map(id => r[id]).filter(v => v != null && isFinite(v)));
   if (!vals.length) return ["auto", "auto"];
   const mn = Math.min(...vals), mx = Math.max(...vals);
-  const pad = (mx - mn) * 0.03 || mx * 0.02;
-  return [Math.max(0, mn - pad), mx + pad];
+  const pad = (mx - mn) * 0.05 || mx * 0.03;
+  return [mn - pad, mx + pad];
 }
 
 // ─── 차트 선택 정의 (그룹 × 시리즈) ─────────────────────────────────────────
@@ -443,9 +443,11 @@ function MembershipContent({ chartData, checked, refreshStatus, onRefresh, range
       {/* 기간 직접 설정 */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
         <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+          min={subData[0]?.date} max={endDate}
           style={{ padding: "5px 10px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12 }} />
         <span style={{ color: "#bbb" }}>~</span>
         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+          min={startDate} max={subData[subData.length-1]?.date}
           style={{ padding: "5px 10px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12 }} />
         <span style={{ fontSize: 10, color: "#bbb" }}>{filteredData.length}주</span>
         {[{d:7,l:"1주"},{d:30,l:"1달"},{d:90,l:"3개월"},{d:180,l:"6개월"},{d:365,l:"1년"}].map(p => (
