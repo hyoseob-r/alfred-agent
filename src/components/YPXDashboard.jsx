@@ -23,13 +23,21 @@ const AGE_GROUPS = [
   {id:'60', label:'60대', color:'#1abc9c'},
 ];
 
-const REGION_SQL = (afterDate) =>
+// 지역 구독자 (주간)
+const REGION_SUB_SQL = (afterDate) =>
   `SELECT week_last_date as date, sido_nm,
     SUM(ypx_revise_subscriber_cnt + ypxn_revise_subscriber_cnt + ypxt_revise_subscriber_cnt) as ypx_sub,
-    SUM(revise_subscriber_cnt) as total_sub,
-    SUM(ypx_order_cnt) as ord
+    SUM(revise_subscriber_cnt) as total_sub
   FROM \`ygy-datawarehouse.report.yogiyo_weekly_region_subscription_ypx\`
   WHERE week_last_date > '${afterDate}'
+  GROUP BY 1, 2 ORDER BY 1`;
+
+// 지역 주문 (일별)
+const REGION_ORD_SQL = (afterDate) =>
+  `SELECT base_date as date, sido_nm,
+    SUM(success_order_cnt) as ord
+  FROM \`ygy-datawarehouse.report.yogiyo_hourly_region_order\`
+  WHERE base_date > '${afterDate}' AND base_date < CURRENT_DATE()
   GROUP BY 1, 2 ORDER BY 1`;
 
 const AGE_SQL = (afterDate) =>
@@ -749,7 +757,7 @@ function RegionChartSelector({ subChecked, ordChecked, onToggle }) {
   );
 }
 
-function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, range }) {
+function RegionContent({ regionData, regionOrdData, regionLoaded, refreshStatus, onRefresh, range }) {
   const [subChecked, setSubChecked] = useState(REG_SUB_DEFAULT);
   const [ordChecked, setOrdChecked] = useState(REG_ORD_DEFAULT);
   const [drillSido, setDrillSido] = useState(null);
@@ -821,14 +829,14 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
   const totalYpxSubPrev = prev4 ? TOP_SIDO.reduce((s, sido) => s + (prev4['reg_sub_' + sido] || 0), 0) : 0;
   const top3 = TOP_SIDO.slice(0, 3);
 
-  // 주문 기간 합산
-  const totalOrdSum = filteredData.reduce((s, r) => s + TOP_SIDO.reduce((ss, sido) => ss + (r['reg_ord_' + sido] || 0), 0), 0);
+  // 주문 기간 합산 (일별 데이터)
+  const totalOrdSum = filteredOrdDaily.reduce((s, r) => s + TOP_SIDO.reduce((ss, sido) => ss + (r['reg_ord_' + sido] || 0), 0), 0);
   const kpis = last ? [
     { label: "전체 YPX 구독", val: totalYpxSub, change: totalYpxSub - totalYpxSubPrev, color: "#1a2742", sido: null },
     ...top3.map(sido => {
       const cur = last['reg_sub_' + sido] || 0;
       const prv = prev4 ? (prev4['reg_sub_' + sido] || 0) : 0;
-      const ordSum = filteredData.reduce((s, r) => s + (r['reg_ord_' + sido] || 0), 0);
+      const ordSum = filteredOrdDaily.reduce((s, r) => s + (r['reg_ord_' + sido] || 0), 0);
       return { label: sido.replace('특별시','').replace('광역시','').replace('도',''), val: cur, change: cur - prv, ordSum, color: SIDO_COLORS[sido], sido };
     }),
   ] : [];
@@ -845,9 +853,11 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
     TOP_SIDO.forEach(sido => { row['reg_sub_' + sido] = r['reg_sub_' + sido] != null ? toMan(r['reg_sub_' + sido]) : null; });
     return row;
   });
-  const ordChartData = filteredData.map(r => {
+  // 주문: 일별 데이터 사용
+  const filteredOrdDaily = filterByRange(regionOrdData || [], range);
+  const ordChartData = filteredOrdDaily.map(r => {
     const row = { date: dateLabel(r.date) };
-    TOP_SIDO.forEach(sido => { row['reg_ord_' + sido] = r['reg_ord_' + sido] != null ? toMan(r['reg_ord_' + sido]) : null; });
+    TOP_SIDO.forEach(sido => { row['reg_ord_' + sido] = r['reg_ord_' + sido] != null ? r['reg_ord_' + sido] : null; });
     return row;
   });
 
@@ -930,9 +940,9 @@ function RegionContent({ regionData, regionLoaded, refreshStatus, onRefresh, ran
           tooltipFormatter={(v, id) => { const sido = id.replace('reg_sub_',''); return [v + "만명", sido]; }} />
       )}
       {activeOrdSeries.length > 0 && (
-        <ChartCard title="시도별 주문 추이 (만건)" data={ordChartData} activeSeries={activeOrdSeries}
-          yFormatter={v => v + "만"}
-          tooltipFormatter={(v, id) => { const sido = id.replace('reg_ord_',''); return [v + "만건", sido]; }} />
+        <ChartCard title="시도별 주문 추이 (일별)" data={ordChartData} activeSeries={activeOrdSeries}
+          yFormatter={v => (+v).toLocaleString("ko-KR")}
+          tooltipFormatter={(v, id) => { const sido = id.replace('reg_ord_',''); return [(+v).toLocaleString("ko-KR") + "건", sido]; }} />
       )}
       {last && <div style={{ textAlign: "right", fontSize: 10, color: "#bbb", marginTop: 8 }}>
         기준: {last.date} · 캐시 {regionData.length}주
@@ -1735,7 +1745,8 @@ export default function YPXDashboard({ onClose }) {
   const [ordData, setOrdData] = useState([]);   // 주문 데이터
   const [refreshStatus, setRefreshStatus] = useState("idle");
   const [orderLoaded, setOrderLoaded] = useState(false);
-  const [regionData, setRegionData] = useState([]);
+  const [regionData, setRegionData] = useState([]); // 구독자 주간
+  const [regionOrdData, setRegionOrdData] = useState([]); // 주문 일별
   const [ageData, setAgeData] = useState([]);
   const [searchData, setSearchData] = useState([]);
   const [searchKeywords, setSearchKeywords] = useState([]);
@@ -1770,7 +1781,9 @@ export default function YPXDashboard({ onClose }) {
     }
     // 지역 데이터
     const cachedReg = loadCache(REGION_CACHE_KEY);
+    const cachedRegOrd = loadCache("ypx_region_ord_cache_v1");
     if (cachedReg.length) { setRegionData(cachedReg); setRegionLoaded(true); }
+    if (cachedRegOrd.length) setRegionOrdData(cachedRegOrd);
     // 연령 데이터
     const cachedAge = loadCache(AGE_CACHE_KEY);
     if (cachedAge.length) { setAgeData(cachedAge); setAgeLoaded(true); }
@@ -1855,19 +1868,28 @@ export default function YPXDashboard({ onClose }) {
   const refreshRegion = useCallback(async () => {
     setRegionRefreshStatus("loading");
     try {
-      const cached = loadCache(REGION_CACHE_KEY);
-      const after = cached.length ? cached[cached.length - 1].date : "2025-09-01";
-      const result = await queryBigQuery(REGION_SQL(after));
-      if (result.rows?.length) {
-        const pivoted = pivotRegion(result.rows);
-        const merged = mergeData(cached, pivoted);
+      const cachedSub = loadCache(REGION_CACHE_KEY);
+      const cachedOrd = loadCache("ypx_region_ord_cache_v1");
+      const afterSub = cachedSub.length ? cachedSub[cachedSub.length - 1].date : "2025-09-01";
+      const afterOrd = cachedOrd.length ? cachedOrd[cachedOrd.length - 1].date : "2025-09-01";
+      const [subResult, ordResult] = await Promise.all([
+        queryBigQuery(REGION_SUB_SQL(afterSub)),
+        queryBigQuery(REGION_ORD_SQL(afterOrd)),
+      ]);
+      if (subResult.rows?.length) {
+        const pivoted = pivotRegion(subResult.rows);
+        const merged = mergeData(cachedSub, pivoted);
         saveCache(REGION_CACHE_KEY, merged);
         setRegionData(merged);
-        setRegionLoaded(true);
-        setRegionRefreshStatus("+" + pivoted.length + "주");
-      } else {
-        setRegionRefreshStatus("최신");
       }
+      if (ordResult.rows?.length) {
+        const pivoted = pivotRegion(ordResult.rows);
+        const merged = mergeData(cachedOrd, pivoted);
+        saveCache("ypx_region_ord_cache_v1", merged);
+        setRegionOrdData(merged);
+      }
+      setRegionLoaded(true);
+      setRegionRefreshStatus("+OK");
     } catch (e) { console.error(e); setRegionRefreshStatus("error"); }
     setTimeout(() => setRegionRefreshStatus("idle"), 3000);
   }, []);
@@ -2062,7 +2084,7 @@ export default function YPXDashboard({ onClose }) {
             </>
           )}
           {activeTab === "region" && (
-            <RegionContent regionData={regionData} regionLoaded={regionLoaded} refreshStatus={regionRefreshStatus} onRefresh={refreshRegion} range={globalRange} />
+            <RegionContent regionData={regionData} regionOrdData={regionOrdData} regionLoaded={regionLoaded} refreshStatus={regionRefreshStatus} onRefresh={refreshRegion} range={globalRange} />
           )}
           {activeTab === "age" && (
             <AgeContent ageData={ageData} ageLoaded={ageLoaded} refreshStatus={ageRefreshStatus} onRefresh={refreshAge} range={globalRange} />
