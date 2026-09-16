@@ -1516,9 +1516,9 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
     );
   }
 
-  // 지역 필터 UI
+  // 지역 필터 UI (스티키)
   const sidoFilter = (
-    <div style={{ background: "white", borderRadius: 10, padding: "12px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+    <div style={{ background: "white", borderRadius: 10, padding: "12px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", position: "sticky", top: 0, zIndex: 10 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 8 }}>지역 필터</div>
       <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
         {CPS_SIDO_LIST.map(sido => {
@@ -2018,7 +2018,7 @@ export default function YPXDashboard({ onClose }) {
           else { map[r.date].yogi_cvr = +r.cvr; map[r.date].yogi_clicks = +r.clicks; map[r.date].yogi_orders = +r.orders; map[r.date].yogi_aov = +r.aov || 0; map[r.date].yogi_gmv = +r.gmv || 0; }
         }
         const data = Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
-        saveCache(CPS_CACHE_KEY, data);
+        if (!filterSido) saveCache(CPS_CACHE_KEY, data); // 전체일 때만 캐시
         setCpsData(data);
         setCpsLoaded(true);
       }
@@ -2046,7 +2046,7 @@ export default function YPXDashboard({ onClose }) {
           }
         }
         const funnelData = Object.values(funnelMap).sort((a, b) => a.date.localeCompare(b.date));
-        if (funnelData.length) { saveCache(CPS_FUNNEL_CACHE_KEY, funnelData); setCpsFunnelData(funnelData); }
+        if (funnelData.length) { if (!filterSido) saveCache(CPS_FUNNEL_CACHE_KEY, funnelData); setCpsFunnelData(funnelData); }
       } catch (e) { console.warn("funnel query failed:", e.message); }
       console.log("[CPS] refresh done");
       setCpsRefreshStatus("+OK");
@@ -2060,7 +2060,7 @@ export default function YPXDashboard({ onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width: "min(900px, 96vw)", height: "100vh", background: "#f4f6fb", display: "flex", flexDirection: "column", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+      <div style={{ width: "min(1280px, 96vw)", height: "100vh", background: "#f4f6fb", display: "flex", flexDirection: "column", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", overflow: "hidden" }}>
 
         <div style={{ background: "#1a2742", color: "white", padding: "14px 20px", display: "flex", alignItems: "center", flexShrink: 0 }}>
           <div>
