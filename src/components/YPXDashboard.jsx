@@ -945,7 +945,7 @@ function RegionContent({ regionData, regionOrdData, regionLoaded, refreshStatus,
       )}
 
       {activeSubSeries.length > 0 && (
-        <ChartCard title="시도별 YPX 구독자 추이 (만명)" data={subChartData} activeSeries={activeSubSeries}
+        <ChartCard title="시도별 YPX 구독자 추이 (만명, 주간 — 일별 소스 없음)" data={subChartData} activeSeries={activeSubSeries}
           yFormatter={v => v + "만"}
           tooltipFormatter={(v, id) => { const sido = id.replace('reg_sub_',''); return [v + "만명", sido]; }} />
       )}
