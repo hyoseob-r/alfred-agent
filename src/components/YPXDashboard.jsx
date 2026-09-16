@@ -820,6 +820,7 @@ function RegionContent({ regionData, regionOrdData, regionLoaded, refreshStatus,
   }
 
   const filteredData = filterByRange(regionData, range);
+  const filteredOrdDaily = filterByRange(regionOrdData || [], range);
   const last = filteredData[filteredData.length - 1];
   const prev4 = filteredData[0];
   const prevLabel = "기간시작";
@@ -854,7 +855,6 @@ function RegionContent({ regionData, regionOrdData, regionLoaded, refreshStatus,
     return row;
   });
   // 주문: 일별 데이터 사용
-  const filteredOrdDaily = filterByRange(regionOrdData || [], range);
   const ordChartData = filteredOrdDaily.map(r => {
     const row = { date: dateLabel(r.date) };
     TOP_SIDO.forEach(sido => { row['reg_ord_' + sido] = r['reg_ord_' + sido] != null ? r['reg_ord_' + sido] : null; });
