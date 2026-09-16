@@ -106,8 +106,8 @@ const SEARCH_DRILL_SQL = (keyword, startDate, endDate) =>
   LEFT JOIN \`ygy-datawarehouse.mart.fact_vendor_id\` v ON c.vendor_id = v.vendor_id
   GROUP BY 1 ORDER BY 2 DESC LIMIT 15`;
 
-// CPS SQL — 유니크 세션 기준 yogithe vs 일반 CPS 전환율 + 주문수 + AOV
-const CPS_CVR_SQL = (afterDate, daily = false) =>
+// CPS SQL — 유니크 세션 기준 yogithe vs 일반 CPS 전환율 + 주문수 + AOV + GMV
+const CPS_CVR_SQL = (afterDate, daily = false, sido = null) =>
   `WITH click_sessions AS (
     SELECT event_date,
       CASE WHEN page_id = '/yogithe_home' THEN 'yogithe' ELSE 'general' END as channel,
@@ -117,6 +117,7 @@ const CPS_CVR_SQL = (afterDate, daily = false) =>
       AND event_date < CURRENT_DATE('+09:00')
       AND page_action = 'click.list.vendor'
       AND vendor_ad_id IS NOT NULL AND vendor_ad_id > 0
+      ${sido ? `AND SPLIT(address_destination, ' ')[OFFSET(0)] = '${sido}'` : ''}
     GROUP BY 1, 2, 3, 4
   ), order_sessions AS (
     SELECT gauser_session_id, vendor_id,
@@ -126,6 +127,7 @@ const CPS_CVR_SQL = (afterDate, daily = false) =>
       AND event_date < CURRENT_DATE('+09:00')
       AND order_no IS NOT NULL AND order_no != ''
       AND order_amt IS NOT NULL
+      ${sido ? `AND SPLIT(address_destination, ' ')[OFFSET(0)] = '${sido}'` : ''}
     GROUP BY 1, 2
   )
   SELECT ${daily ? 'c.event_date' : 'DATE_ADD(DATE_TRUNC(c.event_date, WEEK(MONDAY)), INTERVAL 6 DAY)'} as date,
@@ -140,7 +142,7 @@ const CPS_CVR_SQL = (afterDate, daily = false) =>
   GROUP BY 1, 2 ORDER BY 1, 2`;
 
 // 요기더적립 관 퍼널 SQL
-const CPS_FUNNEL_SQL = (afterDate, daily = false) =>
+const CPS_FUNNEL_SQL = (afterDate, daily = false, sido = null) =>
   `SELECT ${daily ? 'event_date' : 'DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY)'} as date,
     COUNTIF(page_action = 'page_show') as page_enter,
     COUNTIF(page_action = 'click.list.vendor') as vendor_click,
@@ -151,6 +153,7 @@ const CPS_FUNNEL_SQL = (afterDate, daily = false) =>
   WHERE event_date > '${afterDate}'
     AND event_date < CURRENT_DATE('+09:00')
     AND page_id IN ('/yogithe_home', '/yogithe_home/search')
+    ${sido ? `AND SPLIT(address_destination, ' ')[OFFSET(0)] = '${sido}'` : ''}
   GROUP BY 1 ORDER BY 1`;
 
 // 요기더적립 주문수 — lst_order_property_etc 기반
@@ -1489,7 +1492,11 @@ function OtpDisplay() {
 }
 
 // ─── CPS 탭 ─────────────────────────────────────────────────────────────────
-function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, range }) {
+const CPS_SIDO_LIST = ['전체','경기도','서울특별시','인천광역시','경상남도','대구광역시','부산광역시','전북특별자치도','충청남도','전라남도','대전광역시','경상북도','광주광역시','충청북도','강원특별자치도','울산광역시','제주특별자치도','세종특별자치시'];
+const CPS_SIDO_SHORT = { '전체':'전체','경기도':'경기','서울특별시':'서울','인천광역시':'인천','경상남도':'경남','대구광역시':'대구','부산광역시':'부산','전북특별자치도':'전북','충청남도':'충남','전라남도':'전남','대전광역시':'대전','경상북도':'경북','광주광역시':'광주','충청북도':'충북','강원특별자치도':'강원','울산광역시':'울산','제주특별자치도':'제주','세종특별자치시':'세종' };
+
+function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, range, onRefreshWithSido }) {
+  const [selectedSido, setSelectedSido] = useState("전체");
   const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
 
   if (!cpsLoaded) {
@@ -1508,6 +1515,24 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
       </div>
     );
   }
+
+  // 지역 필터 UI
+  const sidoFilter = (
+    <div style={{ background: "white", borderRadius: 10, padding: "12px 16px", marginBottom: 14, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 8 }}>지역 필터</div>
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+        {CPS_SIDO_LIST.map(sido => {
+          const on = selectedSido === sido;
+          return (
+            <button key={sido} onClick={() => { setSelectedSido(sido); onRefreshWithSido(sido === "전체" ? null : sido); }}
+              style={{ padding: "4px 11px", borderRadius: 20, border: "1.5px solid " + (on ? "#3a6fd8" : "#e0e0e0"), background: on ? "#3a6fd8" : "#fafafa", color: on ? "white" : "#888", fontSize: 11, fontWeight: on ? 700 : 400, cursor: "pointer", transition: "all 0.12s" }}>
+              {CPS_SIDO_SHORT[sido] || sido}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   const filteredCps = filterByRange(cpsData, range);
   const filteredFunnel = filterByRange(funnelData, range);
@@ -1559,8 +1584,10 @@ function CpsContent({ cpsData, funnelData, cpsLoaded, refreshStatus, onRefresh, 
 
   return (
     <>
+      {sidoFilter}
+
       <div style={{ fontSize: 10, color: "#bbb", marginBottom: 8 }}>
-        {filteredCps.length}일 · {filteredCps[0]?.date} ~ {filteredCps[filteredCps.length - 1]?.date}
+        {filteredCps.length}일 · {filteredCps[0]?.date} ~ {filteredCps[filteredCps.length - 1]?.date} {selectedSido !== "전체" ? " · " + selectedSido : ""}
       </div>
 
       {/* KPI 카드 */}
@@ -1971,14 +1998,17 @@ export default function YPXDashboard({ onClose }) {
     setTimeout(() => setSearchRefreshStatus("idle"), 3000);
   }, []);
 
-  const refreshCps = useCallback(async () => {
+  const [cpsSido, setCpsSido] = useState(null);
+  const refreshCps = useCallback(async (sido = null) => {
+    if (sido !== undefined) setCpsSido(sido);
+    const filterSido = sido !== undefined ? sido : cpsSido;
     setCpsRefreshStatus("loading");
-    console.log("[CPS] refresh start");
+    console.log("[CPS] refresh start, sido:", filterSido);
     try {
       const afterDate = "2025-09-01";
       const daily = true;
       console.log("[CPS] querying CVR...");
-      const cvrResult = await queryBigQuery(CPS_CVR_SQL(afterDate, daily));
+      const cvrResult = await queryBigQuery(CPS_CVR_SQL(afterDate, daily, filterSido));
       console.log("[CPS] CVR result:", cvrResult.rowCount || cvrResult.rows?.length, "rows");
       if (cvrResult.rows?.length) {
         const map = {};
@@ -1995,7 +2025,7 @@ export default function YPXDashboard({ onClose }) {
       // 퍼널 + 요기더적립 주문 (병렬)
       try {
         const [funnelResult, orderResult] = await Promise.all([
-          queryBigQuery(CPS_FUNNEL_SQL(afterDate, daily)),
+          queryBigQuery(CPS_FUNNEL_SQL(afterDate, daily, filterSido)),
           queryBigQuery(CPS_YOGITHE_ORDER_SQL(afterDate, daily)),
         ]);
         const funnelMap = {};
@@ -2123,7 +2153,7 @@ export default function YPXDashboard({ onClose }) {
             <SearchContent searchData={searchData} setSearchData={setSearchData} searchKeywords={searchKeywords} setSearchKeywords={setSearchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} range={globalRange} />
           )}
           {activeTab === "cps" && (
-            <CpsContent cpsData={cpsData} funnelData={cpsFunnelData} cpsLoaded={cpsLoaded} refreshStatus={cpsRefreshStatus} onRefresh={refreshCps} range={globalRange} />
+            <CpsContent cpsData={cpsData} funnelData={cpsFunnelData} cpsLoaded={cpsLoaded} refreshStatus={cpsRefreshStatus} onRefresh={refreshCps} range={globalRange} onRefreshWithSido={(sido) => refreshCps(sido)} />
           )}
           {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && activeTab !== "cps" && <ComingSoon tabId={activeTab} />}
         </div>
