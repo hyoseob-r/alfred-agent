@@ -9,6 +9,17 @@ const REGION_CACHE_KEY = "ypx_region_cache_v3";
 const AGE_CACHE_KEY = "ypx_age_cache_v2";
 const SEARCH_CACHE_KEY = "ypx_search_cache_v7";
 
+// 최신 캐시 키만 유지, 구버전 자동 삭제
+const CURRENT_KEYS = new Set([
+  CACHE_KEY, ORDER_CACHE_KEY, REGION_CACHE_KEY, AGE_CACHE_KEY, SEARCH_CACHE_KEY,
+  "ypx_cps_cache_v8", "ypx_cps_funnel_cache_v3", "ypx_region_ord_cache_v1",
+]);
+try {
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith("ypx_") && !CURRENT_KEYS.has(k)) localStorage.removeItem(k);
+  });
+} catch {}
+
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
   '경기도': '#e74c3c', '서울특별시': '#3498db', '인천광역시': '#f39c12',
