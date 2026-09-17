@@ -19,14 +19,14 @@
 
 **작업 완료 즉시 실행:**
 ```bash
-curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-worklog \
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/worklog \
   -H "Content-Type: application/json" \
   -d '{"date":"YYYY-MM-DD","content":"- [완료] ...\n- [결정] ...\n- [다음] ..."}'
 ```
 
 세션이 끝날 때도 반드시 WORKLOG 저장 후 git push.
 
-**Claude 자동 감시 의무:** 작업 완료 후 WORKLOG 저장 없이 넘어가면 사용자 요청 없이도 즉시 지적하고 직접 `save-worklog` API를 호출한다. 어느 컴퓨터, 어느 Claude 인스턴스든 동일하게 적용.
+**Claude 자동 감시 의무:** 작업 완료 후 WORKLOG 저장 없이 넘어가면 사용자 요청 없이도 즉시 지적하고 직접 `worklog` API를 호출한다. 어느 컴퓨터, 어느 Claude 인스턴스든 동일하게 적용.
 
 ---
 
@@ -68,7 +68,7 @@ curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
 **Step 2 — 작업 로그 저장 (API)**
 
 ```bash
-curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-worklog \
+curl -s -X POST https://alfred-agent-nine.vercel.app/api/worklog \
   -H "Content-Type: application/json" \
   -d '{
     "date": "YYYY-MM-DD",
@@ -215,7 +215,7 @@ curl -s -X POST https://alfred-agent-nine.vercel.app/api/save-context \
 
 ### WORKLOG 규칙
 - 새 대화 시작 시 `get-context` API 응답에 worklog가 포함됨 — 별도 파일 조회 불필요
-- 작업 완료/변경 시 `save-worklog` API로 저장 (git push 불필요)
+- 작업 완료/변경 시 `worklog` API로 저장 (git push 불필요)
 - **Why**: Supabase가 유일한 진실 소스. git pull 없이 어느 컴에서든 즉시 이어받기 가능.
 
 ### 에이전트 발언 저장 규칙 🚨 절대 불가침 규칙
