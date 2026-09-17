@@ -7,7 +7,7 @@ const CACHE_KEY = "ypx_dashboard_cache_v3";
 const ORDER_CACHE_KEY = "ypx_order_cache_v4";
 const REGION_CACHE_KEY = "ypx_region_cache_v3";
 const AGE_CACHE_KEY = "ypx_age_cache_v2";
-const SEARCH_CACHE_KEY = "ypx_search_cache_v6";
+const SEARCH_CACHE_KEY = "ypx_search_cache_v7";
 
 const TOP_SIDO = ['경기도','서울특별시','인천광역시','부산광역시','경상남도','전라북도'];
 const SIDO_COLORS = {
@@ -52,7 +52,7 @@ const AGE_SQL = (afterDate) =>
   GROUP BY 1, 2 ORDER BY 1, 2`;
 
 // 검색어 SQL — 일별 TOP N 검색어 + 전환율
-const SEARCH_SQL = (afterDate, topN = 15) =>
+const SEARCH_SQL = (afterDate, topN = 200) =>
   `WITH daily AS (
     SELECT event_date as date,
       sr.body_search_keyword AS keyword,
@@ -70,19 +70,6 @@ const SEARCH_SQL = (afterDate, topN = 15) =>
   SELECT d.date, d.keyword, d.search_cnt, d.order_cnt
   FROM daily d INNER JOIN top_kw t ON d.keyword = t.keyword
   ORDER BY d.date, d.search_cnt DESC`;
-
-// 특정 검색어 1개 일별 데이터 추가 조회
-const SEARCH_ADD_SQL = (keyword, afterDate) =>
-  `SELECT event_date as date,
-    sr.body_search_keyword AS keyword,
-    COUNT(*) AS search_cnt,
-    COUNTIF(EXISTS(SELECT 1 FROM UNNEST(sr.vendor_click) vc WHERE vc.order_no IS NOT NULL AND vc.order_no != "")) AS order_cnt
-  FROM \`ygy-datawarehouse.mart_product.fact_ilog_session_search_keyword\` t,
-  UNNEST(t.search_result) sr
-  WHERE event_date > '${afterDate}'
-    AND event_date < CURRENT_DATE()
-    AND sr.body_search_keyword = '${keyword.replace(/'/g, "\\'")}'
-  GROUP BY 1, 2 ORDER BY 1`;
 
 // 특정 검색어 드릴다운 — 클릭한 가게의 카테고리별 주문/이탈
 const SEARCH_DRILL_SQL = (keyword, startDate, endDate) =>
@@ -1131,7 +1118,6 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
   const [drillLoading, setDrillLoading] = useState(false);
   const [visibleKw, setVisibleKw] = useState(new Set());
   const [searchInput, setSearchInput] = useState("");
-  const [addLoading, setAddLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [addMsg, setAddMsg] = useState("");
   const [sortBy, setSortBy] = useState("search"); // search | order | cvr
@@ -1149,40 +1135,32 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
     setVisibleKw(prev => { const n = new Set(prev); n.has(kw) ? n.delete(kw) : n.add(kw); return n; });
   };
 
-  // 검색어 추가 — BQ에서 해당 키워드 주간 데이터 조회 후 병합
-  async function addKeyword(kw) {
+  // 검색어 추가 — 이미 로드된 TOP 200 키워드에서 필터 (BQ 재조회 없음)
+  function addKeyword(kw) {
     const normalized = kw.trim().normalize('NFC');
     if (!normalized) return;
+    // 이미 목록에 있으면 visibility 토글
     if (searchKeywords.includes(normalized)) {
-      setAddMsg("'" + normalized + "' 이미 있는 검색어에요");
+      toggleKw(normalized);
+      setAddMsg("'" + normalized + "' " + (visibleKw.has(normalized) ? "차트에서 숨김" : "차트에 표시"));
       setTimeout(() => setAddMsg(""), 2000);
-      if (!visibleKw.has(normalized)) toggleKw(normalized);
       setSearchInput("");
       return;
     }
-    setAddLoading(true);
-    try {
-      const result = await queryBigQuery(SEARCH_ADD_SQL(normalized, "2025-09-01"));
-      if (result.rows?.length) {
-        // 기존 데이터에 새 키워드 병합
-        const newData = searchData.map(r => ({ ...r }));
-        for (const row of result.rows) {
-          const date = row.date;
-          const existing = newData.find(r => r.date === date);
-          if (existing) {
-            existing['kw_' + normalized + '_search'] = +row.search_cnt;
-            existing['kw_' + normalized + '_order'] = +row.order_cnt;
-            const s = +row.search_cnt, o = +row.order_cnt;
-            existing['kw_' + normalized + '_cvr'] = s > 0 ? Math.round(o / s * 1000) / 10 : 0;
-          }
-        }
-        setSearchData(newData);
-        setSearchKeywords(prev => prev.includes(normalized) ? prev : [...prev, normalized]);
-        setVisibleKw(prev => { const n = new Set(prev); n.add(normalized); return n; });
-        saveCache(SEARCH_CACHE_KEY, newData);
-      }
-    } catch (e) { console.error("keyword add failed:", e); }
-    setAddLoading(false);
+    // 부분 일치 검색 — 입력어를 포함하는 키워드 찾기
+    const matches = searchKeywords.filter(k => k.includes(normalized));
+    if (matches.length > 0) {
+      // 첫 번째 매칭 키워드를 차트에 표시
+      const match = matches[0];
+      if (!visibleKw.has(match)) toggleKw(match);
+      setAddMsg("'" + match + "' 차트에 표시 (총 " + matches.length + "개 일치)");
+      setTimeout(() => setAddMsg(""), 3000);
+      setSearchInput("");
+      return;
+    }
+    // TOP 200에 없는 키워드
+    setAddMsg("TOP 200에 없는 검색어입니다");
+    setTimeout(() => setAddMsg(""), 3000);
     setSearchInput("");
   }
 
@@ -1285,12 +1263,12 @@ function SearchContent({ searchData, setSearchData, searchKeywords, setSearchKey
           <input
             type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && searchInput.trim()) addKeyword(searchInput); }}
-            placeholder="검색어 추가 (예: 삼겹살, 초밥, 버거킹...)"
+            placeholder="TOP 200 검색어에서 찾기 (예: 삼겹살, 초밥...)"
             style={{ flex: 1, padding: "6px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12, outline: "none" }}
           />
-          <button onClick={() => searchInput.trim() && addKeyword(searchInput)} disabled={addLoading || !searchInput.trim()}
-            style={{ padding: "6px 14px", background: addLoading ? "#ccc" : "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: addLoading ? "wait" : "pointer", whiteSpace: "nowrap" }}>
-            {addLoading ? "조회중..." : "추가"}
+          <button onClick={() => searchInput.trim() && addKeyword(searchInput)} disabled={!searchInput.trim()}
+            style={{ padding: "6px 14px", background: !searchInput.trim() ? "#ccc" : "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 11, cursor: !searchInput.trim() ? "default" : "pointer", whiteSpace: "nowrap" }}>
+            찾기
           </button>
           {addMsg && <span style={{ fontSize: 11, color: "#e67e22", whiteSpace: "nowrap" }}>{addMsg}</span>}
         </div>
@@ -2011,7 +1989,7 @@ export default function YPXDashboard({ onClose }) {
     try {
       const cached = loadCache(SEARCH_CACHE_KEY);
       const afterDate = cached.length ? cached[cached.length - 1].date : "2025-09-01";
-      const result = await queryBigQuery(SEARCH_SQL(afterDate, 50));
+      const result = await queryBigQuery(SEARCH_SQL(afterDate, 200));
       if (result.rows?.length) {
         const { data: freshData, keywords: freshKws } = pivotSearch(result.rows);
         const merged = cached.length ? mergeData(cached, freshData) : freshData;
