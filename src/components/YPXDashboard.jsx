@@ -202,7 +202,16 @@ const ORDER_SQL = (afterDate) =>
   GROUP BY 1 ORDER BY 1`;
 
 function loadCache(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
-function saveCache(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+function saveCache(key, data) {
+  const json = JSON.stringify(data);
+  // localStorage 5MB 제한 — 3MB 넘으면 최신 데이터만 유지
+  if (json.length > 3_000_000) {
+    const trimmed = data.slice(-Math.floor(data.length * 0.6));
+    try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch { localStorage.removeItem(key); }
+    return;
+  }
+  try { localStorage.setItem(key, json); } catch { localStorage.removeItem(key); }
+}
 function mergeData(a, b) {
   const map = {};
   [...a, ...b].forEach(r => { map[r.date] = { ...map[r.date], ...r }; });
