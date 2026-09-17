@@ -203,6 +203,182 @@ export function generateCompose(tokens) {
   return lines.join('\n');
 }
 
+// ── Flutter (Dart) 생성 ─────────────────────────────────────────────────────
+
+export function generateFlutter(tokens) {
+  const lines = [];
+  lines.push('import \'package:flutter/material.dart\';');
+  lines.push('');
+  lines.push('// ═══════════════════════════════════════════════════════════════');
+  lines.push('// YDS 2.0 Design Tokens — Auto-generated from Figma');
+  lines.push('// ═══════════════════════════════════════════════════════════════');
+  lines.push('');
+
+  // Colors
+  lines.push('class YDSColors {');
+  lines.push('  YDSColors._();');
+  lines.push('');
+  if (tokens.colors?.foundation) {
+    lines.push('  // Foundation');
+    for (const [key, val] of Object.entries(tokens.colors.foundation)) {
+      if (val?.value) {
+        lines.push(`  static const ${camelCase(key)} = Color(0xFF${hexToARGB(val.value)});`);
+      }
+    }
+  }
+  lines.push('');
+  if (tokens.colors?.gray) {
+    lines.push('  // Gray');
+    for (const [key, val] of Object.entries(tokens.colors.gray)) {
+      if (val?.value) {
+        lines.push(`  static const ${camelCase(key)} = Color(0xFF${hexToARGB(val.value)});`);
+      }
+    }
+  }
+  lines.push('');
+  if (tokens.colors?.background) {
+    lines.push('  // Background');
+    for (const [key, val] of Object.entries(tokens.colors.background)) {
+      if (val?.value) {
+        lines.push(`  static const ${camelCase('bg_' + key)} = Color(0x${hexToARGB(val.value)});`);
+      }
+    }
+  }
+  lines.push('');
+  if (tokens.colors?.light) {
+    lines.push('  // Light Palette');
+    for (const [key, val] of Object.entries(tokens.colors.light)) {
+      if (val?.value) {
+        lines.push(`  static const ${camelCase(key)} = Color(0xFF${hexToARGB(val.value)});`);
+      }
+    }
+  }
+  lines.push('}');
+  lines.push('');
+
+  // Typography
+  lines.push('class YDSTypography {');
+  lines.push('  YDSTypography._();');
+  lines.push('');
+  if (tokens.typography) {
+    for (const t of tokens.typography) {
+      const name = t.name.replace(/\//g, '_').replace(/\s/g, '');
+      const weight = t.weight >= 700 ? 'FontWeight.w700' : 'FontWeight.w400';
+      lines.push(`  static const ${camelCase(name)} = TextStyle(fontSize: ${t.size}, fontWeight: ${weight}, height: ${(t.lineHeight / t.size).toFixed(2)});`);
+    }
+  }
+  lines.push('}');
+  lines.push('');
+
+  // Spacing
+  lines.push('class YDSSpacing {');
+  lines.push('  YDSSpacing._();');
+  lines.push('');
+  if (tokens.spacing) {
+    for (const s of tokens.spacing) {
+      lines.push(`  static const double ${s.name} = ${s.value};`);
+    }
+  }
+  lines.push('}');
+  lines.push('');
+
+  // Radius
+  lines.push('class YDSRadius {');
+  lines.push('  YDSRadius._();');
+  lines.push('');
+  if (tokens.metaTokens?.radius) {
+    for (const [key, val] of Object.entries(tokens.metaTokens.radius)) {
+      lines.push(`  static const double ${camelCase(key)} = ${val};`);
+    }
+  }
+  lines.push('}');
+
+  return lines.join('\n');
+}
+
+// ── CSS Custom Properties 생성 ──────────────────────────────────────────────
+
+export function generateCSS(tokens) {
+  const lines = [];
+  lines.push('/* ═══════════════════════════════════════════════════════════════ */');
+  lines.push('/* YDS 2.0 Design Tokens — Auto-generated from Figma              */');
+  lines.push('/* ═══════════════════════════════════════════════════════════════ */');
+  lines.push('');
+  lines.push(':root {');
+
+  // Colors
+  lines.push('  /* Foundation Colors */');
+  if (tokens.colors?.foundation) {
+    for (const [key, val] of Object.entries(tokens.colors.foundation)) {
+      if (val?.value) {
+        lines.push(`  --yds-${key.replace(/_/g, '-')}: ${val.value};`);
+      }
+    }
+  }
+  lines.push('');
+  lines.push('  /* Gray Colors */');
+  if (tokens.colors?.gray) {
+    for (const [key, val] of Object.entries(tokens.colors.gray)) {
+      if (val?.value) {
+        lines.push(`  --yds-${key.replace(/_/g, '-')}: ${val.value};`);
+      }
+    }
+  }
+  lines.push('');
+  lines.push('  /* Background Colors */');
+  if (tokens.colors?.background) {
+    for (const [key, val] of Object.entries(tokens.colors.background)) {
+      if (val?.value) {
+        lines.push(`  --yds-bg-${key.replace(/_/g, '-')}: ${val.value};`);
+      }
+    }
+  }
+  lines.push('');
+  lines.push('  /* Light Palette */');
+  if (tokens.colors?.light) {
+    for (const [key, val] of Object.entries(tokens.colors.light)) {
+      if (val?.value) {
+        lines.push(`  --yds-${key.replace(/_/g, '-')}: ${val.value};`);
+      }
+    }
+  }
+  lines.push('');
+
+  // Spacing
+  lines.push('  /* Spacing */');
+  if (tokens.spacing) {
+    for (const s of tokens.spacing) {
+      lines.push(`  --yds-spacing-${s.name}: ${s.value}px;`);
+    }
+  }
+  lines.push('');
+
+  // Radius
+  lines.push('  /* Radius */');
+  if (tokens.metaTokens?.radius) {
+    for (const [key, val] of Object.entries(tokens.metaTokens.radius)) {
+      lines.push(`  --yds-radius-${key.replace(/_/g, '-')}: ${val}px;`);
+    }
+  }
+  lines.push('}');
+  lines.push('');
+
+  // Typography as utility classes
+  lines.push('/* Typography */');
+  if (tokens.typography) {
+    for (const t of tokens.typography) {
+      const cls = t.name.replace(/\//g, '-').replace(/\s/g, '').toLowerCase();
+      lines.push(`.yds-${cls} {`);
+      lines.push(`  font-size: ${t.size}px;`);
+      lines.push(`  font-weight: ${t.weight};`);
+      lines.push(`  line-height: ${t.lineHeight}px;`);
+      lines.push('}');
+    }
+  }
+
+  return lines.join('\n');
+}
+
 // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 
 function camelCase(str) {

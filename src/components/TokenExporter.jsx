@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { generateSwiftUI, generateCompose } from "../utils/tokenCodeGen";
+import { generateSwiftUI, generateCompose, generateFlutter, generateCSS } from "../utils/tokenCodeGen";
 
 // YDS 토큰 import (storybook의 tokens.js와 동일 구조)
 import { metaTokens, colors, typography, spacing } from "./ydsTokens";
@@ -10,7 +10,8 @@ export default function TokenExporter({ onClose }) {
   const [tab, setTab] = useState("swift");
   const [copied, setCopied] = useState(false);
 
-  const code = tab === "swift" ? generateSwiftUI(TOKENS) : generateCompose(TOKENS);
+  const generators = { swift: generateSwiftUI, compose: generateCompose, flutter: generateFlutter, css: generateCSS };
+  const code = generators[tab](TOKENS);
 
   function copyCode() {
     navigator.clipboard.writeText(code);
@@ -19,7 +20,8 @@ export default function TokenExporter({ onClose }) {
   }
 
   function downloadCode() {
-    const ext = tab === "swift" ? "swift" : "kt";
+    const extMap = { swift: "swift", compose: "kt", flutter: "dart", css: "css" };
+    const ext = extMap[tab];
     const filename = `YDSTokens.${ext}`;
     const blob = new Blob([code], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -39,7 +41,7 @@ export default function TokenExporter({ onClose }) {
         <div style={{ padding: "16px 20px", background: "#111", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>YDS 2.0 → Native Code</div>
           <div style={{ display: "flex", gap: 4, marginLeft: 12 }}>
-            {[{ id: "swift", label: "SwiftUI", icon: "🍎" }, { id: "compose", label: "Compose", icon: "🤖" }].map(t => (
+            {[{ id: "swift", label: "SwiftUI", icon: "🍎" }, { id: "compose", label: "Compose", icon: "🤖" }, { id: "flutter", label: "Flutter", icon: "💙" }, { id: "css", label: "CSS", icon: "🎨" }].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 style={{ padding: "6px 16px", borderRadius: 20, border: "none", background: tab === t.id ? "#3a6fd8" : "#333", color: tab === t.id ? "#fff" : "#999", fontSize: 12, fontWeight: tab === t.id ? 700 : 400, cursor: "pointer" }}>
                 {t.icon} {t.label}
@@ -71,7 +73,7 @@ export default function TokenExporter({ onClose }) {
 
         {/* 하단 정보 */}
         <div style={{ padding: "10px 20px", background: "#111", display: "flex", alignItems: "center", gap: 12, fontSize: 10, color: "#666" }}>
-          <span>{tab === "swift" ? "YDSTokens.swift" : "YDSTokens.kt"}</span>
+          <span>YDSTokens.{{ swift: "swift", compose: "kt", flutter: "dart", css: "css" }[tab]}</span>
           <span>·</span>
           <span>{code.split('\n').length}줄</span>
           <span>·</span>

@@ -36,6 +36,7 @@ import FeedbackPanel from "./components/panels/FeedbackPanel";
 import { FeedbackButton } from "./components/FeedbackSystem";
 import LottieStudio from "./components/LottieStudio";
 import YPXDashboard from "./components/YPXDashboard";
+import TokenExporter from "./components/TokenExporter";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
 
@@ -80,6 +81,7 @@ export default function App() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLottie, setShowLottie] = useState(false);
   const [showYPX, setShowYPX] = useState(false);
+  const [showTokenExporter, setShowTokenExporter] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState("chat"); // "chat" | "council"
   const [showProxySettings, setShowProxySettings] = useState(false);
@@ -1065,6 +1067,7 @@ ${chatHtml}
       {showContextNotes && <ContextNotesModal onClose={() => setShowContextNotes(false)} />}
       {showLottie && <LottieStudio user={user} isOwner={isOwner} onClose={() => setShowLottie(false)} />}
       {showYPX && <YPXDashboard onClose={() => setShowYPX(false)} />}
+      {showTokenExporter && <TokenExporter onClose={() => setShowTokenExporter(false)} />}
       {showProxySettings === true && (
         <ProxyStatusModal
           onClose={() => setShowProxySettings(false)}
@@ -1161,6 +1164,11 @@ ${chatHtml}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#03C75A"; e.currentTarget.style.color = "#03C75A"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>📊</span> 트렌드 확인
+          </button>}
+          {isOwner && <button onClick={() => setShowTokenExporter(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#3a6fd8"; e.currentTarget.style.color = "#3a6fd8"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
+            <span style={{ fontSize: "11px" }}>🛠</span> YDS Code
           </button>}
           {isOwner && <button onClick={() => setShowAgents(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#7b68b5"; e.currentTarget.style.color = "#7b68b5"; }}
