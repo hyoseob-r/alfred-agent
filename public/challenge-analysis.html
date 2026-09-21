@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>미션챌린지 주문 추이</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: Pretendard, -apple-system, sans-serif; background: #f5f5f5; padding: 20px; color: #333; }
+  .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { font-size: 12px; color: #999; margin-bottom: 24px; }
+  .legend { display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; }
+  canvas { max-height: 300px; }
+</style>
+</head><body>
+<div class="card">
+  <h1>미션챌린지 참여자 vs 미참여자 — 일별 주문 추이</h1>
+  <div class="sub">전체 타겟 37,452명 | 참여자 4,026명 vs 미참여자 33,426명</div>
+  <div class="legend">
+    <span><span class="dot" style="background:#FA0050"></span> 참여자</span>
+    <span><span class="dot" style="background:#3498db"></span> 미참여자 (÷10 스케일)</span>
+    <span style="color:#999">| 🟨 1차(8/20~24) 🟧 2차(8/25~9/1)</span>
+  </div>
+  <canvas id="ordersChart"></canvas>
+</div>
+<div class="card">
+  <h1>일별 주문자 수 (유니크)</h1>
+  <div class="sub">해당일에 1건 이상 주문한 유저 수</div>
+  <canvas id="customersChart"></canvas>
+</div>
+<div class="card">
+  <h1>일별 GMV</h1>
+  <div class="sub">총 주문 금액 (만원)</div>
+  <canvas id="gmvChart"></canvas>
+</div>
+<script>
+const data = [{"grp": "non_participant", "dt": "2026-08-01", "orders": 4489, "customers": 4160, "gmv": 110914441.0}, {"grp": "non_participant", "dt": "2026-08-02", "orders": 2451, "customers": 2249, "gmv": 62048808.0}, {"grp": "non_participant", "dt": "2026-08-03", "orders": 1318, "customers": 1214, "gmv": 31955470.0}, {"grp": "non_participant", "dt": "2026-08-04", "orders": 1251, "customers": 1127, "gmv": 30387711.0}, {"grp": "non_participant", "dt": "2026-08-05", "orders": 1009, "customers": 935, "gmv": 24586190.0}, {"grp": "non_participant", "dt": "2026-08-06", "orders": 1016, "customers": 949, "gmv": 24737879.0}, {"grp": "non_participant", "dt": "2026-08-07", "orders": 1855, "customers": 1736, "gmv": 46164110.0}, {"grp": "non_participant", "dt": "2026-08-08", "orders": 2344, "customers": 2147, "gmv": 55506360.0}, {"grp": "non_participant", "dt": "2026-08-09", "orders": 349, "customers": 320, "gmv": 8689380.0}, {"grp": "non_participant", "dt": "2026-08-10", "orders": 233, "customers": 209, "gmv": 5813751.0}, {"grp": "non_participant", "dt": "2026-08-11", "orders": 263, "customers": 240, "gmv": 6726000.0}, {"grp": "non_participant", "dt": "2026-08-12", "orders": 218, "customers": 203, "gmv": 5399600.0}, {"grp": "non_participant", "dt": "2026-08-13", "orders": 223, "customers": 209, "gmv": 6432700.0}, {"grp": "non_participant", "dt": "2026-08-14", "orders": 307, "customers": 287, "gmv": 7763860.0}, {"grp": "non_participant", "dt": "2026-08-15", "orders": 300, "customers": 275, "gmv": 8075570.0}, {"grp": "non_participant", "dt": "2026-08-16", "orders": 289, "customers": 257, "gmv": 7819400.0}, {"grp": "non_participant", "dt": "2026-08-17", "orders": 255, "customers": 230, "gmv": 6371740.0}, {"grp": "non_participant", "dt": "2026-08-18", "orders": 182, "customers": 166, "gmv": 4864830.0}, {"grp": "non_participant", "dt": "2026-08-19", "orders": 189, "customers": 166, "gmv": 4676770.0}, {"grp": "non_participant", "dt": "2026-08-20", "orders": 156, "customers": 149, "gmv": 4303840.0}, {"grp": "non_participant", "dt": "2026-08-21", "orders": 198, "customers": 187, "gmv": 5451490.0}, {"grp": "non_participant", "dt": "2026-08-22", "orders": 197, "customers": 180, "gmv": 5682810.0}, {"grp": "non_participant", "dt": "2026-08-23", "orders": 184, "customers": 169, "gmv": 4834220.0}, {"grp": "non_participant", "dt": "2026-08-24", "orders": 328, "customers": 298, "gmv": 6329850.0}, {"grp": "non_participant", "dt": "2026-08-25", "orders": 494, "customers": 462, "gmv": 12825030.0}, {"grp": "non_participant", "dt": "2026-08-26", "orders": 466, "customers": 438, "gmv": 11956890.0}, {"grp": "non_participant", "dt": "2026-08-27", "orders": 464, "customers": 431, "gmv": 12940430.0}, {"grp": "non_participant", "dt": "2026-08-28", "orders": 688, "customers": 593, "gmv": 17053500.0}, {"grp": "non_participant", "dt": "2026-08-29", "orders": 708, "customers": 633, "gmv": 19803250.0}, {"grp": "non_participant", "dt": "2026-08-30", "orders": 629, "customers": 583, "gmv": 17379760.0}, {"grp": "non_participant", "dt": "2026-08-31", "orders": 464, "customers": 427, "gmv": 11502440.0}, {"grp": "non_participant", "dt": "2026-09-01", "orders": 469, "customers": 425, "gmv": 13176770.0}, {"grp": "non_participant", "dt": "2026-09-02", "orders": 449, "customers": 410, "gmv": 12100154.0}, {"grp": "non_participant", "dt": "2026-09-03", "orders": 512, "customers": 459, "gmv": 12727590.0}, {"grp": "non_participant", "dt": "2026-09-04", "orders": 589, "customers": 535, "gmv": 16700130.0}, {"grp": "non_participant", "dt": "2026-09-05", "orders": 604, "customers": 546, "gmv": 17089560.0}, {"grp": "non_participant", "dt": "2026-09-06", "orders": 630, "customers": 572, "gmv": 17926710.0}, {"grp": "non_participant", "dt": "2026-09-07", "orders": 448, "customers": 415, "gmv": 11983430.0}, {"grp": "non_participant", "dt": "2026-09-08", "orders": 500, "customers": 457, "gmv": 13527100.0}, {"grp": "non_participant", "dt": "2026-09-09", "orders": 439, "customers": 405, "gmv": 11822630.0}, {"grp": "non_participant", "dt": "2026-09-10", "orders": 492, "customers": 430, "gmv": 13817060.0}, {"grp": "non_participant", "dt": "2026-09-11", "orders": 583, "customers": 539, "gmv": 16514130.0}, {"grp": "non_participant", "dt": "2026-09-12", "orders": 682, "customers": 615, "gmv": 19207660.0}, {"grp": "non_participant", "dt": "2026-09-13", "orders": 730, "customers": 652, "gmv": 20757970.0}, {"grp": "non_participant", "dt": "2026-09-14", "orders": 511, "customers": 457, "gmv": 13183820.0}, {"grp": "non_participant", "dt": "2026-09-15", "orders": 539, "customers": 483, "gmv": 14163110.0}, {"grp": "non_participant", "dt": "2026-09-16", "orders": 522, "customers": 468, "gmv": 13883850.0}, {"grp": "non_participant", "dt": "2026-09-17", "orders": 507, "customers": 456, "gmv": 13323400.0}, {"grp": "non_participant", "dt": "2026-09-18", "orders": 683, "customers": 636, "gmv": 18387040.0}, {"grp": "non_participant", "dt": "2026-09-19", "orders": 1627, "customers": 1463, "gmv": 35418190.0}, {"grp": "participant", "dt": "2026-08-01", "orders": 410, "customers": 372, "gmv": 9944790.0}, {"grp": "participant", "dt": "2026-08-02", "orders": 256, "customers": 222, "gmv": 6314030.0}, {"grp": "participant", "dt": "2026-08-03", "orders": 171, "customers": 156, "gmv": 4068430.0}, {"grp": "participant", "dt": "2026-08-04", "orders": 165, "customers": 149, "gmv": 3921050.0}, {"grp": "participant", "dt": "2026-08-05", "orders": 145, "customers": 132, "gmv": 3543000.0}, {"grp": "participant", "dt": "2026-08-06", "orders": 126, "customers": 115, "gmv": 3069710.0}, {"grp": "participant", "dt": "2026-08-07", "orders": 212, "customers": 202, "gmv": 5562310.0}, {"grp": "participant", "dt": "2026-08-08", "orders": 299, "customers": 261, "gmv": 7324990.0}, {"grp": "participant", "dt": "2026-08-09", "orders": 70, "customers": 64, "gmv": 1549100.0}, {"grp": "participant", "dt": "2026-08-10", "orders": 63, "customers": 55, "gmv": 1604570.0}, {"grp": "participant", "dt": "2026-08-11", "orders": 54, "customers": 50, "gmv": 1383880.0}, {"grp": "participant", "dt": "2026-08-12", "orders": 58, "customers": 53, "gmv": 1273700.0}, {"grp": "participant", "dt": "2026-08-13", "orders": 58, "customers": 54, "gmv": 1344950.0}, {"grp": "participant", "dt": "2026-08-14", "orders": 72, "customers": 66, "gmv": 2106190.0}, {"grp": "participant", "dt": "2026-08-15", "orders": 68, "customers": 61, "gmv": 1672410.0}, {"grp": "participant", "dt": "2026-08-16", "orders": 65, "customers": 55, "gmv": 1751930.0}, {"grp": "participant", "dt": "2026-08-17", "orders": 57, "customers": 53, "gmv": 1462640.0}, {"grp": "participant", "dt": "2026-08-18", "orders": 37, "customers": 30, "gmv": 850100.0}, {"grp": "participant", "dt": "2026-08-19", "orders": 45, "customers": 43, "gmv": 1126210.0}, {"grp": "participant", "dt": "2026-08-20", "orders": 49, "customers": 44, "gmv": 1261400.0}, {"grp": "participant", "dt": "2026-08-21", "orders": 43, "customers": 41, "gmv": 1044800.0}, {"grp": "participant", "dt": "2026-08-22", "orders": 56, "customers": 47, "gmv": 1504710.0}, {"grp": "participant", "dt": "2026-08-23", "orders": 50, "customers": 44, "gmv": 1217130.0}, {"grp": "participant", "dt": "2026-08-24", "orders": 88, "customers": 82, "gmv": 1713900.0}, {"grp": "participant", "dt": "2026-08-25", "orders": 224, "customers": 205, "gmv": 5562530.0}, {"grp": "participant", "dt": "2026-08-26", "orders": 242, "customers": 223, "gmv": 6031800.0}, {"grp": "participant", "dt": "2026-08-27", "orders": 271, "customers": 243, "gmv": 6789470.0}, {"grp": "participant", "dt": "2026-08-28", "orders": 313, "customers": 282, "gmv": 7626180.0}, {"grp": "participant", "dt": "2026-08-29", "orders": 368, "customers": 319, "gmv": 9779160.0}, {"grp": "participant", "dt": "2026-08-30", "orders": 337, "customers": 296, "gmv": 8748370.0}, {"grp": "participant", "dt": "2026-08-31", "orders": 259, "customers": 227, "gmv": 6056660.0}, {"grp": "participant", "dt": "2026-09-01", "orders": 136, "customers": 126, "gmv": 3288870.0}, {"grp": "participant", "dt": "2026-09-02", "orders": 140, "customers": 131, "gmv": 3420250.0}, {"grp": "participant", "dt": "2026-09-03", "orders": 129, "customers": 111, "gmv": 3294160.0}, {"grp": "participant", "dt": "2026-09-04", "orders": 144, "customers": 133, "gmv": 3708040.0}, {"grp": "participant", "dt": "2026-09-05", "orders": 164, "customers": 145, "gmv": 4121650.0}, {"grp": "participant", "dt": "2026-09-06", "orders": 154, "customers": 139, "gmv": 4044070.0}, {"grp": "participant", "dt": "2026-09-07", "orders": 96, "customers": 88, "gmv": 2346570.0}, {"grp": "participant", "dt": "2026-09-08", "orders": 114, "customers": 102, "gmv": 3095690.0}, {"grp": "participant", "dt": "2026-09-09", "orders": 101, "customers": 92, "gmv": 2574970.0}, {"grp": "participant", "dt": "2026-09-10", "orders": 120, "customers": 105, "gmv": 3305450.0}, {"grp": "participant", "dt": "2026-09-11", "orders": 133, "customers": 113, "gmv": 3477260.0}, {"grp": "participant", "dt": "2026-09-12", "orders": 146, "customers": 130, "gmv": 4043900.0}, {"grp": "participant", "dt": "2026-09-13", "orders": 161, "customers": 142, "gmv": 4351760.0}, {"grp": "participant", "dt": "2026-09-14", "orders": 99, "customers": 89, "gmv": 2545000.0}, {"grp": "participant", "dt": "2026-09-15", "orders": 106, "customers": 100, "gmv": 2632240.0}, {"grp": "participant", "dt": "2026-09-16", "orders": 115, "customers": 108, "gmv": 3123300.0}, {"grp": "participant", "dt": "2026-09-17", "orders": 111, "customers": 103, "gmv": 2988250.0}, {"grp": "participant", "dt": "2026-09-18", "orders": 137, "customers": 128, "gmv": 3650530.0}, {"grp": "participant", "dt": "2026-09-19", "orders": 281, "customers": 256, "gmv": 6186130.0}];
+const labels = ["08-01(\ud1a0)", "08-02(\uc77c)", "08-03(\uc6d4)", "08-04(\ud654)", "08-05(\uc218)", "08-06(\ubaa9)", "08-07(\uae08)", "08-08(\ud1a0)", "08-09(\uc77c)", "08-10(\uc6d4)", "08-11(\ud654)", "08-12(\uc218)", "08-13(\ubaa9)", "08-14(\uae08)", "08-15(\ud1a0)", "08-16(\uc77c)", "08-17(\uc6d4)", "08-18(\ud654)", "08-19(\uc218)", "08-20(\ubaa9)", "08-21(\uae08)", "08-22(\ud1a0)", "08-23(\uc77c)", "08-24(\uc6d4)", "08-25(\ud654)", "08-26(\uc218)", "08-27(\ubaa9)", "08-28(\uae08)", "08-29(\ud1a0)", "08-30(\uc77c)", "08-31(\uc6d4)", "09-01(\ud654)", "09-02(\uc218)", "09-03(\ubaa9)", "09-04(\uae08)", "09-05(\ud1a0)", "09-06(\uc77c)", "09-07(\uc6d4)", "09-08(\ud654)", "09-09(\uc218)", "09-10(\ubaa9)", "09-11(\uae08)", "09-12(\ud1a0)", "09-13(\uc77c)", "09-14(\uc6d4)", "09-15(\ud654)", "09-16(\uc218)", "09-17(\ubaa9)", "09-18(\uae08)", "09-19(\ud1a0)"];
+
+const partData = data.filter(d => d.grp === 'participant').sort((a,b) => a.dt.localeCompare(b.dt));
+const nonpartData = data.filter(d => d.grp === 'non_participant').sort((a,b) => a.dt.localeCompare(b.dt));
+
+function makeChart(id, partValues, nonpartValues, divider, unit) {
+  new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: '참여자',
+          data: partValues,
+          borderColor: '#FA0050',
+          backgroundColor: 'rgba(250,0,80,0.05)',
+          borderWidth: 2,
+          pointRadius: 2,
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: '미참여자' + (divider > 1 ? ' (÷'+divider+')' : ''),
+          data: nonpartValues.map(v => Math.round(v / divider)),
+          borderColor: '#3498db',
+          backgroundColor: 'rgba(52,152,219,0.05)',
+          borderWidth: 2,
+          pointRadius: 2,
+          tension: 0.3,
+          fill: true,
+          borderDash: [4, 2],
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              let val = ctx.parsed.y;
+              if (ctx.datasetIndex === 1) val = nonpartValues[ctx.dataIndex];
+              return ctx.dataset.label.split(' (')[0] + ': ' + val.toLocaleString() + unit;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { 
+          ticks: { 
+            font: { size: 9 }, 
+            maxRotation: 60,
+            callback: function(val, idx) {
+              const l = labels[idx];
+              const isSun = l.endsWith('(일)');
+              const isSat = l.endsWith('(토)');
+              return l;
+            },
+            color: function(ctx) {
+              const l = labels[ctx.index];
+              if (!l) return '#999';
+              if (l.endsWith('(일)')) return '#FA0050';
+              if (l.endsWith('(토)')) return '#3498db';
+              return '#999';
+            }
+          }
+        },
+        y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+      }
+    },
+    plugins: [{ 
+      id: 'bgZones',
+      beforeDraw(chart) {
+        const ctx = chart.ctx;
+        const xScale = chart.scales.x;
+        const yScale = chart.scales.y;
+        const zones = [
+          { start: 19, end: 23, color: 'rgba(255,200,0,0.10)' },
+          { start: 24, end: 31, color: 'rgba(255,140,0,0.10)' },
+        ];
+        zones.forEach(z => {
+          const x1 = xScale.getPixelForValue(z.start);
+          const x2 = xScale.getPixelForValue(z.end);
+          ctx.save();
+          ctx.fillStyle = z.color;
+          ctx.fillRect(x1, yScale.top, x2 - x1, yScale.bottom - yScale.top);
+          ctx.restore();
+        });
+      }
+    }]
+  });
+}
+
+const partOrders = partData.map(d => d.orders);
+const nonpartOrders = nonpartData.map(d => d.orders);
+makeChart('ordersChart', partOrders, nonpartOrders, 10, '건');
+
+const partCust = partData.map(d => d.customers);
+const nonpartCust = nonpartData.map(d => d.customers);
+makeChart('customersChart', partCust, nonpartCust, 10, '명');
+
+const partGmv = partData.map(d => Math.round(d.gmv / 10000));
+const nonpartGmv = nonpartData.map(d => Math.round(d.gmv / 10000));
+makeChart('gmvChart', partGmv, nonpartGmv, 10, '만원');
+</script>
+</body></html>

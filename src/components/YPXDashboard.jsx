@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { queryBigQuery } from "../api/proxy";
+import ChallengeContent from "./ChallengeTab.jsx";
 
 // ─── 캐시 ─────────────────────────────────────────────────────────────────────
 const CACHE_KEY = "ypx_dashboard_cache_v3";
@@ -362,6 +363,7 @@ const TABS = [
   { id: "age",        label: "연령",        icon: "👥" },
   { id: "search",     label: "검색어",      icon: "🔍" },
   { id: "cps",        label: "CPS",        icon: "💰" },
+  { id: "challenge",  label: "챌린지",    icon: "🎯" },
 ];
 
 // ─── 차트 선택 컨테이너 ───────────────────────────────────────────────────────
@@ -2294,7 +2296,10 @@ export default function YPXDashboard({ onClose }) {
           {activeTab === "cps" && (
             <CpsContent cpsData={cpsData} funnelData={cpsFunnelData} vendorData={cpsVendorData} categoryData={cpsCategoryData} cpsLoaded={cpsLoaded} refreshStatus={cpsRefreshStatus} onRefresh={refreshCps} range={globalRange} />
           )}
-          {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && activeTab !== "cps" && <ComingSoon tabId={activeTab} />}
+          {activeTab === "challenge" && (
+            <ChallengeContent range={globalRange} />
+          )}
+          {activeTab !== "membership" && activeTab !== "orders" && activeTab !== "region" && activeTab !== "age" && activeTab !== "search" && activeTab !== "cps" && activeTab !== "challenge" && <ComingSoon tabId={activeTab} />}
         </div>
       </div>
     </div>
