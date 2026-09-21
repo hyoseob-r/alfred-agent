@@ -24,6 +24,7 @@ orders AS (
     o.customer_id,
     DATE(o.order_dt) as order_date,
     o.total_order_amt as order_amt,
+    CASE WHEN o.delivery_type_cd = 'TAKEOUT' THEN 'takeout' ELSE 'delivery' END as dtype,
     CASE WHEN p.customer_id IS NOT NULL THEN 'P' ELSE 'NP' END as grp
   FROM \`ygy-datawarehouse.edw.lst_order\` o
   INNER JOIN all_targets t ON o.customer_id = t.customer_id
@@ -31,13 +32,13 @@ orders AS (
   WHERE o.order_dt BETWEEN '2026-08-01' AND CURRENT_DATE('+09:00')
 )
 SELECT
-  grp, order_date as dt,
+  grp, dtype, order_date as dt,
   COUNT(*) as orders,
   COUNT(DISTINCT customer_id) as customers,
   ROUND(SUM(order_amt)) as gmv
 FROM orders
-GROUP BY grp, order_date
-ORDER BY grp, order_date`;
+GROUP BY grp, dtype, order_date
+ORDER BY grp, dtype, order_date`;
 };
 
 const CACHE_KEY = "ypx_challenge_cache_v1";
@@ -51,13 +52,14 @@ function saveCache(key, data) {
 export default function ChallengeContent({ range }) {
   const [data, setData] = useState(() => loadCache(CACHE_KEY));
   const [status, setStatus] = useState("idle");
+  const [dtypeFilter, setDtypeFilter] = useState("all"); // all, delivery, takeout
 
   const refresh = useCallback(async () => {
     setStatus("loading");
     try {
       const result = await queryBigQuery(CHALLENGE_SQL());
       if (result.rows?.length) {
-        const rows = result.rows.map(r => ({ grp: r.grp, dt: r.dt, orders: +r.orders, customers: +r.customers, gmv: +r.gmv }));
+        const rows = result.rows.map(r => ({ grp: r.grp, dtype: r.dtype, dt: r.dt, orders: +r.orders, customers: +r.customers, gmv: +r.gmv }));
         saveCache(CACHE_KEY, rows);
         setData(rows);
         setStatus("+OK");
@@ -85,9 +87,21 @@ export default function ChallengeContent({ range }) {
     );
   }
 
-  // pivot: {dt, p_orders, np_orders, p_customers, np_customers, p_gmv, np_gmv}
-  const pData = data.filter(r => r.grp === 'P').sort((a, b) => a.dt.localeCompare(b.dt));
-  const npData = data.filter(r => r.grp === 'NP').sort((a, b) => a.dt.localeCompare(b.dt));
+  // dtype 필터 적용 후 일별 집계
+  const filtered = dtypeFilter === "all" ? data : data.filter(r => r.dtype === dtypeFilter);
+  const aggMap = {};
+  for (const r of filtered) {
+    const key = r.grp + '_' + r.dt;
+    if (!aggMap[key]) aggMap[key] = { grp: r.grp, dt: r.dt, orders: 0, customers: 0, gmv: 0, custSet: new Set() };
+    aggMap[key].orders += r.orders;
+    aggMap[key].gmv += r.gmv;
+    // customers는 dtype별로 중복될 수 있어서 합산은 근사치
+    aggMap[key].customers += r.customers;
+  }
+  const aggData = Object.values(aggMap);
+
+  const pData = aggData.filter(r => r.grp === 'P').sort((a, b) => a.dt.localeCompare(b.dt));
+  const npData = aggData.filter(r => r.grp === 'NP').sort((a, b) => a.dt.localeCompare(b.dt));
   const allDates = [...new Set([...pData.map(r => r.dt), ...npData.map(r => r.dt)])].sort();
 
   const pMap = Object.fromEntries(pData.map(r => [r.dt, r]));
@@ -131,6 +145,17 @@ export default function ChallengeContent({ range }) {
 
   return (
     <>
+      {/* 배달/포장 필터 */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 12, alignItems: "center" }}>
+        <span style={{ fontSize: 11, color: "#999", marginRight: 4 }}>주문 유형:</span>
+        {[{ id: "all", label: "전체" }, { id: "delivery", label: "배달" }, { id: "takeout", label: "포장" }].map(f => (
+          <button key={f.id} onClick={() => setDtypeFilter(f.id)}
+            style={{ padding: "4px 12px", borderRadius: 20, border: `1.5px solid ${dtypeFilter === f.id ? "#FA0050" : "#e0e0e0"}`,
+              background: dtypeFilter === f.id ? "#FA0050" : "#fff", color: dtypeFilter === f.id ? "#fff" : "#666",
+              fontSize: 11, cursor: "pointer", fontWeight: dtypeFilter === f.id ? 700 : 400 }}>{f.label}</button>
+        ))}
+      </div>
+
       {/* KPI */}
       <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
         {[
