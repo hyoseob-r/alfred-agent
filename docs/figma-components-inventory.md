@@ -1,6 +1,6 @@
 # YDS 2.0 Figma 컴포넌트 인벤토리
 
-> Figma MCP로 자동 추출한 컴포넌트 목록 (2026-09-17)
+> Figma MCP로 자동 추출한 컴포넌트 목록 (2026-09-17, 업데이트: 2026-09-23)
 
 ## 구현 현황
 
@@ -9,17 +9,19 @@
 | 1 | Badge (6 subtypes) | Customer-Component | Badge.jsx | ✅ 완료 |
 | 2 | Rating | Customer-Component | Rating.jsx | ✅ 완료 |
 | 3 | NumericStepper | Customer-Component | NumericStepper.jsx | ✅ 완료 |
-| 4 | StickyCTA | Customer-Component | - | ⬜ 미구현 |
-| 5 | ShopList Card | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 6 | Swimlane Card | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 7 | Shortcut Card | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 8 | BrandnewBanner | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 9 | 할인 브랜드 스윔레인 | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 10 | FloatingPill (요타임딜) | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 11 | FloatingPill (주문현황) | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 12 | BottomNavNew | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 13 | NavNew (pill nav) | 리뉴얼-2026 | - | ⬜ 미구현 |
-| 14 | NaviItemNew | 리뉴얼-2026 | - | ⬜ 미구현 |
+| 4 | StickyCTA | Customer-Component | StickyCTA.jsx | ✅ 완료 |
+| 5 | ShopList Card | 리뉴얼-2026 | ShopListCard.jsx | ✅ 완료 |
+| 6 | Swimlane Card | 리뉴얼-2026 | SwimlaneCard.jsx | ✅ 완료 |
+| 7 | Shortcut Card | 리뉴얼-2026 | ShortcutCard.jsx | ✅ 완료 |
+| 8 | BrandnewBanner | 리뉴얼-2026 | BrandnewBanner.jsx | ✅ 완료 |
+| 9 | 할인 브랜드 스윔레인 | 리뉴얼-2026 | DiscountBrandSwimlane.jsx | ✅ 완료 |
+| 10 | FloatingPill (요타임딜) | 리뉴얼-2026 | BottomNav.jsx | ✅ 완료 |
+| 11 | FloatingPill (주문현황) | 리뉴얼-2026 | BottomNav.jsx | ✅ 완료 |
+| 12 | BottomNavNew | 리뉴얼-2026 | BottomNav.jsx | ✅ 완료 |
+| 13 | NavNew (pill nav) | 리뉴얼-2026 | BottomNav.jsx | ✅ 완료 |
+| 14 | NaviItemNew | 리뉴얼-2026 | BottomNav.jsx | ✅ 완료 |
+
+**전체 14/14 완료 ✅**
 
 ---
 
@@ -49,43 +51,37 @@
 - Type: default / deal
 - YDS tokens: primary_v2, spacing s7, radius r3/r5, level_1_i shadow
 
-### 5~7. ShopList / Swimlane / Shortcut Cards
-- Variant matrix:
-  - type1: none / 구독+ypx / 구독+non-ypx / 미구독+ypx / 미구독+non-ypx
-  - type2: none / ypx무배+즉할+적립 / 가게무배+즉할+적립 / 단일혜택(즉할/적립/ypx무배/가게무배)
-- 총 30+ variant 조합
+### 5. ShopList Card
+- 로고(88px) + 가게명 + 별점 + 배달시간/배달비 + 혜택 배지
+- benefitType: none/ypx_free_delivery/store_free_delivery/단일혜택
+- subscriptionType: none/ypx_sub/ypx_nonsub
+- AD 라벨, offersBadge 지원
+
+### 6. Swimlane Card
+- 150x150 썸네일 + 가게명 + 별점 + 배달정보 + 혜택배지
+- SwimlaneRow 컨테이너: 섹션 헤더 + 가로 스크롤
+- 하트 버튼, AD 라벨, offersBadge 오버레이
+
+### 7. Shortcut Card
+- 아이콘(48/40px) + 라벨(12/11px), size(medium/small)
+- ShortcutRow: 가로 스크롤 배치
+- badge 숫자/텍스트 지원, 커스텀 컬러
 
 ### 8. BrandnewBanner
-- Props: property1(a/b/c), card(boolean)
-- a: 선착순 특가 (버거 이미지+왕관), b: 네이버 멤버십, c: 무한적립
-- 배달앱최저가/스페셜적립 뱃지, 이미지 인디케이터(1/10 더보기)
+- variant a: 선착순 특가, variant b: 네이버 멤버십, variant c: 무한적립
+- card 모드 (그라디언트 배경), 이미지 인디케이터
+- BrandnewCarousel: 멀티 배너 + 인디케이터 dots
 
 ### 9. 할인 브랜드 스윔레인
-- SectionHeader: "내 주변 할인중인 브랜드" + chevron
-- multi_swimlane_2: 로고(48px r16) + 가게명(12r) + 배지(opt) + 혜택(14b)
-- 3페이지 × 3아이템, 가로 스크롤, 인디케이터 dots
-- auto_transition 버튼 (28px)
+- SectionHeader: 제목 + chevron + auto_transition 버튼
+- BrandCard: 로고(48px r16) + 가게명(12r) + 배지(opt) + 혜택(14b)
+- 3페이지 × 3아이템, 인디케이터 dots
+- DiscountBrandSwimlane 컨테이너
 
-### 10. FloatingPill — 요타임딜
-- 52px h, r100, level_1 shadow, bg 96% white
-- 로띠 아이콘(36px) + "최대 1만원 할인, 지금 단 15분" + 14:59 카운트다운(18px bold primary)
-
-### 11. FloatingPill — 주문현황
-- 같은 pill 컨테이너, 7 variant:
-  1=주문완료, 2=조리중, 3~6=배달중, 7=배달완료(사진 원형크롭)
-- 상태아이콘(36px) + 메인텍스트(14b) + 상태뱃지(primary) · 가게명(gray600)
-
-### 12. BottomNavNew
-- 3 variant: nav만 / 주문현황+nav / 요타임딜+nav
-- 배경: 그라디언트 fade, gap 12px, pb 20px
-
-### 13. NavNew (pill nav bar)
-- r40, 62px, glass effect (level_1_v2 + inner shadow)
-- 5탭: 홈/할인·혜택/주문내역/찜/마이요기요
-- property1=1~5 (선택 탭)
-- 선택: filled 아이콘 + 4% black bg
-- 비선택: outline 아이콘
-
-### 14. NaviItemNew
-- Props: icon, iconFilled, label, selected
-- 28px icon + 10px label (caption_2)
+### 10~14. BottomNav 관련 (BottomNav.jsx)
+- FloatingPill: 범용 pill 컨테이너 (52px h, r100)
+- YoTimedealBar: 타임딜 pill (할인금액 + 카운트다운)
+- OrderStatusBar: 주문현황 pill (7 variant)
+- NavNew: pill glass nav (r40, 62px, 5탭)
+- NaviItemNew: 개별 탭 아이템 (28px 아이콘 + 10px 라벨)
+- BottomNavNew: 전체 하단 영역 (nav + floating bar)
