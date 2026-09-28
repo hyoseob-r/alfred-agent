@@ -35,7 +35,7 @@ import AgentCouncilPanel from "./components/panels/AgentCouncilPanel";
 import FeedbackPanel from "./components/panels/FeedbackPanel";
 import { FeedbackButton } from "./components/FeedbackSystem";
 import LottieStudio from "./components/LottieStudio";
-import YPXDashboard from "./components/YPXDashboard";
+import Dashboard from "./components/Dashboard";
 import TokenExporter from "./components/TokenExporter";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
@@ -80,7 +80,7 @@ export default function App() {
   const [showContextAgent, setShowContextAgent] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLottie, setShowLottie] = useState(false);
-  const [showYPX, setShowYPX] = useState(false);
+  const [showDashboard, setShowYPX] = useState(false);
   const [showTokenExporter, setShowTokenExporter] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState("chat"); // "chat" | "council"
@@ -1066,7 +1066,7 @@ ${chatHtml}
       {showPapers && <PapersModal onClose={() => setShowPapers(false)} user={user} />}
       {showContextNotes && <ContextNotesModal onClose={() => setShowContextNotes(false)} />}
       {showLottie && <LottieStudio user={user} isOwner={isOwner} onClose={() => setShowLottie(false)} />}
-      {showYPX && <YPXDashboard onClose={() => setShowYPX(false)} />}
+      {showDashboard && <Dashboard onClose={() => setShowYPX(false)} />}
       {showTokenExporter && <TokenExporter onClose={() => setShowTokenExporter(false)} />}
       {showProxySettings === true && (
         <ProxyStatusModal

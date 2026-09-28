@@ -1914,7 +1914,7 @@ function DownloadProgress({ steps }) {
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 const DEFAULT_CHECKED = new Set(["sub_naver", "sub_toss", "sub_direct", "sub_classic"]);
 
-export default function YPXDashboard({ onClose }) {
+export default function Dashboard({ onClose }) {
   const [activeTab, setActiveTab] = useState("membership");
   const [checked, setChecked] = useState(DEFAULT_CHECKED);
   const [ordChecked, setOrdChecked] = useState(ORD_DEFAULT);
