@@ -29,7 +29,7 @@ orders AS (
   FROM \`ygy-datawarehouse.edw.lst_order\` o
   INNER JOIN all_targets t ON o.customer_id = t.customer_id
   LEFT JOIN participants p ON o.customer_id = p.customer_id
-  WHERE o.order_dt BETWEEN '2026-08-01' AND CURRENT_DATE('+09:00')
+  WHERE o.order_dt BETWEEN DATE_SUB(CURRENT_DATE('+09:00'), INTERVAL 1 YEAR) AND CURRENT_DATE('+09:00')
 )
 SELECT
   grp, dtype, order_date as dt,
@@ -41,7 +41,19 @@ GROUP BY grp, dtype, order_date
 ORDER BY grp, dtype, order_date`;
 };
 
-const CACHE_KEY = "ypx_challenge_cache_v1";
+const CACHE_KEY = "ypx_challenge_cache_v2";
+
+function filterByRange(data, range) {
+  if (!data.length) return data;
+  const ref = new Date(data[data.length - 1].dt);
+  const cut = new Date(ref);
+  if (range === "1w") cut.setDate(cut.getDate() - 7);
+  else if (range === "1m") cut.setMonth(cut.getMonth() - 1);
+  else if (range === "6m") cut.setMonth(cut.getMonth() - 6);
+  else cut.setFullYear(cut.getFullYear() - 1);
+  const cutStr = cut.toISOString().slice(0, 10);
+  return data.filter(r => r.dt >= cutStr);
+}
 function loadCache(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } }
 function saveCache(key, data) {
   const json = JSON.stringify(data);
@@ -87,8 +99,9 @@ export default function ChallengeContent({ range }) {
     );
   }
 
-  // dtype 필터 적용 후 일별 집계
-  const filtered = dtypeFilter === "all" ? data : data.filter(r => r.dtype === dtypeFilter);
+  // range + dtype 필터 적용 후 일별 집계
+  const ranged = filterByRange(data, range);
+  const filtered = dtypeFilter === "all" ? ranged : ranged.filter(r => r.dtype === dtypeFilter);
   const aggMap = {};
   for (const r of filtered) {
     const key = r.grp + '_' + r.dt;
@@ -121,15 +134,19 @@ export default function ChallengeContent({ range }) {
     np_gmv_scaled: Math.round((npMap[dt]?.gmv || 0) / 100000),
   }));
 
-  // KPI
-  const beforeP = pData.filter(r => r.dt >= '2026-08-06' && r.dt <= '2026-08-19');
-  const duringP = pData.filter(r => r.dt >= '2026-08-20' && r.dt <= '2026-09-01');
-  const afterP = pData.filter(r => r.dt >= '2026-09-02');
-  const avgBefore = beforeP.length ? Math.round(beforeP.reduce((s, r) => s + r.orders, 0) / beforeP.length) : 0;
-  const avgDuring = duringP.length ? Math.round(duringP.reduce((s, r) => s + r.orders, 0) / duringP.length) : 0;
-  const avgAfter = afterP.length ? Math.round(afterP.reduce((s, r) => s + r.orders, 0) / afterP.length) : 0;
+  // KPI — 챌린지 기간 기준 (before/during/after는 전체 데이터에서 계산)
+  const allPData = (dtypeFilter === "all" ? data : data.filter(r => r.dtype === dtypeFilter)).filter(r => r.grp === 'P');
+  const allPAgg = {};
+  for (const r of allPData) { if (!allPAgg[r.dt]) allPAgg[r.dt] = 0; allPAgg[r.dt] += r.orders; }
+  const beforeP = Object.entries(allPAgg).filter(([d]) => d >= '2026-08-06' && d <= '2026-08-19');
+  const duringP = Object.entries(allPAgg).filter(([d]) => d >= '2026-08-20' && d <= '2026-09-01');
+  const afterP = Object.entries(allPAgg).filter(([d]) => d >= '2026-09-02');
+  const avgBefore = beforeP.length ? Math.round(beforeP.reduce((s, [, v]) => s + v, 0) / beforeP.length) : 0;
+  const avgDuring = duringP.length ? Math.round(duringP.reduce((s, [, v]) => s + v, 0) / duringP.length) : 0;
+  const avgAfter = afterP.length ? Math.round(afterP.reduce((s, [, v]) => s + v, 0) / afterP.length) : 0;
 
-  const xInterval = chartData.length > 30 ? 2 : chartData.length > 15 ? 1 : 0;
+  const xInterval = chartData.length > 120 ? 6 : chartData.length > 60 ? 4 : chartData.length > 30 ? 2 : chartData.length > 15 ? 1 : 0;
+  const showChallengeArea = allDates.some(d => d >= '2026-08-20' && d <= '2026-09-01');
 
   const customTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -187,8 +204,8 @@ export default function ChallengeContent({ range }) {
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval} />
             <YAxis tick={{ fontSize: 9 }} width={40} />
             <Tooltip content={customTooltip} />
-            <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />
-            <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />
+            {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />}
+            {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />}
             <Line type="monotone" dataKey="p_orders" name="참여자" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
             <Line type="monotone" dataKey="np_orders_scaled" name="미참여자(÷10)" stroke="#3498db" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="4 2" />
           </LineChart>
@@ -205,8 +222,8 @@ export default function ChallengeContent({ range }) {
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval} />
             <YAxis tick={{ fontSize: 9 }} width={40} />
             <Tooltip content={customTooltip} />
-            <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />
-            <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />
+            {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />}
+            {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />}
             <Line type="monotone" dataKey="p_customers" name="참여자" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
             <Line type="monotone" dataKey="np_customers_scaled" name="미참여자(÷10)" stroke="#3498db" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="4 2" />
           </LineChart>
@@ -223,8 +240,8 @@ export default function ChallengeContent({ range }) {
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval} />
             <YAxis tickFormatter={v => v.toLocaleString()} tick={{ fontSize: 9 }} width={50} />
             <Tooltip content={customTooltip} />
-            <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />
-            <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />
+            {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />}
+            {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />}
             <Line type="monotone" dataKey="p_gmv" name="참여자(만원)" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
             <Line type="monotone" dataKey="np_gmv_scaled" name="미참여자(÷10)" stroke="#3498db" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="4 2" />
           </LineChart>
