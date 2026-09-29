@@ -102,16 +102,31 @@ export default function ChallengeContent({ range }) {
   // range + dtype 필터 적용 후 일별 집계
   const ranged = filterByRange(data, range);
   const filtered = dtypeFilter === "all" ? ranged : ranged.filter(r => r.dtype === dtypeFilter);
+  const isAll = dtypeFilter === "all";
+
+  // 전체 합계 집계
   const aggMap = {};
   for (const r of filtered) {
     const key = r.grp + '_' + r.dt;
-    if (!aggMap[key]) aggMap[key] = { grp: r.grp, dt: r.dt, orders: 0, customers: 0, gmv: 0, custSet: new Set() };
+    if (!aggMap[key]) aggMap[key] = { grp: r.grp, dt: r.dt, orders: 0, customers: 0, gmv: 0 };
     aggMap[key].orders += r.orders;
     aggMap[key].gmv += r.gmv;
-    // customers는 dtype별로 중복될 수 있어서 합산은 근사치
     aggMap[key].customers += r.customers;
   }
   const aggData = Object.values(aggMap);
+
+  // "전체" 탭일 때 배달/포장 분리 집계
+  const dtypeAggMap = {};
+  if (isAll) {
+    for (const r of ranged) {
+      const key = r.grp + '_' + r.dtype + '_' + r.dt;
+      if (!dtypeAggMap[key]) dtypeAggMap[key] = { grp: r.grp, dtype: r.dtype, dt: r.dt, orders: 0, customers: 0, gmv: 0 };
+      dtypeAggMap[key].orders += r.orders;
+      dtypeAggMap[key].gmv += r.gmv;
+      dtypeAggMap[key].customers += r.customers;
+    }
+  }
+  const dtypeAggData = Object.values(dtypeAggMap);
 
   const pData = aggData.filter(r => r.grp === 'P').sort((a, b) => a.dt.localeCompare(b.dt));
   const npData = aggData.filter(r => r.grp === 'NP').sort((a, b) => a.dt.localeCompare(b.dt));
@@ -119,6 +134,12 @@ export default function ChallengeContent({ range }) {
 
   const pMap = Object.fromEntries(pData.map(r => [r.dt, r]));
   const npMap = Object.fromEntries(npData.map(r => [r.dt, r]));
+
+  // dtype별 맵 (전체 탭용)
+  const pDelMap = isAll ? Object.fromEntries(dtypeAggData.filter(r => r.grp === 'P' && r.dtype === 'delivery').map(r => [r.dt, r])) : {};
+  const pTakeMap = isAll ? Object.fromEntries(dtypeAggData.filter(r => r.grp === 'P' && r.dtype === 'takeout').map(r => [r.dt, r])) : {};
+  const npDelMap = isAll ? Object.fromEntries(dtypeAggData.filter(r => r.grp === 'NP' && r.dtype === 'delivery').map(r => [r.dt, r])) : {};
+  const npTakeMap = isAll ? Object.fromEntries(dtypeAggData.filter(r => r.grp === 'NP' && r.dtype === 'takeout').map(r => [r.dt, r])) : {};
 
   const chartData = allDates.map(dt => ({
     date: dateLabel(dt),
@@ -132,6 +153,21 @@ export default function ChallengeContent({ range }) {
     p_gmv: Math.round((pMap[dt]?.gmv || 0) / 10000),
     np_gmv: Math.round((npMap[dt]?.gmv || 0) / 10000),
     np_gmv_scaled: Math.round((npMap[dt]?.gmv || 0) / 100000),
+    // 전체 탭 배달/포장 분리
+    ...(isAll ? {
+      p_orders_del: pDelMap[dt]?.orders || 0,
+      p_orders_take: pTakeMap[dt]?.orders || 0,
+      np_orders_del_scaled: Math.round((npDelMap[dt]?.orders || 0) / 10),
+      np_orders_take_scaled: Math.round((npTakeMap[dt]?.orders || 0) / 10),
+      p_customers_del: pDelMap[dt]?.customers || 0,
+      p_customers_take: pTakeMap[dt]?.customers || 0,
+      np_customers_del_scaled: Math.round((npDelMap[dt]?.customers || 0) / 10),
+      np_customers_take_scaled: Math.round((npTakeMap[dt]?.customers || 0) / 10),
+      p_gmv_del: Math.round((pDelMap[dt]?.gmv || 0) / 10000),
+      p_gmv_take: Math.round((pTakeMap[dt]?.gmv || 0) / 10000),
+      np_gmv_del_scaled: Math.round((npDelMap[dt]?.gmv || 0) / 100000),
+      np_gmv_take_scaled: Math.round((npTakeMap[dt]?.gmv || 0) / 100000),
+    } : {}),
   }));
 
   // KPI — 챌린지 기간 기준 (before/during/after는 전체 데이터에서 계산)
@@ -154,8 +190,12 @@ export default function ChallengeContent({ range }) {
     return (
       <div style={{ background: "white", border: "1px solid #e5e5e5", borderRadius: 8, padding: "8px 12px", fontSize: 11 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>{label}</div>
-        <div style={{ color: "#FA0050" }}>참여자: {raw.p_orders}건 / {raw.p_customers}명 / {raw.p_gmv.toLocaleString()}만</div>
-        <div style={{ color: "#3498db" }}>미참여자: {(raw.np_orders).toLocaleString()}건 / {raw.np_customers.toLocaleString()}명 / {raw.np_gmv.toLocaleString()}만</div>
+        <div style={{ color: "#FA0050" }}>참여자 전체: {raw.p_orders}건 / {raw.p_customers}명 / {raw.p_gmv.toLocaleString()}만</div>
+        {isAll && <div style={{ color: "#FF6B35", paddingLeft: 8 }}>ㄴ 배달: {raw.p_orders_del}건 / {raw.p_customers_del}명 / {raw.p_gmv_del?.toLocaleString()}만</div>}
+        {isAll && <div style={{ color: "#FF9F1C", paddingLeft: 8 }}>ㄴ 포장: {raw.p_orders_take}건 / {raw.p_customers_take}명 / {raw.p_gmv_take?.toLocaleString()}만</div>}
+        <div style={{ color: "#3498db" }}>미참여자 전체: {raw.np_orders.toLocaleString()}건 / {raw.np_customers.toLocaleString()}명 / {raw.np_gmv.toLocaleString()}만</div>
+        {isAll && <div style={{ color: "#5DADE2", paddingLeft: 8 }}>ㄴ 배달: {(npDelMap[raw.rawDate]?.orders || 0).toLocaleString()}건</div>}
+        {isAll && <div style={{ color: "#85C1E9", paddingLeft: 8 }}>ㄴ 포장: {(npTakeMap[raw.rawDate]?.orders || 0).toLocaleString()}건</div>}
       </div>
     );
   };
@@ -197,8 +237,8 @@ export default function ChallengeContent({ range }) {
       {/* 주문 건수 차트 */}
       <div style={{ background: "white", borderRadius: 10, padding: 16, marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>일별 주문 건수</div>
-        <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>미참여자는 ÷10 스케일 · 툴팁에 실제 값 표시 · 🟨1차 🟧2차</div>
-        <ResponsiveContainer width="100%" height={260}>
+        <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>미참여자는 ÷10 스케일 · 툴팁에 실제 값 표시{isAll ? " · 전체=실선, 배달=대시, 포장=점선" : ""} · 🟨1차 🟧2차</div>
+        <ResponsiveContainer width="100%" height={isAll ? 300 : 260}>
           <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval} />
@@ -206,8 +246,12 @@ export default function ChallengeContent({ range }) {
             <Tooltip content={customTooltip} />
             {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />}
             {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />}
-            <Line type="monotone" dataKey="p_orders" name="참여자" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
+            <Line type="monotone" dataKey="p_orders" name="참여자 전체" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
+            {isAll && <Line type="monotone" dataKey="p_orders_del" name="참여자 배달" stroke="#FF6B35" strokeWidth={1.5} dot={false} strokeDasharray="6 3" />}
+            {isAll && <Line type="monotone" dataKey="p_orders_take" name="참여자 포장" stroke="#FF9F1C" strokeWidth={1.5} dot={false} strokeDasharray="2 2" />}
             <Line type="monotone" dataKey="np_orders_scaled" name="미참여자(÷10)" stroke="#3498db" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="4 2" />
+            {isAll && <Line type="monotone" dataKey="np_orders_del_scaled" name="미참여자 배달(÷10)" stroke="#5DADE2" strokeWidth={1} dot={false} strokeDasharray="6 3" />}
+            {isAll && <Line type="monotone" dataKey="np_orders_take_scaled" name="미참여자 포장(÷10)" stroke="#85C1E9" strokeWidth={1} dot={false} strokeDasharray="2 2" />}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -215,8 +259,8 @@ export default function ChallengeContent({ range }) {
       {/* 주문자 수 차트 */}
       <div style={{ background: "white", borderRadius: 10, padding: 16, marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>일별 주문자 수 (유니크)</div>
-        <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>미참여자는 ÷10 스케일</div>
-        <ResponsiveContainer width="100%" height={220}>
+        <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>미참여자는 ÷10 스케일{isAll ? " · 전체=실선, 배달=대시, 포장=점선" : ""}</div>
+        <ResponsiveContainer width="100%" height={isAll ? 260 : 220}>
           <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval} />
@@ -224,8 +268,12 @@ export default function ChallengeContent({ range }) {
             <Tooltip content={customTooltip} />
             {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />}
             {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />}
-            <Line type="monotone" dataKey="p_customers" name="참여자" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
+            <Line type="monotone" dataKey="p_customers" name="참여자 전체" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
+            {isAll && <Line type="monotone" dataKey="p_customers_del" name="참여자 배달" stroke="#FF6B35" strokeWidth={1.5} dot={false} strokeDasharray="6 3" />}
+            {isAll && <Line type="monotone" dataKey="p_customers_take" name="참여자 포장" stroke="#FF9F1C" strokeWidth={1.5} dot={false} strokeDasharray="2 2" />}
             <Line type="monotone" dataKey="np_customers_scaled" name="미참여자(÷10)" stroke="#3498db" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="4 2" />
+            {isAll && <Line type="monotone" dataKey="np_customers_del_scaled" name="미참여자 배달(÷10)" stroke="#5DADE2" strokeWidth={1} dot={false} strokeDasharray="6 3" />}
+            {isAll && <Line type="monotone" dataKey="np_customers_take_scaled" name="미참여자 포장(÷10)" stroke="#85C1E9" strokeWidth={1} dot={false} strokeDasharray="2 2" />}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -233,8 +281,8 @@ export default function ChallengeContent({ range }) {
       {/* GMV 차트 */}
       <div style={{ background: "white", borderRadius: 10, padding: 16, marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>일별 GMV (만원)</div>
-        <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>미참여자는 ÷10 스케일</div>
-        <ResponsiveContainer width="100%" height={220}>
+        <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>미참여자는 ÷10 스케일{isAll ? " · 전체=실선, 배달=대시, 포장=점선" : ""}</div>
+        <ResponsiveContainer width="100%" height={isAll ? 260 : 220}>
           <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval} />
@@ -242,8 +290,12 @@ export default function ChallengeContent({ range }) {
             <Tooltip content={customTooltip} />
             {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-20')} x2={dateLabel('2026-08-24')} fill="#FFE082" fillOpacity={0.3} />}
             {showChallengeArea && <ReferenceArea x1={dateLabel('2026-08-25')} x2={dateLabel('2026-09-01')} fill="#FFAB40" fillOpacity={0.2} />}
-            <Line type="monotone" dataKey="p_gmv" name="참여자(만원)" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
+            <Line type="monotone" dataKey="p_gmv" name="참여자 전체(만원)" stroke="#FA0050" strokeWidth={2} dot={{ r: 2 }} />
+            {isAll && <Line type="monotone" dataKey="p_gmv_del" name="참여자 배달" stroke="#FF6B35" strokeWidth={1.5} dot={false} strokeDasharray="6 3" />}
+            {isAll && <Line type="monotone" dataKey="p_gmv_take" name="참여자 포장" stroke="#FF9F1C" strokeWidth={1.5} dot={false} strokeDasharray="2 2" />}
             <Line type="monotone" dataKey="np_gmv_scaled" name="미참여자(÷10)" stroke="#3498db" strokeWidth={1.5} dot={{ r: 2 }} strokeDasharray="4 2" />
+            {isAll && <Line type="monotone" dataKey="np_gmv_del_scaled" name="미참여자 배달(÷10)" stroke="#5DADE2" strokeWidth={1} dot={false} strokeDasharray="6 3" />}
+            {isAll && <Line type="monotone" dataKey="np_gmv_take_scaled" name="미참여자 포장(÷10)" stroke="#85C1E9" strokeWidth={1} dot={false} strokeDasharray="2 2" />}
           </LineChart>
         </ResponsiveContainer>
       </div>
