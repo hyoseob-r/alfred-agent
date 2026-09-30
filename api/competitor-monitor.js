@@ -1,58 +1,14 @@
 // 경쟁사 모니터링 API — 배민/쿠팡이츠 변경사항 감지
-// POST: 크롤링 → 이전 스냅샷과 비교 → 변경 있으면 저장
-// GET: 최근 변경 피드 조회
+// context_notes 테이블 재활용 (type으로 구분, 별도 테이블 생성 불필요)
+// POST: App Store 크롤링 → 이전 스냅샷 비교 → 변경 시 저장
+// GET: 변경 피드 조회
 
 const SUPABASE_URL = 'https://atwztuelyhwtohylbypv.supabase.co'
 
-// 모니터링 대상 소스
-const SOURCES = [
-  // 앱스토어 릴리즈 노트
-  {
-    id: 'baemin_gplay',
-    name: '배달의민족 Google Play',
-    type: 'appstore',
-    url: 'https://play.google.com/store/apps/details?id=com.sampleapp&hl=ko',
-    competitor: 'baemin',
-  },
-  {
-    id: 'baemin_appstore',
-    name: '배달의민족 App Store',
-    type: 'appstore',
-    url: 'https://apps.apple.com/kr/app/%EB%B0%B0%EB%8B%AC%EC%9D%98%EB%AF%BC%EC%A1%B1/id378084485',
-    competitor: 'baemin',
-  },
-  {
-    id: 'coupangeats_gplay',
-    name: '쿠팡이츠 Google Play',
-    type: 'appstore',
-    url: 'https://play.google.com/store/apps/details?id=com.coupang.mobile.eats&hl=ko',
-    competitor: 'coupangeats',
-  },
-  {
-    id: 'coupangeats_appstore',
-    name: '쿠팡이츠 App Store',
-    type: 'appstore',
-    url: 'https://apps.apple.com/kr/app/%EC%BF%A0%ED%8C%A1%EC%9D%B4%EC%B8%A0/id1445504255',
-    competitor: 'coupangeats',
-  },
-  // 뉴스룸
-  {
-    id: 'baemin_newsroom',
-    name: '우아한형제들 뉴스룸',
-    type: 'newsroom',
-    url: 'https://www.woowahan.com',
-    competitor: 'baemin',
-  },
-  {
-    id: 'coupang_newsroom',
-    name: '쿠팡 뉴스룸',
-    type: 'newsroom',
-    url: 'https://news.coupang.com',
-    competitor: 'coupangeats',
-  },
-]
+const TYPE_SNAPSHOT = 'competitor_snapshot'
+const TYPE_CHANGE = 'competitor_change'
 
-// App Store lookup API (무료, 안정적)
+// App Store lookup API
 async function fetchAppStoreInfo(appId) {
   const resp = await fetch(`https://itunes.apple.com/kr/lookup?id=${appId}`)
   if (!resp.ok) return null
@@ -64,64 +20,61 @@ async function fetchAppStoreInfo(appId) {
     releaseNotes: app.releaseNotes || '',
     currentVersionReleaseDate: app.currentVersionReleaseDate,
     description: app.description?.substring(0, 500),
+    trackName: app.trackName,
   }
 }
 
-// Google Play는 공식 API가 없어서 제목+버전 정보를 뉴스 검색으로 대체
-async function fetchGooglePlayInfo(packageId) {
-  // Google Play 페이지는 직접 크롤링이 어려움 (JS 렌더링 필요)
-  // 대신 App Store 정보를 primary로 사용
-  return null
-}
-
-// 뉴스 검색 (경쟁사 키워드)
-async function fetchNewsHeadlines(competitor) {
-  const keywords = competitor === 'baemin'
-    ? '배달의민족 신규 서비스 OR 배민 업데이트 OR 배민 UI'
-    : '쿠팡이츠 신규 OR 쿠팡이츠 업데이트 OR 쿠팡이츠 이벤트'
-
-  // 뉴스 API 대신 간단한 검색 결과 메타 저장
-  return { keywords, fetchedAt: new Date().toISOString() }
-}
-
-// Supabase에서 이전 스냅샷 조회
-async function getLastSnapshot(sourceId, headers) {
+// 이전 스냅샷 조회 (context_notes에서)
+async function getLastSnapshot(userId, sourceId, headers) {
   const resp = await fetch(
-    `${SUPABASE_URL}/rest/v1/competitor_snapshots?source_id=eq.${sourceId}&order=created_at.desc&limit=1`,
+    `${SUPABASE_URL}/rest/v1/context_notes?user_id=eq.${encodeURIComponent(userId)}&type=eq.${TYPE_SNAPSHOT}&title=eq.${encodeURIComponent(sourceId)}&order=created_at.desc&limit=1`,
     { headers }
   )
   if (!resp.ok) return null
   const rows = await resp.json()
-  return rows[0] || null
+  if (!rows[0]) return null
+  try { return JSON.parse(rows[0].content) } catch { return null }
 }
 
-// 스냅샷 저장
-async function saveSnapshot(sourceId, competitor, data, diff, headers) {
-  await fetch(`${SUPABASE_URL}/rest/v1/competitor_snapshots`, {
+// 스냅샷 저장 (upsert — 같은 title이면 content 업데이트)
+async function saveSnapshot(userId, sourceId, data, headers) {
+  // 기존 있는지 확인
+  const existResp = await fetch(
+    `${SUPABASE_URL}/rest/v1/context_notes?user_id=eq.${encodeURIComponent(userId)}&type=eq.${TYPE_SNAPSHOT}&title=eq.${encodeURIComponent(sourceId)}&select=id`,
+    { headers }
+  )
+  const existing = await existResp.json()
+
+  const body = {
+    user_id: userId,
+    type: TYPE_SNAPSHOT,
+    title: sourceId,
+    content: JSON.stringify(data),
+    tags: [sourceId.split('_')[0]], // baemin 또는 coupangeats
+  }
+
+  if (existing && existing.length > 0) {
+    await fetch(`${SUPABASE_URL}/rest/v1/context_notes?id=eq.${existing[0].id}`, {
+      method: 'PATCH', headers, body: JSON.stringify({ content: body.content, updated_at: new Date().toISOString() })
+    })
+  } else {
+    await fetch(`${SUPABASE_URL}/rest/v1/context_notes`, {
+      method: 'POST', headers, body: JSON.stringify(body)
+    })
+  }
+}
+
+// 변경 피드 저장 (새 row 추가)
+async function saveChange(userId, competitor, title, detail, headers) {
+  await fetch(`${SUPABASE_URL}/rest/v1/context_notes`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      source_id: sourceId,
-      competitor,
-      data,
-      diff,
-      created_at: new Date().toISOString(),
-    }),
-  })
-}
-
-// 변경 피드 저장
-async function saveChangeFeed(competitor, sourceId, title, content, changeType, headers) {
-  await fetch(`${SUPABASE_URL}/rest/v1/competitor_changes`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      competitor,
-      source_id: sourceId,
+      user_id: userId,
+      type: TYPE_CHANGE,
       title,
-      content,
-      change_type: changeType,
-      created_at: new Date().toISOString(),
+      content: detail,
+      tags: [competitor, 'monitor'],
     }),
   })
 }
@@ -130,17 +83,12 @@ async function saveChangeFeed(competitor, sourceId, title, content, changeType, 
 function computeDiff(oldData, newData) {
   if (!oldData) return { isNew: true, changes: ['첫 스냅샷'] }
   const changes = []
-
-  // 버전 변경
-  if (oldData.version && newData.version && oldData.version !== newData.version) {
-    changes.push(`버전 변경: ${oldData.version} → ${newData.version}`)
+  if (oldData.version !== newData.version) {
+    changes.push(`버전: ${oldData.version} → ${newData.version}`)
   }
-
-  // 릴리즈 노트 변경
-  if (oldData.releaseNotes && newData.releaseNotes && oldData.releaseNotes !== newData.releaseNotes) {
-    changes.push(`릴리즈 노트 업데이트`)
+  if (oldData.releaseNotes !== newData.releaseNotes) {
+    changes.push('릴리즈 노트 변경')
   }
-
   return { isNew: false, changes }
 }
 
@@ -151,7 +99,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) return res.status(500).json({ error: 'Server not configured' })
+  const userId = process.env.COUNCIL_USER_ID
+  if (!serviceKey || !userId) return res.status(500).json({ error: 'Server not configured' })
 
   const headers = {
     'Content-Type': 'application/json',
@@ -159,56 +108,62 @@ export default async function handler(req, res) {
     'Authorization': `Bearer ${serviceKey}`,
   }
 
-  // GET — 최근 변경 피드 조회
+  // GET — 변경 피드 조회
   if (req.method === 'GET') {
     const { competitor, limit = 20 } = req.query
-    let url = `${SUPABASE_URL}/rest/v1/competitor_changes?order=created_at.desc&limit=${limit}`
-    if (competitor) url += `&competitor=eq.${competitor}`
+    let url = `${SUPABASE_URL}/rest/v1/context_notes?type=eq.${TYPE_CHANGE}&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=${limit}`
+    if (competitor) url += `&tags=cs.{${competitor}}`
 
     const resp = await fetch(url, { headers })
-    if (!resp.ok) return res.status(500).json({ error: 'DB fetch failed' })
-    const changes = await resp.json()
+    if (!resp.ok) return res.status(500).json({ error: 'DB fetch failed', status: resp.status })
+    const rows = await resp.json()
+
+    const changes = rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      detail: r.content,
+      tags: r.tags,
+      date: r.created_at,
+    }))
     return res.status(200).json({ ok: true, changes })
   }
 
   // POST — 크롤링 실행
   if (req.method === 'POST') {
-    const results = []
-
-    // App Store 정보 수집 (가장 안정적인 소스)
-    const appStoreTargets = [
+    const targets = [
       { sourceId: 'baemin_appstore', appId: '378084485', competitor: 'baemin', name: '배달의민족' },
       { sourceId: 'coupangeats_appstore', appId: '1445504255', competitor: 'coupangeats', name: '쿠팡이츠' },
     ]
 
-    for (const target of appStoreTargets) {
-      try {
-        const info = await fetchAppStoreInfo(target.appId)
-        if (!info) {
-          results.push({ source: target.sourceId, status: 'fetch_failed' })
-          continue
-        }
+    const results = []
 
-        const lastSnapshot = await getLastSnapshot(target.sourceId, headers)
-        const diff = computeDiff(lastSnapshot?.data, info)
+    for (const t of targets) {
+      try {
+        const info = await fetchAppStoreInfo(t.appId)
+        if (!info) { results.push({ source: t.sourceId, status: 'fetch_failed' }); continue }
+
+        const lastData = await getLastSnapshot(userId, t.sourceId, headers)
+        const diff = computeDiff(lastData, info)
+
+        // 항상 스냅샷 업데이트
+        await saveSnapshot(userId, t.sourceId, info, headers)
 
         if (diff.changes.length > 0) {
-          // 변경 감지 — 스냅샷 + 피드 저장
-          await saveSnapshot(target.sourceId, target.competitor, info, diff, headers)
-          await saveChangeFeed(
-            target.competitor,
-            target.sourceId,
-            `${target.name} ${diff.changes[0]}`,
-            JSON.stringify({ ...info, diff }),
-            info.version !== lastSnapshot?.data?.version ? 'version_update' : 'content_update',
-            headers
-          )
-          results.push({ source: target.sourceId, status: 'change_detected', diff })
+          const detail = [
+            `## ${t.name} 변경 감지`,
+            `**버전**: ${info.version}`,
+            `**업데이트**: ${info.currentVersionReleaseDate}`,
+            `**변경사항**: ${diff.changes.join(', ')}`,
+            diff.isNew ? '' : `\n### 릴리즈 노트\n${info.releaseNotes}`,
+          ].join('\n')
+
+          await saveChange(userId, t.competitor, `[${t.competitor}] ${diff.changes[0]}`, detail, headers)
+          results.push({ source: t.sourceId, status: 'change_detected', version: info.version, diff })
         } else {
-          results.push({ source: target.sourceId, status: 'no_change', version: info.version })
+          results.push({ source: t.sourceId, status: 'no_change', version: info.version })
         }
       } catch (err) {
-        results.push({ source: target.sourceId, status: 'error', message: err.message })
+        results.push({ source: t.sourceId, status: 'error', message: err.message })
       }
     }
 
