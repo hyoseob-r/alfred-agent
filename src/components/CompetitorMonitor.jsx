@@ -148,10 +148,61 @@ function ChangeItem({ item }) {
   );
 }
 
+/* ── 뉴스 섹션 ──────────────────────────────────────────────── */
+function NewsSection({ news }) {
+  if (!news) return null;
+  const sections = [
+    { key: "baemin", label: "배민", color: "#2AC1BC" },
+    { key: "coupangeats", label: "쿠팡이츠", color: "#E31837" },
+    { key: "industry", label: "배달앱 시장", color: "#666" },
+  ];
+
+  const hasAny = sections.some(s => news[s.key]?.length > 0);
+  if (!hasAny) return null;
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#333", marginBottom: 12 }}>최신 뉴스</div>
+      {sections.map(s => {
+        const items = news[s.key];
+        if (!items || items.length === 0) return null;
+        return (
+          <div key={s.key} style={{ marginBottom: 16 }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: s.color, marginBottom: 6,
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: 4, background: s.color, display: "inline-block" }} />
+              {s.label}
+            </div>
+            {items.map((item, i) => (
+              <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{
+                display: "block", padding: "8px 12px", borderRadius: 8,
+                background: "#fff", border: "1px solid #f0f0f0", marginBottom: 4,
+                textDecoration: "none", transition: "border-color 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = "#ccc"}
+              onMouseLeave={e => e.currentTarget.style.borderColor = "#f0f0f0"}
+              >
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#222", lineHeight: 1.5 }}>{item.title}</div>
+                <div style={{ fontSize: 10, color: "#bbb", marginTop: 3 }}>
+                  {item.source && <span style={{ marginRight: 8 }}>{item.source}</span>}
+                  {item.pubDate && new Date(item.pubDate).toLocaleDateString("ko-KR")}
+                </div>
+              </a>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ── 메인 모달 ───────────────────────────────────────────────── */
 export default function CompetitorMonitor({ onClose }) {
   const [snapshots, setSnapshots] = useState({});
   const [changes, setChanges] = useState([]);
+  const [news, setNews] = useState(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
@@ -166,6 +217,7 @@ export default function CompetitorMonitor({ onClose }) {
       if (data.ok) {
         setSnapshots(data.snapshots || {});
         setChanges(data.changes || []);
+        setNews(data.news || null);
       } else {
         setError("데이터를 불러오지 못했습니다.");
       }
@@ -265,6 +317,9 @@ export default function CompetitorMonitor({ onClose }) {
                   <CompetitorCard key={sourceId} sourceId={sourceId} snapshot={snapshots[sourceId]} />
                 ))}
               </div>
+
+              {/* 뉴스 */}
+              <NewsSection news={news} />
 
               {/* 변경 히스토리 */}
               <div style={{ marginBottom: 8 }}>

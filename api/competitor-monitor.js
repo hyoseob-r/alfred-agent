@@ -8,6 +8,40 @@ const SUPABASE_URL = 'https://atwztuelyhwtohylbypv.supabase.co'
 const TYPE_SNAPSHOT = 'competitor_snapshot'
 const TYPE_CHANGE = 'competitor_change'
 
+// Google News RSS 파싱
+async function fetchNews(query, limit = 5) {
+  try {
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`
+    const resp = await fetch(url)
+    if (!resp.ok) return []
+    const xml = await resp.text()
+    const items = []
+    const regex = /<item>[\s\S]*?<title><!\[CDATA\[(.*?)\]\]><\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<source[^>]*>(.*?)<\/source>[\s\S]*?<\/item>/g
+    let match
+    while ((match = regex.exec(xml)) !== null && items.length < limit) {
+      items.push({
+        title: match[1],
+        link: match[2],
+        pubDate: match[3],
+        source: match[4],
+      })
+    }
+    // fallback: CDATA 없는 경우
+    if (items.length === 0) {
+      const regex2 = /<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<pubDate>(.*?)<\/pubDate>[\s\S]*?<\/item>/g
+      while ((match = regex2.exec(xml)) !== null && items.length < limit) {
+        items.push({
+          title: match[1].replace(/<!\[CDATA\[|\]\]>/g, ''),
+          link: match[2],
+          pubDate: match[3],
+          source: '',
+        })
+      }
+    }
+    return items
+  } catch { return [] }
+}
+
 // App Store lookup API
 async function fetchAppStoreInfo(appId) {
   const resp = await fetch(`https://itunes.apple.com/kr/lookup?id=${appId}`)
@@ -116,9 +150,13 @@ export default async function handler(req, res) {
     if (view === 'dashboard') {
       const snapUrl = `${SUPABASE_URL}/rest/v1/context_notes?type=eq.${TYPE_SNAPSHOT}&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`
       const changeUrl = `${SUPABASE_URL}/rest/v1/context_notes?type=eq.${TYPE_CHANGE}&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=10`
-      const [snapResp, changeResp] = await Promise.all([
+
+      const [snapResp, changeResp, baeminNews, coupangNews, deliveryNews] = await Promise.all([
         fetch(snapUrl, { headers }),
         fetch(changeUrl, { headers }),
+        fetchNews('배달의민족 OR 배민', 5),
+        fetchNews('쿠팡이츠', 5),
+        fetchNews('배달앱 시장 OR 배달 플랫폼', 3),
       ])
       const snapRows = await snapResp.json()
       const changeRows = await changeResp.json()
@@ -135,7 +173,13 @@ export default async function handler(req, res) {
         id: r.id, title: r.title, detail: r.content, tags: r.tags, date: r.created_at,
       }))
 
-      return res.status(200).json({ ok: true, snapshots, changes })
+      const news = {
+        baemin: baeminNews,
+        coupangeats: coupangNews,
+        industry: deliveryNews,
+      }
+
+      return res.status(200).json({ ok: true, snapshots, changes, news })
     }
 
     // 기본: 변경 피드만
