@@ -37,6 +37,7 @@ import { FeedbackButton } from "./components/FeedbackSystem";
 import LottieStudio from "./components/LottieStudio";
 import Dashboard from "./components/Dashboard";
 import TokenExporter from "./components/TokenExporter";
+import CompetitorMonitor from "./components/CompetitorMonitor";
 
 const GUEST_LS_KEY = "alfred_guest_sessions";
 
@@ -82,6 +83,7 @@ export default function App() {
   const [showLottie, setShowLottie] = useState(false);
   const [showDashboard, setShowYPX] = useState(false);
   const [showTokenExporter, setShowTokenExporter] = useState(false);
+  const [showCompetitor, setShowCompetitor] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historyTab, setHistoryTab] = useState("chat"); // "chat" | "council"
   const [showProxySettings, setShowProxySettings] = useState(false);
@@ -1068,6 +1070,7 @@ ${chatHtml}
       {showLottie && <LottieStudio user={user} isOwner={isOwner} onClose={() => setShowLottie(false)} />}
       {showDashboard && <Dashboard onClose={() => setShowYPX(false)} />}
       {showTokenExporter && <TokenExporter onClose={() => setShowTokenExporter(false)} />}
+      {showCompetitor && <CompetitorMonitor onClose={() => setShowCompetitor(false)} />}
       {showProxySettings === true && (
         <ProxyStatusModal
           onClose={() => setShowProxySettings(false)}
@@ -1164,6 +1167,11 @@ ${chatHtml}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#03C75A"; e.currentTarget.style.color = "#03C75A"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
             <span style={{ fontSize: "11px" }}>📊</span> 트렌드 확인
+          </button>}
+          {isOwner && <button onClick={() => setShowCompetitor(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#e65100"; e.currentTarget.style.color = "#e65100"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e5e5"; e.currentTarget.style.color = "#aaaaaa"; }}>
+            <span style={{ fontSize: "11px" }}>🔍</span> 경쟁사
           </button>}
           {isOwner && <button onClick={() => setShowTokenExporter(true)} style={{ padding: "5px 12px", background: "transparent", border: "1px solid #e5e5e5", borderRadius: "8px", color: "#aaaaaa", fontSize: "10px", cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "5px" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#3a6fd8"; e.currentTarget.style.color = "#3a6fd8"; }}
