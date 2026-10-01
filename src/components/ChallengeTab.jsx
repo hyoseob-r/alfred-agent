@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea } from "recharts";
 import { queryBigQuery } from "../api/proxy";
 import challengeIds from "../data/challenge-ids.json";
@@ -85,16 +85,25 @@ export default function ChallengeContent({ range }) {
     setTimeout(() => setStatus("idle"), 5000);
   }, []);
 
+  // 캐시 없으면 자동 로드
+  useEffect(() => {
+    if (!data.length && status === "idle") refresh();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!data.length) {
     return (
       <div style={{ background: "white", borderRadius: 10, padding: "60px 0", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>🎯</div>
         <div style={{ fontSize: 13, color: "#888", marginBottom: 8 }}>미션챌린지 참여자 vs 미참여자 주문 추이</div>
         <div style={{ fontSize: 11, color: "#bbb", marginBottom: 16 }}>참여자 {challengeIds.participants_count.toLocaleString()}명 vs 미참여자 {challengeIds.non_participants_count.toLocaleString()}명</div>
-        <button onClick={refresh} disabled={status === "loading"}
-          style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", opacity: status === "loading" ? 0.7 : 1 }}>
-          {status === "loading" ? "⏳ 불러오는 중..." : "🔄 데이터 새로고침"}
-        </button>
+        {status === "loading" ? (
+          <div style={{ fontSize: 12, color: "#3a6fd8" }}>데이터 불러오는 중...</div>
+        ) : (
+          <button onClick={refresh}
+            style={{ padding: "10px 20px", background: "#3a6fd8", color: "white", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer" }}>
+            데이터 새로고침
+          </button>
+        )}
       </div>
     );
   }
