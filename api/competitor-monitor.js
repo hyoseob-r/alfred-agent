@@ -108,9 +108,37 @@ export default async function handler(req, res) {
     'Authorization': `Bearer ${serviceKey}`,
   }
 
-  // GET — 변경 피드 조회
+  // GET — 변경 피드 + 현재 스냅샷 조회
   if (req.method === 'GET') {
-    const { competitor, limit = 20 } = req.query
+    const { competitor, limit = 20, view } = req.query
+
+    // ?view=dashboard → 현재 스냅샷 + 최근 변경 요약
+    if (view === 'dashboard') {
+      const snapUrl = `${SUPABASE_URL}/rest/v1/context_notes?type=eq.${TYPE_SNAPSHOT}&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`
+      const changeUrl = `${SUPABASE_URL}/rest/v1/context_notes?type=eq.${TYPE_CHANGE}&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=10`
+      const [snapResp, changeResp] = await Promise.all([
+        fetch(snapUrl, { headers }),
+        fetch(changeUrl, { headers }),
+      ])
+      const snapRows = await snapResp.json()
+      const changeRows = await changeResp.json()
+
+      const snapshots = {}
+      for (const r of snapRows) {
+        try {
+          const data = JSON.parse(r.content)
+          snapshots[r.title] = { ...data, updated_at: r.updated_at || r.created_at }
+        } catch {}
+      }
+
+      const changes = changeRows.map(r => ({
+        id: r.id, title: r.title, detail: r.content, tags: r.tags, date: r.created_at,
+      }))
+
+      return res.status(200).json({ ok: true, snapshots, changes })
+    }
+
+    // 기본: 변경 피드만
     let url = `${SUPABASE_URL}/rest/v1/context_notes?type=eq.${TYPE_CHANGE}&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=${limit}`
     if (competitor) url += `&tags=cs.{${competitor}}`
 
