@@ -1765,44 +1765,53 @@ function CpsContent({ cpsData, funnelData, vendorData = [], categoryData = [], r
         </ResponsiveContainer>
       </div>
 
-      {/* 요기더적립 관 풀투리프레시 추이 */}
+      {/* 요기더적립 관 풀투리프레시 vs 전체 진입 비교 */}
       {refreshCountData.length > 0 && (() => {
         const filtered = filterByRange(refreshCountData, range);
-        const chartData = filtered.map(r => ({
-          date: dateLabel(r.date),
-          refresh_sessions: r.refresh_sessions,
-          refresh_count: r.refresh_count,
-        }));
-        const totalRefreshSessions = filtered.reduce((s, r) => s + r.refresh_sessions, 0);
+        // 퍼널에서 날짜별 page_enter 매핑
+        const enterMap = {};
+        for (const f of filteredFunnel) enterMap[f.date] = f.page_enter || 0;
+        const chartData = filtered.map(r => {
+          const pageEnter = enterMap[r.date] || 0;
+          return {
+            date: dateLabel(r.date),
+            page_enter: pageEnter,
+            refresh_count: r.refresh_count,
+            refresh_rate: pageEnter > 0 ? Math.round(r.refresh_count / pageEnter * 10000) / 100 : 0,
+          };
+        });
+        const totalEnterAll = filtered.reduce((s, r) => s + (enterMap[r.date] || 0), 0);
         const totalRefreshCount = filtered.reduce((s, r) => s + r.refresh_count, 0);
-        const avgPerSession = totalRefreshSessions > 0 ? Math.round(totalRefreshCount / totalRefreshSessions * 10) / 10 : 0;
+        const avgRate = totalEnterAll > 0 ? Math.round(totalRefreshCount / totalEnterAll * 10000) / 100 : 0;
         return (
           <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>요기더적립 관 풀투리프레시 추이</div>
-            <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>click.header.refresh 액션 기준 (헤더 새로고침 버튼 클릭)</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>요기더적립 관 리프레시 vs 전체 진입</div>
+            <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>click.header.refresh 횟수 / page_show 진입 대비 비율</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <div style={{ flex: 1, background: "#f8f9fd", borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 10, color: "#999" }}>리프레시 세션</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#e67e22" }}>{totalRefreshSessions.toLocaleString("ko-KR")}건</div>
+              <div style={{ flex: 1, background: "#f0f4ff", borderRadius: 8, padding: "8px 12px" }}>
+                <div style={{ fontSize: 10, color: "#999" }}>전체 진입</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#3498db" }}>{(totalEnterAll / 10000).toFixed(1)}만</div>
               </div>
               <div style={{ flex: 1, background: "#fdf8f3", borderRadius: 8, padding: "8px 12px" }}>
                 <div style={{ fontSize: 10, color: "#999" }}>리프레시 횟수</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#d35400" }}>{totalRefreshCount.toLocaleString("ko-KR")}회</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#e67e22" }}>{totalRefreshCount.toLocaleString("ko-KR")}회</div>
               </div>
               <div style={{ flex: 1, background: "#f8fdf8", borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 10, color: "#999" }}>세션당 평균</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#22aa55" }}>{avgPerSession}회</div>
+                <div style={{ fontSize: 10, color: "#999" }}>진입 대비 비율</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#22aa55" }}>{avgRate}%</div>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(chartData.length)} />
-                <YAxis tickFormatter={v => v >= 10000 ? (v/10000).toFixed(0) + "만" : v.toLocaleString("ko-KR")} tick={{ fontSize: 9 }} width={45} />
-                <Tooltip formatter={(v, name) => [(+v).toLocaleString("ko-KR") + (name.includes("횟수") ? "회" : "건"), name]} />
+                <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? (v/10000).toFixed(1) + "만" : v.toLocaleString("ko-KR")} tick={{ fontSize: 9 }} width={45} />
+                <YAxis yAxisId="right" orientation="right" tickFormatter={v => v + "%"} tick={{ fontSize: 9 }} width={40} domain={[0, 'auto']} />
+                <Tooltip formatter={(v, name) => [name === "리프레시 비율" ? v + "%" : name === "전체 진입" ? (+(v/10000).toFixed(1)).toLocaleString("ko-KR") + "만" : (+v).toLocaleString("ko-KR") + "회", name]} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
-                <Line type="monotone" dataKey="refresh_sessions" name="리프레시 세션" stroke="#e67e22" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="refresh_count" name="리프레시 횟수" stroke="#d35400" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
+                <Line yAxisId="left" type="monotone" dataKey="page_enter" name="전체 진입" stroke="#3498db" strokeWidth={2} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="refresh_count" name="리프레시 횟수" stroke="#e67e22" strokeWidth={2} dot={false} />
+                <Line yAxisId="right" type="monotone" dataKey="refresh_rate" name="리프레시 비율" stroke="#22aa55" strokeWidth={2} dot={false} strokeDasharray="4 2" />
               </LineChart>
             </ResponsiveContainer>
           </div>
