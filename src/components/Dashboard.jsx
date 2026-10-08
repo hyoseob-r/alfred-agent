@@ -148,23 +148,16 @@ const CPS_CVR_SQL = (afterDate, daily = false) =>
   LEFT JOIN order_sessions o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
   GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`;
 
-// 요기더적립 관 새로고침 SQL — 세션 내 page_show 2회 이상 = 새로고침
+// 요기더적립 관 풀투리프레시 SQL — pull-to-refresh 액션만 집계
 const CPS_REFRESH_SQL = (afterDate) =>
-  `WITH session_views AS (
-    SELECT event_date, gauser_session_id,
-      COUNT(*) as view_cnt
-    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
-    WHERE event_date > '${afterDate}'
-      AND event_date < CURRENT_DATE('+09:00')
-      AND page_id = '/yogithe_home'
-      AND page_action = 'page_show'
-    GROUP BY 1, 2
-  )
-  SELECT event_date as date,
-    COUNT(*) as total_sessions,
-    COUNTIF(view_cnt >= 2) as refresh_sessions,
-    SUM(view_cnt) - COUNT(*) as refresh_count
-  FROM session_views
+  `SELECT event_date as date,
+    COUNT(*) as refresh_count,
+    COUNT(DISTINCT gauser_session_id) as refresh_sessions
+  FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+  WHERE event_date > '${afterDate}'
+    AND event_date < CURRENT_DATE('+09:00')
+    AND page_id = '/yogithe_home'
+    AND LOWER(page_action) LIKE '%refresh%'
   GROUP BY 1 ORDER BY 1`;
 
 // 요기더적립 관 퍼널 SQL
@@ -1772,48 +1765,44 @@ function CpsContent({ cpsData, funnelData, vendorData = [], categoryData = [], r
         </ResponsiveContainer>
       </div>
 
-      {/* 요기더적립 관 새로고침 추이 */}
+      {/* 요기더적립 관 풀투리프레시 추이 */}
       {refreshCountData.length > 0 && (() => {
         const filtered = filterByRange(refreshCountData, range);
         const chartData = filtered.map(r => ({
           date: dateLabel(r.date),
           refresh_sessions: r.refresh_sessions,
           refresh_count: r.refresh_count,
-          refresh_rate: r.total_sessions > 0 ? Math.round(r.refresh_sessions / r.total_sessions * 1000) / 10 : 0,
         }));
-        const totalSessions = filtered.reduce((s, r) => s + r.total_sessions, 0);
         const totalRefreshSessions = filtered.reduce((s, r) => s + r.refresh_sessions, 0);
         const totalRefreshCount = filtered.reduce((s, r) => s + r.refresh_count, 0);
-        const avgRefreshRate = totalSessions > 0 ? Math.round(totalRefreshSessions / totalSessions * 1000) / 10 : 0;
+        const avgPerSession = totalRefreshSessions > 0 ? Math.round(totalRefreshCount / totalRefreshSessions * 10) / 10 : 0;
         return (
           <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>요기더적립 관 새로고침 추이</div>
-            <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>세션 내 page_show 2회 이상 = 새로고침 (동일 세션에서 재진입)</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>요기더적립 관 풀투리프레시 추이</div>
+            <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>pull-to-refresh 액션 기준 (page_action LIKE '%refresh%')</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <div style={{ flex: 1, background: "#f8f9fd", borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 10, color: "#999" }}>새로고침 세션</div>
+                <div style={{ fontSize: 10, color: "#999" }}>리프레시 세션</div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#e67e22" }}>{totalRefreshSessions.toLocaleString("ko-KR")}건</div>
               </div>
               <div style={{ flex: 1, background: "#fdf8f3", borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 10, color: "#999" }}>새로고침 횟수</div>
+                <div style={{ fontSize: 10, color: "#999" }}>리프레시 횟수</div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#d35400" }}>{totalRefreshCount.toLocaleString("ko-KR")}회</div>
               </div>
               <div style={{ flex: 1, background: "#f8fdf8", borderRadius: 8, padding: "8px 12px" }}>
-                <div style={{ fontSize: 10, color: "#999" }}>새로고침 비율</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#22aa55" }}>{avgRefreshRate}%</div>
+                <div style={{ fontSize: 10, color: "#999" }}>세션당 평균</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#22aa55" }}>{avgPerSession}회</div>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(chartData.length)} />
-                <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? (v/10000).toFixed(0) + "만" : v.toLocaleString("ko-KR")} tick={{ fontSize: 9 }} width={45} />
-                <YAxis yAxisId="right" orientation="right" tickFormatter={v => v + "%"} tick={{ fontSize: 9 }} width={40} domain={[0, 'auto']} />
-                <Tooltip formatter={(v, name) => [name === "새로고침 비율" ? v + "%" : (+v).toLocaleString("ko-KR") + (name.includes("횟수") ? "회" : "건"), name]} />
+                <YAxis tickFormatter={v => v >= 10000 ? (v/10000).toFixed(0) + "만" : v.toLocaleString("ko-KR")} tick={{ fontSize: 9 }} width={45} />
+                <Tooltip formatter={(v, name) => [(+v).toLocaleString("ko-KR") + (name.includes("횟수") ? "회" : "건"), name]} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
-                <Line yAxisId="left" type="monotone" dataKey="refresh_sessions" name="새로고침 세션" stroke="#e67e22" strokeWidth={2} dot={false} />
-                <Line yAxisId="left" type="monotone" dataKey="refresh_count" name="새로고침 횟수" stroke="#d35400" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
-                <Line yAxisId="right" type="monotone" dataKey="refresh_rate" name="새로고침 비율" stroke="#22aa55" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="refresh_sessions" name="리프레시 세션" stroke="#e67e22" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="refresh_count" name="리프레시 횟수" stroke="#d35400" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -2242,7 +2231,7 @@ export default function Dashboard({ onClose }) {
       try {
         const refreshResult = await queryBigQuery(CPS_REFRESH_SQL(afterDate));
         if (refreshResult.rows?.length) {
-          const refreshRows = refreshResult.rows.map(r => ({ date: r.date, total_sessions: +r.total_sessions, refresh_sessions: +r.refresh_sessions, refresh_count: +r.refresh_count }));
+          const refreshRows = refreshResult.rows.map(r => ({ date: r.date, refresh_sessions: +r.refresh_sessions, refresh_count: +r.refresh_count }));
           saveCache(CPS_REFRESH_CACHE_KEY, refreshRows);
           setCpsRefreshCountData(refreshRows);
         }
