@@ -13,7 +13,7 @@ const SEARCH_CACHE_KEY = "ypx_search_cache_v7";
 // 최신 캐시 키만 유지, 구버전 자동 삭제
 const CURRENT_KEYS = new Set([
   CACHE_KEY, ORDER_CACHE_KEY, REGION_CACHE_KEY, AGE_CACHE_KEY, SEARCH_CACHE_KEY,
-  "ypx_cps_cache_v8", "ypx_cps_funnel_cache_v3", "ypx_cps_vendor_cache_v1", "ypx_region_ord_cache_v1",
+  "ypx_cps_cache_v8", "ypx_cps_funnel_cache_v3", "ypx_cps_vendor_cache_v1", "ypx_cps_refresh_cache_v1", "ypx_region_ord_cache_v1",
 ]);
 try {
   Object.keys(localStorage).forEach(k => {
@@ -148,6 +148,25 @@ const CPS_CVR_SQL = (afterDate, daily = false) =>
   LEFT JOIN order_sessions o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
   GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`;
 
+// 요기더적립 관 새로고침 SQL — 세션 내 page_show 2회 이상 = 새로고침
+const CPS_REFRESH_SQL = (afterDate) =>
+  `WITH session_views AS (
+    SELECT event_date, gauser_session_id,
+      COUNT(*) as view_cnt
+    FROM \`ygy-datawarehouse.edw.lst_ilog_event\`
+    WHERE event_date > '${afterDate}'
+      AND event_date < CURRENT_DATE('+09:00')
+      AND page_id = '/yogithe_home'
+      AND page_action = 'page_show'
+    GROUP BY 1, 2
+  )
+  SELECT event_date as date,
+    COUNT(*) as total_sessions,
+    COUNTIF(view_cnt >= 2) as refresh_sessions,
+    SUM(view_cnt) - COUNT(*) as refresh_count
+  FROM session_views
+  GROUP BY 1 ORDER BY 1`;
+
 // 요기더적립 관 퍼널 SQL
 const CPS_FUNNEL_SQL = (afterDate, daily = false) =>
   `SELECT ${daily ? 'event_date' : 'DATE_ADD(DATE_TRUNC(event_date, WEEK(MONDAY)), INTERVAL 6 DAY)'} as date,
@@ -205,6 +224,7 @@ const CPS_CATEGORY_SQL = (afterDate) =>
 const CPS_CACHE_KEY = "ypx_cps_cache_v8";
 const CPS_FUNNEL_CACHE_KEY = "ypx_cps_funnel_cache_v3";
 const CPS_VENDOR_CACHE_KEY = "ypx_cps_vendor_cache_v1";
+const CPS_REFRESH_CACHE_KEY = "ypx_cps_refresh_cache_v1";
 
 const INITIAL_DATA = [{"date":"2025-09-07","classic":23634,"naver":712814,"toss":623287,"direct_ypx":218962},{"date":"2025-09-14","classic":23294,"naver":714251,"toss":624943,"direct_ypx":220248},{"date":"2025-09-21","classic":22959,"naver":715506,"toss":627020,"direct_ypx":220223},{"date":"2025-09-28","classic":22630,"naver":719956,"toss":632051,"direct_ypx":216266},{"date":"2025-10-05","classic":22284,"naver":724122,"toss":636506,"direct_ypx":212836},{"date":"2025-10-12","classic":21973,"naver":733048,"toss":640784,"direct_ypx":209223},{"date":"2025-10-19","classic":21660,"naver":735838,"toss":642952,"direct_ypx":204497},{"date":"2025-10-26","classic":21340,"naver":737238,"toss":643360,"direct_ypx":201110},{"date":"2025-11-02","classic":20985,"naver":747497,"toss":646358,"direct_ypx":201698},{"date":"2025-11-09","classic":20568,"naver":757558,"toss":646379,"direct_ypx":199659},{"date":"2025-11-16","classic":20229,"naver":770270,"toss":646475,"direct_ypx":198381},{"date":"2025-11-23","classic":19931,"naver":774719,"toss":647412,"direct_ypx":199911},{"date":"2025-11-30","classic":19680,"naver":776463,"toss":647784,"direct_ypx":201315},{"date":"2025-12-07","classic":19279,"naver":780039,"toss":648176,"direct_ypx":199175},{"date":"2025-12-14","classic":19007,"naver":791676,"toss":648492,"direct_ypx":203038},{"date":"2025-12-21","classic":18738,"naver":815202,"toss":647780,"direct_ypx":203460},{"date":"2025-12-28","classic":18486,"naver":836587,"toss":648151,"direct_ypx":203876},{"date":"2026-01-04","classic":18226,"naver":851352,"toss":648495,"direct_ypx":204590},{"date":"2026-01-11","classic":18006,"naver":866774,"toss":648939,"direct_ypx":205115},{"date":"2026-01-18","classic":17793,"naver":887554,"toss":649238,"direct_ypx":204200},{"date":"2026-01-25","classic":17612,"naver":902592,"toss":649559,"direct_ypx":206690},{"date":"2026-02-01","classic":17457,"naver":912592,"toss":650036,"direct_ypx":208602},{"date":"2026-02-08","classic":17235,"naver":919061,"toss":650287,"direct_ypx":208732},{"date":"2026-02-15","classic":17000,"naver":915042,"toss":650675,"direct_ypx":209871},{"date":"2026-02-22","classic":16847,"naver":915224,"toss":651058,"direct_ypx":210932},{"date":"2026-03-01","classic":16607,"naver":921116,"toss":651520,"direct_ypx":214398},{"date":"2026-03-08","classic":16413,"naver":928254,"toss":652019,"direct_ypx":220614},{"date":"2026-03-15","classic":16229,"naver":931924,"toss":652301,"direct_ypx":222761},{"date":"2026-03-22","classic":16055,"naver":936882,"toss":652582,"direct_ypx":223868},{"date":"2026-03-29","classic":15895,"naver":957460,"toss":652769,"direct_ypx":221503},{"date":"2026-04-05","classic":15668,"naver":970964,"toss":653012,"direct_ypx":218669},{"date":"2026-04-12","classic":15487,"naver":974096,"toss":653455,"direct_ypx":220846},{"date":"2026-04-19","classic":15309,"naver":975609,"toss":653885,"direct_ypx":222073},{"date":"2026-04-26","classic":15155,"naver":982393,"toss":654175,"direct_ypx":216956},{"date":"2026-05-03","classic":14975,"naver":987700,"toss":654516,"direct_ypx":213161},{"date":"2026-05-10","classic":14795,"naver":988791,"toss":654892,"direct_ypx":213440},{"date":"2026-05-17","classic":14653,"naver":990011,"toss":655103,"direct_ypx":212563},{"date":"2026-05-24","classic":14514,"naver":990061,"toss":655268,"direct_ypx":209583},{"date":"2026-05-31","classic":14422,"naver":990286,"toss":655472,"direct_ypx":212470},{"date":"2026-06-07","classic":14162,"naver":990395,"toss":655570,"direct_ypx":214984},{"date":"2026-06-14","classic":14003,"naver":993261,"toss":655667,"direct_ypx":222066},{"date":"2026-06-21","classic":13850,"naver":996941,"toss":655833,"direct_ypx":225524},{"date":"2026-06-28","classic":13696,"naver":998161,"toss":655964,"direct_ypx":232215},{"date":"2026-07-05","classic":13498,"naver":999974,"toss":656099,"direct_ypx":237654},{"date":"2026-07-12","classic":13344,"naver":1001179,"toss":656201,"direct_ypx":238924},{"date":"2026-07-19","classic":13188,"naver":1001550,"toss":656287,"direct_ypx":240909},{"date":"2026-07-26","classic":13008,"naver":1001962,"toss":656355,"direct_ypx":247044},{"date":"2026-08-02","classic":12871,"naver":1001636,"toss":655961,"direct_ypx":269777},{"date":"2026-08-09","classic":12692,"naver":1003506,"toss":656165,"direct_ypx":273548},{"date":"2026-08-16","classic":12571,"naver":1003719,"toss":656346,"direct_ypx":273126},{"date":"2026-08-23","classic":12448,"naver":1004277,"toss":656492,"direct_ypx":275539},{"date":"2026-08-30","classic":12330,"naver":1004522,"toss":656629,"direct_ypx":280490}];
 
@@ -1506,7 +1526,7 @@ function OtpDisplay() {
 const CPS_SIDO_LIST = ['전체','경기도','서울특별시','인천광역시','경상남도','대구광역시','부산광역시','전북특별자치도','충청남도','전라남도','대전광역시','경상북도','광주광역시','충청북도','강원특별자치도','울산광역시','제주특별자치도','세종특별자치시'];
 const CPS_SIDO_SHORT = { '전체':'전체','경기도':'경기','서울특별시':'서울','인천광역시':'인천','경상남도':'경남','대구광역시':'대구','부산광역시':'부산','전북특별자치도':'전북','충청남도':'충남','전라남도':'전남','대전광역시':'대전','경상북도':'경북','광주광역시':'광주','충청북도':'충북','강원특별자치도':'강원','울산광역시':'울산','제주특별자치도':'제주','세종특별자치시':'세종' };
 
-function CpsContent({ cpsData, funnelData, vendorData = [], categoryData = [], cpsLoaded, refreshStatus, onRefresh, range }) {
+function CpsContent({ cpsData, funnelData, vendorData = [], categoryData = [], refreshCountData = [], cpsLoaded, refreshStatus, onRefresh, range }) {
   const [selectedSido, setSelectedSido] = useState("전체");
   const btnLabel = { loading: "⏳...", error: "❌ 재시도" }[refreshStatus] ?? (refreshStatus.startsWith("+") ? "✅ " + refreshStatus : "🔄 새로고침");
 
@@ -1752,6 +1772,54 @@ function CpsContent({ cpsData, funnelData, vendorData = [], categoryData = [], c
         </ResponsiveContainer>
       </div>
 
+      {/* 요기더적립 관 새로고침 추이 */}
+      {refreshCountData.length > 0 && (() => {
+        const filtered = filterByRange(refreshCountData, range);
+        const chartData = filtered.map(r => ({
+          date: dateLabel(r.date),
+          refresh_sessions: r.refresh_sessions,
+          refresh_count: r.refresh_count,
+          refresh_rate: r.total_sessions > 0 ? Math.round(r.refresh_sessions / r.total_sessions * 1000) / 10 : 0,
+        }));
+        const totalSessions = filtered.reduce((s, r) => s + r.total_sessions, 0);
+        const totalRefreshSessions = filtered.reduce((s, r) => s + r.refresh_sessions, 0);
+        const totalRefreshCount = filtered.reduce((s, r) => s + r.refresh_count, 0);
+        const avgRefreshRate = totalSessions > 0 ? Math.round(totalRefreshSessions / totalSessions * 1000) / 10 : 0;
+        return (
+          <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>요기더적립 관 새로고침 추이</div>
+            <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>세션 내 page_show 2회 이상 = 새로고침 (동일 세션에서 재진입)</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <div style={{ flex: 1, background: "#f8f9fd", borderRadius: 8, padding: "8px 12px" }}>
+                <div style={{ fontSize: 10, color: "#999" }}>새로고침 세션</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#e67e22" }}>{totalRefreshSessions.toLocaleString("ko-KR")}건</div>
+              </div>
+              <div style={{ flex: 1, background: "#fdf8f3", borderRadius: 8, padding: "8px 12px" }}>
+                <div style={{ fontSize: 10, color: "#999" }}>새로고침 횟수</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#d35400" }}>{totalRefreshCount.toLocaleString("ko-KR")}회</div>
+              </div>
+              <div style={{ flex: 1, background: "#f8fdf8", borderRadius: 8, padding: "8px 12px" }}>
+                <div style={{ fontSize: 10, color: "#999" }}>새로고침 비율</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#22aa55" }}>{avgRefreshRate}%</div>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={chartData} margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 9 }} interval={xInterval(chartData.length)} />
+                <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? (v/10000).toFixed(0) + "만" : v.toLocaleString("ko-KR")} tick={{ fontSize: 9 }} width={45} />
+                <YAxis yAxisId="right" orientation="right" tickFormatter={v => v + "%"} tick={{ fontSize: 9 }} width={40} domain={[0, 'auto']} />
+                <Tooltip formatter={(v, name) => [name === "새로고침 비율" ? v + "%" : (+v).toLocaleString("ko-KR") + (name.includes("횟수") ? "회" : "건"), name]} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Line yAxisId="left" type="monotone" dataKey="refresh_sessions" name="새로고침 세션" stroke="#e67e22" strokeWidth={2} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="refresh_count" name="새로고침 횟수" stroke="#d35400" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
+                <Line yAxisId="right" type="monotone" dataKey="refresh_rate" name="새로고침 비율" stroke="#22aa55" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
+
       {/* 최신 주 퍼널 요약 */}
       {lastFunnel && (
         <div style={{ background: "white", borderRadius: 10, padding: "14px 16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
@@ -1937,6 +2005,7 @@ export default function Dashboard({ onClose }) {
   const [cpsData, setCpsData] = useState([]);
   const [cpsFunnelData, setCpsFunnelData] = useState([]);
   const [cpsVendorData, setCpsVendorData] = useState([]);
+  const [cpsRefreshCountData, setCpsRefreshCountData] = useState([]);
   const [cpsCategoryData, setCpsCategoryData] = useState([]);
   const [cpsLoaded, setCpsLoaded] = useState(false);
   const [cpsRefreshStatus, setCpsRefreshStatus] = useState("idle");
@@ -1982,6 +2051,8 @@ export default function Dashboard({ onClose }) {
     if (cachedFunnel.length) setCpsFunnelData(cachedFunnel);
     const cachedVendor = loadCache(CPS_VENDOR_CACHE_KEY);
     if (cachedVendor.length) setCpsVendorData(cachedVendor);
+    const cachedRefreshCount = loadCache(CPS_REFRESH_CACHE_KEY);
+    if (cachedRefreshCount.length) setCpsRefreshCountData(cachedRefreshCount);
   }, []);
 
   const toggleSeries = useCallback((id) => {
@@ -2167,6 +2238,15 @@ export default function Dashboard({ onClose }) {
         const funnelData = Object.values(funnelMap).sort((a, b) => a.date.localeCompare(b.date));
         if (funnelData.length) { saveCache(CPS_FUNNEL_CACHE_KEY, funnelData); setCpsFunnelData(funnelData); }
       } catch (e) { console.warn("funnel query failed:", e.message); }
+      // 새로고침 쿼리
+      try {
+        const refreshResult = await queryBigQuery(CPS_REFRESH_SQL(afterDate));
+        if (refreshResult.rows?.length) {
+          const refreshRows = refreshResult.rows.map(r => ({ date: r.date, total_sessions: +r.total_sessions, refresh_sessions: +r.refresh_sessions, refresh_count: +r.refresh_count }));
+          saveCache(CPS_REFRESH_CACHE_KEY, refreshRows);
+          setCpsRefreshCountData(refreshRows);
+        }
+      } catch (e) { console.warn("refresh query failed:", e.message); }
       // 매장 수 + 카테고리 쿼리 (병렬)
       try {
         const [vendorResult, catResult] = await Promise.all([
@@ -2294,7 +2374,7 @@ export default function Dashboard({ onClose }) {
             <SearchContent searchData={searchData} setSearchData={setSearchData} searchKeywords={searchKeywords} setSearchKeywords={setSearchKeywords} searchLoaded={searchLoaded} refreshStatus={searchRefreshStatus} onRefresh={refreshSearch} range={globalRange} />
           )}
           {activeTab === "cps" && (
-            <CpsContent cpsData={cpsData} funnelData={cpsFunnelData} vendorData={cpsVendorData} categoryData={cpsCategoryData} cpsLoaded={cpsLoaded} refreshStatus={cpsRefreshStatus} onRefresh={refreshCps} range={globalRange} />
+            <CpsContent cpsData={cpsData} funnelData={cpsFunnelData} vendorData={cpsVendorData} categoryData={cpsCategoryData} refreshCountData={cpsRefreshCountData} cpsLoaded={cpsLoaded} refreshStatus={cpsRefreshStatus} onRefresh={refreshCps} range={globalRange} />
           )}
           {activeTab === "challenge" && (
             <ChallengeContent range={globalRange} />
