@@ -148,7 +148,7 @@ const CPS_CVR_SQL = (afterDate, daily = false) =>
   LEFT JOIN order_sessions o ON c.gauser_session_id = o.gauser_session_id AND c.vendor_id = o.vendor_id
   GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`;
 
-// 요기더적립 관 풀투리프레시 SQL — pull-to-refresh 액션만 집계
+// 요기더적립 관 리프레시 SQL — click.header.refresh 액션만 집계
 const CPS_REFRESH_SQL = (afterDate) =>
   `SELECT event_date as date,
     COUNT(*) as refresh_count,
@@ -157,7 +157,7 @@ const CPS_REFRESH_SQL = (afterDate) =>
   WHERE event_date > '${afterDate}'
     AND event_date < CURRENT_DATE('+09:00')
     AND page_id = '/yogithe_home'
-    AND LOWER(page_action) LIKE '%refresh%'
+    AND page_action = 'click.header.refresh'
   GROUP BY 1 ORDER BY 1`;
 
 // 요기더적립 관 퍼널 SQL
@@ -1779,7 +1779,7 @@ function CpsContent({ cpsData, funnelData, vendorData = [], categoryData = [], r
         return (
           <div style={{ background: "white", borderRadius: 10, padding: "16px", marginBottom: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#444", marginBottom: 4 }}>요기더적립 관 풀투리프레시 추이</div>
-            <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>pull-to-refresh 액션 기준 (page_action LIKE '%refresh%')</div>
+            <div style={{ fontSize: 10, color: "#bbb", marginBottom: 12 }}>click.header.refresh 액션 기준 (헤더 새로고침 버튼 클릭)</div>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <div style={{ flex: 1, background: "#f8f9fd", borderRadius: 8, padding: "8px 12px" }}>
                 <div style={{ fontSize: 10, color: "#999" }}>리프레시 세션</div>
